@@ -1,0 +1,28 @@
+{
+  "name": "qdedit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A standalone local markdown editor with rich fence rendering and LLM chat support",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.2",
+    "typescript": "^6.0.3",
+    "vite": "^6.4.2"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.11.0",
+    "@tauri-apps/plugin-dialog": "^2.7.1",
+    "@tauri-apps/plugin-fs": "^2.5.1",
+    "@tauri-apps/plugin-shell": "^2.3.5",
+    "quikdown": "^1.2.17"
+  }
+}

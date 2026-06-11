@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/icon.png" />
+  <title>qdedit</title>
+  <style>
+    /* ─────────────────────────────────────────────────────────────────────
+       Modern Desktop App Design
+       Inspired by Linear, Notion, VS Code
+    ───────────────────────────────────────────────────────────────────── */
+
+    :root {
+      /* Light theme colors */
+      --bg-primary: #ffffff;
+      --bg-secondary: #f8f9fa;
+      --bg-tertiary: #f0f2f5;
+      --border-primary: #e1e4e8;
+      --border-secondary: #d1d5da;
+      --text-primary: #1f2937;
+      --text-secondary: #6b7280;
+      --text-tertiary: #9ca3af;
+      --accent-primary: #6366f1;
+      --accent-hover: #4f46e5;
+      --accent-active: #4338ca;
+      --success: #10b981;
+      --danger: #ef4444;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      --radius-sm: 6px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+    }
+
+    .dark {
+      --bg-primary: #0f1419;
+      --bg-secondary: #1a1f29;
+      --bg-tertiary: #242b38;
+      --border-primary: #2d3748;
+      --border-secondary: #3d4556;
+      --text-primary: #e2e8f0;
+      --text-secondary: #a0aec0;
+      --text-tertiary: #718096;
+      --accent-primary: #818cf8;
+      --accent-hover: #a5b4fc;
+      --accent-active: #c7d2fe;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+      --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       Title Bar - Modern, Minimal
+    ═══════════════════════════════════════════════════════════════════ */
+    #titlebar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 48px;
+      padding: 0 16px;
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border-primary);
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-app-region: drag;
+      transition: all 0.2s ease;
+    }
+
+    #titlebar-left, #titlebar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      -webkit-app-region: no-drag;
+    }
+
+    #app-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      letter-spacing: -0.01em;
+      color: var(--text-primary);
+      margin-right: 8px;
+    }
+
+    #app-logo {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+      transition: transform 0.2s ease;
+    }
+
+    #app-logo:hover {
+      transform: scale(1.05);
+    }
+
+    .titlebar-btn {
+      background: transparent;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      color: var(--text-secondary);
+      transition: all 0.15s ease;
+      height: 32px;
+    }
+
+    .titlebar-btn:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .titlebar-btn:active {
+      transform: scale(0.97);
+    }
+
+    .titlebar-btn.active {
+      background: var(--accent-primary);
+      color: white;
+    }
+
+    .titlebar-btn.active:hover {
+      background: var(--accent-hover);
+    }
+
+    #llm-status {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      font-weight: 500;
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-secondary);
+    }
+
+    /* ─── Dropdown Menu ─── */
+    .titlebar-menu {
+      position: relative;
+    }
+
+    .titlebar-dropdown {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      margin-top: 4px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      min-width: 180px;
+      padding: 4px;
+      z-index: 100;
+      animation: fadeIn 0.1s ease;
+    }
+
+    .titlebar-dropdown.open {
+      display: block;
+    }
+
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 8px 12px;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--text-primary);
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.1s ease;
+    }
+
+    .dropdown-item:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .dropdown-label {
+      font-weight: 500;
+    }
+
+    .dropdown-shortcut {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      margin-left: 24px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       Main Content Area
+    ═══════════════════════════════════════════════════════════════════ */
+    #main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      background: var(--bg-primary);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       Chat Panel - Modern Chat UI
+    ═══════════════════════════════════════════════════════════════════ */
+    #chat-panel {
+      width: 400px;
+      min-width: 300px;
+      max-width: 600px;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border-primary);
+      background: var(--bg-secondary);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    #chat-panel.hidden {
+      display: none;
+    }
+
+    #chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    #chat-messages::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    #chat-messages::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    #chat-messages::-webkit-scrollbar-thumb {
+      background: var(--border-secondary);
+      border-radius: 4px;
+    }
+
+    #chat-messages::-webkit-scrollbar-thumb:hover {
+      background: var(--text-tertiary);
+    }
+
+    #chat-input-area {
+      display: flex;
+      padding: 16px;
+      gap: 8px;
+      border-top: 1px solid var(--border-primary);
+      background: var(--bg-primary);
+    }
+
+    #chat-input {
+      flex: 1;
+      padding: 12px 14px;
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      line-height: 1.5;
+      resize: none;
+      font-family: inherit;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      transition: all 0.15s ease;
+    }
+
+    #chat-input:focus {
+      outline: none;
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
+    #chat-input::placeholder {
+      color: var(--text-tertiary);
+    }
+
+    #chat-send {
+      padding: 0 20px;
+      background: var(--accent-primary);
+      color: white;
+      border: none;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.15s ease;
+      box-shadow: var(--shadow-sm);
+      height: 40px;
+    }
+
+    #chat-send:hover {
+      background: var(--accent-hover);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-1px);
+    }
+
+    #chat-send:active {
+      transform: translateY(0);
+      box-shadow: var(--shadow-sm);
+    }
+
+    #chat-send:disabled {
+      background: var(--border-secondary);
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+      opacity: 0.6;
+    }
+
+    #chat-send.stop-mode {
+      background: var(--danger);
+      border-color: var(--danger);
+    }
+
+    #chat-send.stop-mode:hover {
+      background: #dc2626;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       Chat Messages - Modern Bubble Design
+    ═══════════════════════════════════════════════════════════════════ */
+    .chat-msg {
+      padding: 12px 16px;
+      border-radius: var(--radius-lg);
+      font-size: 14px;
+      line-height: 1.6;
+      max-width: 85%;
+      word-wrap: break-word;
+      animation: slideIn 0.2s ease;
+      box-shadow: var(--shadow-sm);
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .chat-msg.user {
+      background: var(--accent-primary);
+      color: white;
+      margin-left: auto;
+      border-bottom-right-radius: 4px;
+    }
+
+    .chat-msg.assistant {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      border: 1px solid var(--border-primary);
+      border-bottom-left-radius: 4px;
+    }
+
+    .chat-msg.tool {
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-family: "SF Mono", "Monaco", "Menlo", "Consolas", monospace;
+      border: 1px solid var(--border-primary);
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      max-width: 100%;
+      margin: 4px 0;
+      box-shadow: none;
+    }
+
+    /* Quikdown markdown rendering inside assistant chat bubbles */
+    .chat-msg.assistant p {
+      margin: 0.6em 0;
+    }
+    .chat-msg.assistant p:first-child { margin-top: 0; }
+    .chat-msg.assistant p:last-child { margin-bottom: 0; }
+
+    .chat-msg.assistant h1, .chat-msg.assistant h2, .chat-msg.assistant h3,
+    .chat-msg.assistant h4, .chat-msg.assistant h5, .chat-msg.assistant h6 {
+      margin: 0.8em 0 0.4em;
+      font-weight: 600;
+      line-height: 1.3;
+      color: var(--text-primary);
+    }
+    .chat-msg.assistant h1 { font-size: 1.3em; }
+    .chat-msg.assistant h2 { font-size: 1.2em; }
+    .chat-msg.assistant h3 { font-size: 1.1em; }
+
+    .chat-msg.assistant ul, .chat-msg.assistant ol {
+      margin: 0.5em 0;
+      padding-left: 1.5em;
+    }
+    .chat-msg.assistant li {
+      margin: 0.25em 0;
+    }
+
+    .chat-msg.assistant code {
+      background: var(--bg-tertiary);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.9em;
+      font-family: "SF Mono", "Monaco", "Menlo", "Consolas", monospace;
+      border: 1px solid var(--border-primary);
+    }
+
+    .chat-msg.assistant pre {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-primary);
+      padding: 12px;
+      border-radius: var(--radius-md);
+      overflow-x: auto;
+      margin: 0.8em 0;
+      font-size: 0.85em;
+    }
+
+    .chat-msg.assistant pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      font-size: inherit;
+    }
+
+    .chat-msg.assistant blockquote {
+      border-left: 3px solid var(--accent-primary);
+      margin: 0.6em 0;
+      padding: 0.3em 1em;
+      color: var(--text-secondary);
+      background: var(--bg-tertiary);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    }
+
+    .chat-msg.assistant table {
+      border-collapse: collapse;
+      margin: 0.8em 0;
+      font-size: 0.9em;
+      width: 100%;
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+
+    .chat-msg.assistant th, .chat-msg.assistant td {
+      border: 1px solid var(--border-primary);
+      padding: 8px 12px;
+      text-align: left;
+    }
+
+    .chat-msg.assistant th {
+      background: var(--bg-tertiary);
+      font-weight: 600;
+    }
+
+    .chat-msg.assistant strong {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .chat-msg.assistant a {
+      color: var(--accent-primary);
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+      transition: border-color 0.15s ease;
+    }
+
+    .chat-msg.assistant a:hover {
+      border-bottom-color: var(--accent-primary);
+    }
+
+    /* Streaming cursor indicator */
+    .chat-msg.assistant.streaming::after {
+      content: "▋";
+      animation: blink 0.8s ease-in-out infinite;
+      margin-left: 2px;
+      opacity: 0.6;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 0; }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       Editor Area
+    ═══════════════════════════════════════════════════════════════════ */
+    #editor-container {
+      flex: 1;
+      overflow: hidden;
+      background: var(--bg-primary);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       Status Bar - Subtle and Modern
+    ═══════════════════════════════════════════════════════════════════ */
+    #statusbar {
+      display: flex;
+      align-items: center;
+      height: 28px;
+      padding: 0 16px;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border-primary);
+      font-size: 11px;
+      color: var(--text-tertiary);
+      gap: 16px;
+      font-weight: 500;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       Settings Modal - Clean Card Design
+    ═══════════════════════════════════════════════════════════════════ */
+    #settings-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      animation: fadeIn 0.2s ease;
+    }
+
+    #settings-overlay.open {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    #settings-modal {
+      background: var(--bg-primary);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      width: 520px;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-xl);
+      border: 1px solid var(--border-primary);
+      animation: scaleIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    @keyframes scaleIn {
+      from {
+        opacity: 0;
+        transform: scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    #settings-modal h2 {
+      margin: 0 0 24px;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+    }
+
+    #settings-modal label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      margin: 20px 0 8px;
+      color: var(--text-primary);
+    }
+
+    #settings-modal input, #settings-modal select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      font-family: inherit;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      transition: all 0.15s ease;
+    }
+
+    #settings-modal input:focus, #settings-modal select:focus {
+      outline: none;
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+      background: var(--bg-primary);
+    }
+
+    #settings-modal .hint {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      margin-top: 6px;
+      line-height: 1.5;
+    }
+
+    #settings-modal .btn-row {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border-primary);
+    }
+
+    #settings-modal button {
+      padding: 10px 20px;
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      transition: all 0.15s ease;
+    }
+
+    #settings-modal button:hover {
+      background: var(--bg-tertiary);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-sm);
+    }
+
+    #settings-modal button:active {
+      transform: translateY(0);
+    }
+
+    #settings-modal button.primary {
+      background: var(--accent-primary);
+      color: white;
+      border-color: var(--accent-primary);
+    }
+
+    #settings-modal button.primary:hover {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+      box-shadow: var(--shadow-md);
+    }
+
+    #models-list {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 8px;
+      max-height: 150px;
+      overflow-y: auto;
+      padding: 8px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-sm);
+    }
+
+    #models-list a {
+      display: block;
+      padding: 6px 8px;
+      color: var(--accent-primary);
+      text-decoration: none;
+      border-radius: var(--radius-sm);
+      transition: all 0.15s ease;
+    }
+
+    #models-list a:hover {
+      background: var(--bg-tertiary);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       About Modal
+    ═══════════════════════════════════════════════════════════════════ */
+    #about-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      animation: fadeIn 0.2s ease;
+    }
+
+    #about-overlay.open {
+      display: flex;
+    }
+
+    #about-modal {
+      background: var(--bg-primary);
+      border-radius: var(--radius-lg);
+      padding: 40px;
+      width: 420px;
+      box-shadow: var(--shadow-xl);
+      border: 1px solid var(--border-primary);
+      animation: scaleIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      text-align: center;
+    }
+
+    #about-modal .about-logo {
+      width: 72px;
+      height: 72px;
+      border-radius: 16px;
+      box-shadow: var(--shadow-md);
+      margin-bottom: 20px;
+    }
+
+    #about-modal .about-name {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    #about-modal .about-version {
+      font-size: 13px;
+      color: var(--text-tertiary);
+      font-weight: 500;
+      margin-bottom: 20px;
+    }
+
+    #about-modal .about-desc {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+
+    #about-modal .about-links {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    #about-modal .about-links a {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent-primary);
+      text-decoration: none;
+      transition: color 0.15s ease;
+    }
+
+    #about-modal .about-links a:hover {
+      color: var(--accent-hover);
+    }
+
+    #about-modal .about-copyright {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      padding-top: 20px;
+      border-top: 1px solid var(--border-primary);
+    }
+
+    #about-modal .about-license {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      margin-top: 6px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       File Tree Sidebar
+    ═══════════════════════════════════════════════════════════════════ */
+    #file-tree {
+      width: 200px;
+      min-width: 160px;
+      max-width: 320px;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border-primary);
+      background: var(--bg-secondary);
+      overflow: hidden;
+    }
+
+    #file-tree.hidden {
+      display: none;
+    }
+
+    #file-tree-header {
+      padding: 10px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-tertiary);
+      border-bottom: 1px solid var(--border-primary);
+      user-select: none;
+    }
+
+    #file-tree-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 4px 0;
+    }
+
+    .file-tree-item {
+      padding: 4px 14px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: all 0.1s ease;
+      user-select: none;
+    }
+
+    .file-tree-item:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .file-tree-item.active {
+      background: var(--accent-primary);
+      color: white;
+    }
+
+    .file-tree-item.dir {
+      font-weight: 600;
+      color: var(--text-primary);
+      cursor: default;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       Scrollbar Styling
+    ═══════════════════════════════════════════════════════════════════ */
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-secondary);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-secondary);
+      border-radius: 5px;
+      border: 2px solid var(--bg-secondary);
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-tertiary);
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="titlebar">
+      <div id="titlebar-left">
+        <span id="app-title">
+          <img id="app-logo" src="/icon.png" alt="qdedit" />
+          qdedit
+        </span>
+        <div class="titlebar-menu">
+          <button class="titlebar-btn" id="btn-file-menu">File</button>
+          <div class="titlebar-dropdown" id="file-menu-dropdown">
+            <button class="dropdown-item" id="btn-open"><span class="dropdown-label">Open</span><span class="dropdown-shortcut">Cmd+O</span></button>
+            <button class="dropdown-item" id="btn-save"><span class="dropdown-label">Save</span><span class="dropdown-shortcut">Cmd+S</span></button>
+          </div>
+        </div>
+        <button class="titlebar-btn" id="btn-toggle-chat">Chat</button>
+        <button class="titlebar-btn" id="btn-toggle-files" style="display:none;">Files</button>
+      </div>
+      <div id="titlebar-right">
+        <span id="llm-status"></span>
+        <button class="titlebar-btn" id="btn-settings">Settings</button>
+        <button class="titlebar-btn" id="btn-about">About</button>
+      </div>
+    </div>
+
+    <div id="main">
+      <div id="file-tree" class="hidden">
+        <div id="file-tree-header">Files</div>
+        <div id="file-tree-list"></div>
+      </div>
+
+      <div id="chat-panel" class="hidden">
+        <div id="chat-messages"></div>
+        <div id="chat-input-area">
+          <textarea id="chat-input" rows="2" placeholder="Ask the LLM..."></textarea>
+          <button id="chat-send">Send</button>
+        </div>
+      </div>
+
+      <div id="editor-container"></div>
+    </div>
+
+    <div id="statusbar">
+      <span id="status-file">No file open</span>
+      <span id="status-provider">LLM: none</span>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-overlay">
+    <div id="settings-modal">
+      <h2>LLM Settings</h2>
+
+      <label for="set-provider">Provider</label>
+      <select id="set-provider">
+        <option value="openai-compatible">OpenAI-compatible (Ollama, OpenRouter, LM Studio, Groq, ...)</option>
+        <option value="anthropic">Anthropic (Claude)</option>
+      </select>
+
+      <label for="set-host">Host URL</label>
+      <input id="set-host" type="text" placeholder="http://192.168.1.50:11434/v1" />
+      <div class="hint">Full base URL. Ollama default: http://localhost:11434/v1 — OpenRouter: https://openrouter.ai/api/v1</div>
+
+      <label for="set-api-key">API Key</label>
+      <input id="set-api-key" type="password" placeholder="sk-... (leave blank for local models)" />
+      <div class="hint">Not needed for local Ollama. Required for OpenRouter, OpenAI, Anthropic.</div>
+
+      <label for="set-model">Model</label>
+      <div style="display:flex; gap:8px;">
+        <input id="set-model" type="text" placeholder="llama3, gpt-4o, claude-sonnet-4-20250514, ..." style="flex:1;" />
+        <button id="settings-fetch-models" style="white-space:nowrap;">Fetch Models</button>
+      </div>
+      <div class="hint">Model name as the provider expects it. Click "Fetch Models" to list available models from the host.</div>
+      <div id="models-list"></div>
+
+      <div class="btn-row">
+        <button id="settings-cancel">Cancel</button>
+        <button id="settings-save" class="primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- About Modal -->
+  <div id="about-overlay">
+    <div id="about-modal">
+      <img class="about-logo" src="/icon.png" alt="qdedit" />
+      <div class="about-name">qdedit</div>
+      <div class="about-version">Version 0.1.0</div>
+      <div class="about-desc">
+        A cross-platform markdown editor with rich fence rendering,
+        live preview, and LLM chat integration.
+        Powered by <strong>quikdown</strong>.
+      </div>
+      <div class="about-links">
+        <a href="https://github.com/deftio/qdedit" target="_blank">qdedit on GitHub</a>
+        <a href="https://github.com/deftio/quikdown" target="_blank">quikdown on GitHub</a>
+      </div>
+      <div class="about-copyright">&copy; 2026 deftio. All rights reserved.</div>
+      <div class="about-license">BSD 2-Clause License</div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
