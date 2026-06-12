@@ -9,7 +9,7 @@
   "homepage": "https://github.com/deftio/qdedit",
   "repository": {
     "type": "git",
-    "url": "https://github.com/deftio/qdedit.git"
+    "url": "git+https://github.com/deftio/qdedit.git"
   },
   "bugs": {
     "url": "https://github.com/deftio/qdedit/issues"
