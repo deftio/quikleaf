@@ -1,7 +1,7 @@
 {
   "name": "qdedit",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "type": "module",
   "description": "A standalone, cross-platform desktop markdown editor with rich rendering and LLM chat integration",
   "author": "deftio <deftio@deftio.com>",
