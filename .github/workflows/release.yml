@@ -13,12 +13,24 @@ jobs:
         include:
           - platform: macos-latest
             target: aarch64-apple-darwin
+            npm-pkg: darwin-arm64
+            binary: qdedit
+            binary-path: src-tauri/target/aarch64-apple-darwin/release/qdedit
           - platform: macos-latest
             target: x86_64-apple-darwin
+            npm-pkg: darwin-x64
+            binary: qdedit
+            binary-path: src-tauri/target/x86_64-apple-darwin/release/qdedit
           - platform: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
+            npm-pkg: linux-x64
+            binary: qdedit
+            binary-path: src-tauri/target/x86_64-unknown-linux-gnu/release/qdedit
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
+            npm-pkg: win32-x64
+            binary: qdedit.exe
+            binary-path: src-tauri/target/x86_64-pc-windows-msvc/release/qdedit.exe
 
     runs-on: ${{ matrix.platform }}
 
@@ -67,6 +79,96 @@ jobs:
             | macOS (Intel) | `.dmg` |
             | Windows | `.msi` / `.exe` |
             | Linux | `.deb` / `.AppImage` |
+
+            ## npm
+            ```bash
+            npm install -g qdedit
+            # or
+            npx qdedit
+            ```
           releaseDraft: true
           prerelease: false
           args: --target ${{ matrix.target }}
+
+      - name: Prepare npm binary package
+        shell: bash
+        run: |
+          mkdir -p npm/${{ matrix.npm-pkg }}/bin
+          cp ${{ matrix.binary-path }} npm/${{ matrix.npm-pkg }}/bin/${{ matrix.binary }}
+          chmod +x npm/${{ matrix.npm-pkg }}/bin/${{ matrix.binary }} 2>/dev/null || true
+
+      - name: Upload npm package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-${{ matrix.npm-pkg }}
+          path: npm/${{ matrix.npm-pkg }}/
+
+  publish-npm:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+
+      - name: Get version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Download all npm artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      # Publish each platform package
+      - name: Publish @deftio/qdedit-darwin-arm64
+        working-directory: artifacts/npm-darwin-arm64
+        run: |
+          jq '.version = "${{ steps.version.outputs.version }}"' package.json > tmp.json && mv tmp.json package.json
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @deftio/qdedit-darwin-x64
+        working-directory: artifacts/npm-darwin-x64
+        run: |
+          jq '.version = "${{ steps.version.outputs.version }}"' package.json > tmp.json && mv tmp.json package.json
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @deftio/qdedit-linux-x64
+        working-directory: artifacts/npm-linux-x64
+        run: |
+          jq '.version = "${{ steps.version.outputs.version }}"' package.json > tmp.json && mv tmp.json package.json
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @deftio/qdedit-win32-x64
+        working-directory: artifacts/npm-win32-x64
+        run: |
+          jq '.version = "${{ steps.version.outputs.version }}"' package.json > tmp.json && mv tmp.json package.json
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Publish the main wrapper package
+      - name: Publish qdedit
+        working-directory: npm/qdedit
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          # Update version in wrapper and all optionalDependencies
+          jq --arg v "$VERSION" '
+            .version = $v |
+            .optionalDependencies = (.optionalDependencies | to_entries | map(.value = $v) | from_entries)
+          ' package.json > tmp.json && mv tmp.json package.json
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,0 +1,50 @@
+# qdedit
+
+> A standalone, cross-platform desktop markdown editor with rich rendering and LLM chat integration.
+
+## What is qdedit?
+
+qdedit is a native desktop application built with Tauri v2 (Rust backend + webview frontend) and powered by quikdown for markdown rendering. It provides:
+
+- Rich markdown editing with live preview
+- Built-in LLM chat assistant ("QD") with tool calling
+- Support for Mermaid diagrams, LaTeX math, GeoJSON maps, 3D STL, CSV tables, Vega charts, ABC music notation, SVG
+- Project mode with file tree, persistent memory, and key-value store
+- Auto-detection of local LLM servers (Ollama, LM Studio)
+- Support for OpenAI-compatible APIs and Anthropic Claude
+
+## Architecture
+
+- Backend: Rust (Tauri v2) — handles file I/O, CLI parsing, LLM API proxying
+- Frontend: TypeScript (Vite) — runs in Tauri's webview
+- Rendering: quikdown standalone bundle (~8 MB) with all fence renderers included
+- LLM: Tool-calling loop with 20+ tools for document/memory/KV/file operations
+
+## Key Files
+
+- src-tauri/src/commands/llm.rs — LLM API proxy with streaming
+- src-tauri/src/commands/project.rs — Project state, memory, KV, file tools
+- src-tauri/src/commands/fs.rs — File I/O commands
+- src/chat/chat-ui.ts — Chat UI, tool dispatch, slash commands
+- src/chat/providers.ts — LLM provider adapters (OpenAI, Anthropic)
+- src/editor/editor.ts — quikdown editor wrapper
+- src/settings/settings.ts — LLM configuration UI
+- src/main.ts — App initialization, file operations
+
+## LLM Integration Details
+
+The LLM operates on raw markdown only — it never sees or produces HTML. API calls are proxied through the Rust backend to avoid CORS and protect API keys. The tool-calling loop has a 60-second timeout per call and supports abort via stop button.
+
+### Available Tools
+
+Document: document_read, document_write, document_replace, document_insert, document_undo, document_redo, document_get_selection
+Memory: memory_read, memory_write, memory_append, memory_clear
+Key-Value: kv_get, kv_set, kv_delete, kv_list
+File (project mode): file_read, file_write, file_list, file_stat
+
+## Links
+
+- Source: https://github.com/deftio/qdedit
+- quikdown: https://github.com/deftio/quikdown
+- License: BSD-2-Clause
+- Author: deftio (deftio@deftio.com)

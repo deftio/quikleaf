@@ -6,9 +6,9 @@ use tauri::Manager;
 
 pub struct LaunchInfo(pub LaunchMode);
 
-fn parse_cli_args() -> LaunchMode {
-    let args: Vec<String> = std::env::args().collect();
-
+/// Parse CLI args from a provided slice (testable without std::env::args).
+pub fn parse_cli_args_from(args: &[String], cwd: &Path) -> LaunchMode {
+    // Check for --project
     if let Some(pos) = args.iter().position(|x| x == "--project") {
         if pos + 1 < args.len() {
             let path_str = &args[pos + 1];
@@ -16,9 +16,7 @@ fn parse_cli_args() -> LaunchMode {
             let absolute_path = if path.is_absolute() {
                 path.to_path_buf()
             } else {
-                std::env::current_dir()
-                    .unwrap_or_else(|_| PathBuf::from("."))
-                    .join(path)
+                cwd.join(path)
             };
 
             if absolute_path.is_dir() {
@@ -48,9 +46,7 @@ fn parse_cli_args() -> LaunchMode {
         let absolute_path = if path.is_absolute() {
             path.to_path_buf()
         } else {
-            std::env::current_dir()
-                .unwrap_or_else(|_| PathBuf::from("."))
-                .join(path)
+            cwd.join(path)
         };
         return LaunchMode::Simple {
             file_path: Some(absolute_path.to_string_lossy().to_string()),
@@ -58,6 +54,12 @@ fn parse_cli_args() -> LaunchMode {
     }
 
     LaunchMode::Simple { file_path: None }
+}
+
+fn parse_cli_args() -> LaunchMode {
+    let args: Vec<String> = std::env::args().collect();
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    parse_cli_args_from(&args, &cwd)
 }
 
 #[tauri::command]

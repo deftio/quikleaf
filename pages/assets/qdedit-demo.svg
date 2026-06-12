@@ -1,0 +1,285 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+  <defs>
+    <linearGradient id="hero" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#667eea"/>
+      <stop offset="100%" stop-color="#764ba2"/>
+    </linearGradient>
+    <linearGradient id="mermaid-arrow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#667eea"/>
+      <stop offset="100%" stop-color="#764ba2"/>
+    </linearGradient>
+    <clipPath id="editor-clip"><rect x="0" y="36" width="960" height="504" rx="0"/></clipPath>
+    <style>
+      .mono { font-family: ui-monospace,'SF Mono',Monaco,'Cascadia Code',Consolas,monospace; }
+      .title-text { font-size: 13px; font-weight: 700; fill: white; }
+      .title-btn { fill: rgba(255,255,255,0.25); }
+      .title-btn:hover { fill: rgba(255,255,255,0.4); }
+      .src-line { font-size: 12px; fill: #abb2bf; }
+      .src-keyword { fill: #c678dd; }
+      .src-string { fill: #98c379; }
+      .src-comment { fill: #5c6370; font-style: italic; }
+      .src-heading { fill: #e5c07b; font-weight: 700; }
+      .src-fence { fill: #61afef; }
+      .src-bold { fill: #d19a66; font-weight: 700; }
+      .preview-h2 { font-size: 18px; font-weight: 700; fill: #1f2937; }
+      .preview-p { font-size: 13px; fill: #4b5563; }
+      .preview-code { font-size: 11px; fill: #e6e6f0; }
+      .line-num { font-size: 11px; fill: #4b5563; text-anchor: end; }
+
+      /* Cursor blink */
+      @keyframes blink { 0%,49% { opacity: 1; } 50%,100% { opacity: 0; } }
+      .cursor { animation: blink 1.1s step-end infinite; }
+
+      /* Fade-in for preview elements */
+      @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+      .fade-1 { animation: fadeIn 0.5s ease 0.3s both; }
+      .fade-2 { animation: fadeIn 0.5s ease 0.6s both; }
+      .fade-3 { animation: fadeIn 0.5s ease 0.9s both; }
+      .fade-4 { animation: fadeIn 0.5s ease 1.2s both; }
+      .fade-5 { animation: fadeIn 0.5s ease 1.5s both; }
+
+      /* Mermaid node pulse */
+      @keyframes pulse { 0%,100% { opacity: 0.9; } 50% { opacity: 1; } }
+      .mermaid-node { animation: pulse 3s ease-in-out infinite; }
+
+      /* Data flow dot */
+      @keyframes flowDot { 0% { opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { opacity: 0; } }
+
+      /* Chart bar grow */
+      @keyframes growBar { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+
+      /* Math fade */
+      @keyframes mathFade { 0%,100% { opacity: 0.85; } 50% { opacity: 1; } }
+      .math-glow { animation: mathFade 4s ease-in-out infinite; }
+    </style>
+  </defs>
+
+  <!-- Window chrome -->
+  <rect width="960" height="540" rx="10" fill="#1e1e2e"/>
+  <rect width="960" height="36" rx="10" fill="url(#hero)"/>
+  <rect y="26" width="960" height="10" fill="url(#hero)"/>
+
+  <!-- Traffic lights -->
+  <circle cx="18" cy="18" r="6" fill="#ff5f57"/>
+  <circle cx="38" cy="18" r="6" fill="#febc2e"/>
+  <circle cx="58" cy="18" r="6" fill="#28c840"/>
+
+  <!-- Title -->
+  <text x="480" y="22" text-anchor="middle" class="title-text">qdedit — demo.md</text>
+
+  <!-- Titlebar buttons -->
+  <rect x="820" y="8" width="50" height="20" rx="4" class="title-btn"/>
+  <text x="845" y="22" text-anchor="middle" font-size="10" fill="white" font-weight="600">QD</text>
+  <rect x="878" y="8" width="60" height="20" rx="4" class="title-btn"/>
+  <text x="908" y="22" text-anchor="middle" font-size="10" fill="white" font-weight="600">Settings</text>
+
+  <!-- Editor area -->
+  <g clip-path="url(#editor-clip)">
+
+    <!-- Source pane background -->
+    <rect x="0" y="36" width="440" height="504" fill="#282c34"/>
+
+    <!-- Divider -->
+    <rect x="440" y="36" width="1" height="504" fill="#3e4452"/>
+
+    <!-- Preview pane background -->
+    <rect x="441" y="36" width="519" height="504" fill="#ffffff"/>
+
+    <!-- ==================== SOURCE PANE ==================== -->
+    <g class="mono" transform="translate(12, 56)">
+      <!-- Line numbers -->
+      <text x="22" y="0" class="line-num">1</text>
+      <text x="22" y="18" class="line-num">2</text>
+      <text x="22" y="36" class="line-num">3</text>
+      <text x="22" y="54" class="line-num">4</text>
+      <text x="22" y="72" class="line-num">5</text>
+      <text x="22" y="90" class="line-num">6</text>
+      <text x="22" y="108" class="line-num">7</text>
+      <text x="22" y="126" class="line-num">8</text>
+      <text x="22" y="144" class="line-num">9</text>
+      <text x="22" y="162" class="line-num">10</text>
+      <text x="22" y="180" class="line-num">11</text>
+      <text x="22" y="198" class="line-num">12</text>
+      <text x="22" y="216" class="line-num">13</text>
+      <text x="22" y="234" class="line-num">14</text>
+      <text x="22" y="252" class="line-num">15</text>
+      <text x="22" y="270" class="line-num">16</text>
+      <text x="22" y="288" class="line-num">17</text>
+      <text x="22" y="306" class="line-num">18</text>
+      <text x="22" y="324" class="line-num">19</text>
+      <text x="22" y="342" class="line-num">20</text>
+      <text x="22" y="360" class="line-num">21</text>
+      <text x="22" y="378" class="line-num">22</text>
+      <text x="22" y="396" class="line-num">23</text>
+      <text x="22" y="414" class="line-num">24</text>
+      <text x="22" y="432" class="line-num">25</text>
+      <text x="22" y="450" class="line-num">26</text>
+      <text x="22" y="468" class="line-num">27</text>
+
+      <!-- Source content -->
+      <text x="32" y="0" class="src-line"><tspan class="src-heading">## Rich Fence Demo</tspan></text>
+      <text x="32" y="18" class="src-line"></text>
+      <text x="32" y="36" class="src-line">Here's a <tspan class="src-bold">**Mermaid**</tspan> diagram:</text>
+      <text x="32" y="54" class="src-line"></text>
+      <text x="32" y="72" class="src-line"><tspan class="src-fence">```mermaid</tspan></text>
+      <text x="32" y="90" class="src-line"><tspan class="src-string">graph LR</tspan></text>
+      <text x="32" y="108" class="src-line"><tspan class="src-string">  A[Markdown] --> B[Parser]</tspan></text>
+      <text x="32" y="126" class="src-line"><tspan class="src-string">  B --> C[HTML]</tspan></text>
+      <text x="32" y="144" class="src-line"><tspan class="src-string">  B --> D[Editor]</tspan></text>
+      <text x="32" y="162" class="src-line"><tspan class="src-fence">```</tspan></text>
+      <text x="32" y="180" class="src-line"></text>
+      <text x="32" y="198" class="src-line">And some <tspan class="src-bold">**LaTeX**</tspan> math:</text>
+      <text x="32" y="216" class="src-line"></text>
+      <text x="32" y="234" class="src-line"><tspan class="src-fence">```math</tspan></text>
+      <text x="32" y="252" class="src-line"><tspan class="src-string">E = mc^2</tspan></text>
+      <text x="32" y="270" class="src-line"><tspan class="src-fence">```</tspan></text>
+      <text x="32" y="288" class="src-line"></text>
+      <text x="32" y="306" class="src-line">Code with <tspan class="src-bold">**syntax highlighting**</tspan>:</text>
+      <text x="32" y="324" class="src-line"></text>
+      <text x="32" y="342" class="src-line"><tspan class="src-fence">```javascript</tspan></text>
+      <text x="32" y="360" class="src-line"><tspan class="src-keyword">const</tspan> editor = <tspan class="src-keyword">new</tspan> QuikdownEditor(</text>
+      <text x="32" y="378" class="src-line">  <tspan class="src-string">'#app'</tspan>, { mode: <tspan class="src-string">'split'</tspan> }</text>
+      <text x="32" y="396" class="src-line">);</text>
+      <text x="32" y="414" class="src-line"><tspan class="src-fence">```</tspan></text>
+      <text x="32" y="432" class="src-line"></text>
+      <text x="32" y="450" class="src-line"><tspan class="src-comment"><!-- CSV table --></tspan></text>
+      <text x="32" y="468" class="src-line"><tspan class="src-fence">```csv</tspan></text>
+
+      <!-- Blinking cursor -->
+      <rect x="80" y="458" width="2" height="14" fill="#528bff" class="cursor"/>
+    </g>
+
+    <!-- ==================== PREVIEW PANE ==================== -->
+    <g transform="translate(461, 56)">
+
+      <!-- Section: Heading -->
+      <g class="fade-1">
+        <text x="20" y="4" class="preview-h2">Rich Fence Demo</text>
+        <rect x="20" y="10" width="60" height="3" rx="1.5" fill="url(#hero)" opacity="0.4"/>
+        <text x="20" y="30" class="preview-p">Here's a <tspan font-weight="700">Mermaid</tspan> diagram:</text>
+      </g>
+
+      <!-- Section: Mermaid diagram -->
+      <g class="fade-2" transform="translate(20, 48)">
+        <rect x="0" y="0" width="460" height="100" rx="8" fill="#f8f9fb" stroke="#e6e8ee" stroke-width="1"/>
+
+        <!-- Mermaid nodes -->
+        <rect x="30" y="32" width="100" height="36" rx="6" fill="url(#hero)" class="mermaid-node"/>
+        <text x="80" y="55" text-anchor="middle" font-size="12" fill="white" font-weight="600">Markdown</text>
+
+        <rect x="180" y="32" width="80" height="36" rx="6" fill="url(#hero)" class="mermaid-node" style="animation-delay: 0.5s"/>
+        <text x="220" y="55" text-anchor="middle" font-size="12" fill="white" font-weight="600">Parser</text>
+
+        <rect x="310" y="16" width="70" height="36" rx="6" fill="url(#hero)" class="mermaid-node" style="animation-delay: 1s"/>
+        <text x="345" y="39" text-anchor="middle" font-size="12" fill="white" font-weight="600">HTML</text>
+
+        <rect x="310" y="52" width="70" height="36" rx="6" fill="url(#hero)" class="mermaid-node" style="animation-delay: 1.5s"/>
+        <text x="345" y="75" text-anchor="middle" font-size="12" fill="white" font-weight="600">Editor</text>
+
+        <!-- Arrows -->
+        <line x1="130" y1="50" x2="178" y2="50" stroke="#9550bb" stroke-width="2" marker-end="url(#arrowhead)"/>
+        <path d="M260 44 L308 34" stroke="#9550bb" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+        <path d="M260 56 L308 66" stroke="#9550bb" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+
+        <!-- Animated flow dots -->
+        <circle r="3" fill="#667eea">
+          <animateMotion dur="2s" repeatCount="indefinite" path="M130,50 L178,50" begin="0s"/>
+          <animate attributeName="opacity" values="0;1;1;0" dur="2s" repeatCount="indefinite"/>
+        </circle>
+        <circle r="3" fill="#764ba2">
+          <animateMotion dur="2s" repeatCount="indefinite" path="M260,44 L308,34" begin="0.7s"/>
+          <animate attributeName="opacity" values="0;1;1;0" dur="2s" repeatCount="indefinite" begin="0.7s"/>
+        </circle>
+      </g>
+
+      <!-- Arrowhead marker -->
+      <defs>
+        <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#9550bb"/>
+        </marker>
+      </defs>
+
+      <!-- Section: LaTeX -->
+      <g class="fade-3" transform="translate(20, 166)">
+        <text x="0" y="0" class="preview-p">And some <tspan font-weight="700">LaTeX</tspan> math:</text>
+        <rect x="0" y="12" width="460" height="52" rx="8" fill="#f8f9fb" stroke="#e6e8ee" stroke-width="1"/>
+        <g class="math-glow" transform="translate(230, 42)">
+          <text text-anchor="middle" font-size="26" fill="#1f2937" font-style="italic">
+            E = mc<tspan font-size="18" dy="-8">2</tspan>
+          </text>
+        </g>
+      </g>
+
+      <!-- Section: Code block -->
+      <g class="fade-4" transform="translate(20, 244)">
+        <text x="0" y="0" class="preview-p">Code with <tspan font-weight="700">syntax highlighting</tspan>:</text>
+        <rect x="0" y="12" width="460" height="72" rx="8" fill="#1e1e2e"/>
+
+        <!-- Language badge -->
+        <rect x="378" y="16" width="72" height="18" rx="4" fill="rgba(255,255,255,0.1)"/>
+        <text x="414" y="29" text-anchor="middle" class="mono" font-size="10" fill="#888">javascript</text>
+
+        <text class="mono preview-code" x="16" y="34">
+          <tspan class="src-keyword">const</tspan><tspan fill="#e6e6f0"> editor = </tspan><tspan class="src-keyword">new</tspan><tspan fill="#e5c07b"> QuikdownEditor</tspan><tspan fill="#e6e6f0">(</tspan>
+        </text>
+        <text class="mono preview-code" x="16" y="50">
+          <tspan fill="#e6e6f0">  </tspan><tspan class="src-string">'#app'</tspan><tspan fill="#e6e6f0">, { mode: </tspan><tspan class="src-string">'split'</tspan><tspan fill="#e6e6f0"> }</tspan>
+        </text>
+        <text class="mono preview-code" x="16" y="66">
+          <tspan fill="#e6e6f0">);</tspan>
+        </text>
+      </g>
+
+      <!-- Section: CSV Table -->
+      <g class="fade-5" transform="translate(20, 340)">
+        <text x="0" y="0" class="preview-p">Data rendered from <tspan font-weight="700">CSV</tspan>:</text>
+
+        <rect x="0" y="12" width="460" height="110" rx="8" fill="#ffffff" stroke="#e6e8ee" stroke-width="1"/>
+
+        <!-- Table header -->
+        <rect x="1" y="13" width="458" height="28" rx="0" fill="#f3e6ff"/>
+        <text x="20" y="32" font-size="12" font-weight="700" fill="#6c47b8">Language</text>
+        <text x="160" y="32" font-size="12" font-weight="700" fill="#6c47b8">Stars</text>
+        <text x="280" y="32" font-size="12" font-weight="700" fill="#6c47b8">Trend</text>
+
+        <!-- Table rows -->
+        <line x1="1" y1="41" x2="459" y2="41" stroke="#e6e8ee"/>
+        <text x="20" y="58" font-size="12" fill="#1f2937">TypeScript</text>
+        <text x="160" y="58" font-size="12" fill="#4b5563">98,400</text>
+        <!-- Mini bar chart in trend column -->
+        <rect x="280" y="49" width="80" height="10" rx="2" fill="#f3e6ff"/>
+        <rect x="280" y="49" width="72" height="10" rx="2" fill="url(#hero)">
+          <animate attributeName="width" from="0" to="72" dur="1.5s" begin="2s" fill="freeze"/>
+        </rect>
+
+        <line x1="1" y1="67" x2="459" y2="67" stroke="#e6e8ee"/>
+        <text x="20" y="84" font-size="12" fill="#1f2937">Rust</text>
+        <text x="160" y="84" font-size="12" fill="#4b5563">96,200</text>
+        <rect x="280" y="75" width="80" height="10" rx="2" fill="#f3e6ff"/>
+        <rect x="280" y="75" width="68" height="10" rx="2" fill="url(#hero)">
+          <animate attributeName="width" from="0" to="68" dur="1.5s" begin="2.2s" fill="freeze"/>
+        </rect>
+
+        <line x1="1" y1="93" x2="459" y2="93" stroke="#e6e8ee"/>
+        <text x="20" y="110" font-size="12" fill="#1f2937">Python</text>
+        <text x="160" y="110" font-size="12" fill="#4b5563">63,800</text>
+        <rect x="280" y="101" width="80" height="10" rx="2" fill="#f3e6ff"/>
+        <rect x="280" y="101" width="52" height="10" rx="2" fill="url(#hero)">
+          <animate attributeName="width" from="0" to="52" dur="1.5s" begin="2.4s" fill="freeze"/>
+        </rect>
+      </g>
+
+    </g>
+
+    <!-- Pane labels -->
+    <rect x="0" y="36" width="440" height="20" fill="#21252b"/>
+    <text x="220" y="49" text-anchor="middle" font-size="11" font-weight="600" fill="#6b7280">SOURCE</text>
+
+    <rect x="441" y="36" width="519" height="20" fill="#f0f0f4"/>
+    <text x="700" y="49" text-anchor="middle" font-size="11" font-weight="600" fill="#6b7280">PREVIEW</text>
+
+  </g>
+
+  <!-- Window border -->
+  <rect width="960" height="540" rx="10" fill="none" stroke="rgba(0,0,0,0.15)" stroke-width="1"/>
+</svg>

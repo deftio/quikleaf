@@ -1,0 +1,14 @@
+{
+  "name": "@deftio/qdedit-linux-x64",
+  "version": "0.1.0",
+  "description": "qdedit binary for Linux x86_64",
+  "author": "deftio <deftio@deftio.com>",
+  "license": "BSD-2-Clause",
+  "homepage": "https://github.com/deftio/qdedit",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/deftio/qdedit.git"
+  },
+  "os": ["linux"],
+  "cpu": ["x64"]
+}

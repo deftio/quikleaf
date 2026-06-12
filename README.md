@@ -1,10 +1,15 @@
 # qdedit
 
+[![License](https://img.shields.io/badge/license-BSD--2--Clause-blue.svg)](LICENSE)
+[![npm version](https://img.shields.io/npm/v/qdedit.svg)](https://www.npmjs.com/package/qdedit)
+[![CI](https://github.com/deftio/qdedit/actions/workflows/ci.yml/badge.svg)](https://github.com/deftio/qdedit/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/deftio/qdedit/branch/main/graph/badge.svg)](https://codecov.io/gh/deftio/qdedit)
+
 A standalone, cross-platform local markdown editor with rich rendering and LLM chat integration.
 
 Built with [Tauri v2](https://tauri.app) and powered by [quikdown](https://github.com/deftio/quikdown).
 
-![qdedit](public/icon.png)
+![qdedit editor with rich fence rendering](pages/assets/qdedit-demo.svg)
 
 ## Features
 

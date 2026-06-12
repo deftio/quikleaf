@@ -23,11 +23,21 @@ Thumbs.db
 .env
 .env.*
 
+# Signing credentials (never commit)
+dev/signing/
+
+# npm platform binaries (only package.json is tracked)
+npm/*/bin/
+npm/qdedit/bin-fallback/
+
 # Vite cache
 .vite/
 
 # TypeScript build info
 *.tsbuildinfo
+
+# Test coverage
+coverage/
 
 # Tauri generated
 src-tauri/gen/

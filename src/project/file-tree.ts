@@ -92,7 +92,7 @@ export async function loadTree(path?: string) {
   }
 }
 
-function getFileIcon(name: string): string {
+export function getFileIcon(name: string): string {
   const ext = name.split(".").pop()?.toLowerCase() || "";
   switch (ext) {
     case "md":

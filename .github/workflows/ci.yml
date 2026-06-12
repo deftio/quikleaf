@@ -37,6 +37,13 @@ jobs:
         with:
           workspaces: src-tauri
 
+      - name: TypeScript tests
+        run: npm test
+
       - name: Rust check
         run: cargo check
+        working-directory: src-tauri
+
+      - name: Rust tests
+        run: cargo test
         working-directory: src-tauri

@@ -23,7 +23,7 @@ export interface LLMResult {
  *   http://host:11434/v1/   → http://host:11434/v1/chat/completions
  *   https://openrouter.ai/api/v1 → https://openrouter.ai/api/v1/chat/completions
  */
-function buildChatUrl(host: string, provider: string): string {
+export function buildChatUrl(host: string, provider: string): string {
   let base = host.replace(/\/+$/, "");
 
   if (provider === "anthropic") {
@@ -41,7 +41,7 @@ function buildChatUrl(host: string, provider: string): string {
   return base + "/chat/completions";
 }
 
-function buildModelsUrl(host: string): string {
+export function buildModelsUrl(host: string): string {
   let base = host.replace(/\/+$/, "");
   if (!base.match(/\/v1$/)) {
     base += "/v1";
@@ -52,7 +52,7 @@ function buildModelsUrl(host: string): string {
 /**
  * Build the request body for the given provider.
  */
-function buildRequestBody(
+export function buildRequestBody(
   settings: LLMSettings,
   messages: ChatMessage[],
   tools?: any[],
@@ -103,7 +103,7 @@ function buildRequestBody(
 /**
  * Extract the assistant message from the provider's response.
  */
-function parseResponse(
+export function parseResponse(
   provider: string,
   status: number,
   body: any

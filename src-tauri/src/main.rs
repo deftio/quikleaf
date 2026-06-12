@@ -9,9 +9,8 @@ use tauri::Manager;
 
 pub struct LaunchInfo(pub LaunchMode);
 
-fn parse_cli_args() -> LaunchMode {
-    let args: Vec<String> = std::env::args().collect();
-    
+/// Parse CLI args from a provided slice (testable without std::env::args).
+pub fn parse_cli_args_from(args: &[String], cwd: &Path) -> LaunchMode {
     // Check for --project
     if let Some(pos) = args.iter().position(|x| x == "--project") {
         if pos + 1 < args.len() {
@@ -20,9 +19,7 @@ fn parse_cli_args() -> LaunchMode {
             let absolute_path = if path.is_absolute() {
                 path.to_path_buf()
             } else {
-                std::env::current_dir()
-                    .unwrap_or_else(|_| PathBuf::from("."))
-                    .join(path)
+                cwd.join(path)
             };
 
             // Check if it's a directory
@@ -55,9 +52,7 @@ fn parse_cli_args() -> LaunchMode {
         let absolute_path = if path.is_absolute() {
             path.to_path_buf()
         } else {
-            std::env::current_dir()
-                .unwrap_or_else(|_| PathBuf::from("."))
-                .join(path)
+            cwd.join(path)
         };
         return LaunchMode::Simple {
             file_path: Some(absolute_path.to_string_lossy().to_string()),
@@ -65,6 +60,12 @@ fn parse_cli_args() -> LaunchMode {
     }
 
     LaunchMode::Simple { file_path: None }
+}
+
+fn parse_cli_args() -> LaunchMode {
+    let args: Vec<String> = std::env::args().collect();
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    parse_cli_args_from(&args, &cwd)
 }
 
 #[tauri::command]
@@ -185,4 +186,109 @@ fn main() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running qdedit");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    fn args(strs: &[&str]) -> Vec<String> {
+        strs.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn no_args_returns_simple_none() {
+        let cwd = PathBuf::from("/tmp");
+        let mode = parse_cli_args_from(&args(&["qdedit"]), &cwd);
+        match mode {
+            LaunchMode::Simple { file_path } => assert!(file_path.is_none()),
+            _ => panic!("Expected Simple"),
+        }
+    }
+
+    #[test]
+    fn file_arg_returns_simple_with_path() {
+        let cwd = PathBuf::from("/home/user");
+        let mode = parse_cli_args_from(&args(&["qdedit", "readme.md"]), &cwd);
+        match mode {
+            LaunchMode::Simple { file_path } => {
+                let p = file_path.unwrap();
+                assert!(p.contains("readme.md"));
+                assert!(p.starts_with("/home/user"));
+            }
+            _ => panic!("Expected Simple"),
+        }
+    }
+
+    #[test]
+    fn absolute_file_arg_preserved() {
+        let cwd = PathBuf::from("/tmp");
+        let mode = parse_cli_args_from(&args(&["qdedit", "/absolute/path.md"]), &cwd);
+        match mode {
+            LaunchMode::Simple { file_path } => {
+                assert_eq!(file_path.unwrap(), "/absolute/path.md");
+            }
+            _ => panic!("Expected Simple"),
+        }
+    }
+
+    #[test]
+    fn project_flag_with_directory() {
+        let tmp = TempDir::new().unwrap();
+        let dir_str = tmp.path().to_string_lossy().to_string();
+        let cwd = PathBuf::from("/tmp");
+        let mode = parse_cli_args_from(&args(&["qdedit", "--project", &dir_str]), &cwd);
+        match mode {
+            LaunchMode::Project { project_root, project_file, exists } => {
+                assert!(project_root.contains(&dir_str) || project_root.contains(tmp.path().file_name().unwrap().to_str().unwrap()));
+                assert!(project_file.contains("qdedit.prj"));
+                assert!(!exists); // No prj file created yet
+            }
+            _ => panic!("Expected Project"),
+        }
+    }
+
+    #[test]
+    fn project_flag_with_file_uses_parent_as_root() {
+        let tmp = TempDir::new().unwrap();
+        let prj_file = tmp.path().join("myproject.prj");
+        std::fs::write(&prj_file, "{}").unwrap();
+        let prj_str = prj_file.to_string_lossy().to_string();
+        let cwd = PathBuf::from("/tmp");
+        let mode = parse_cli_args_from(&args(&["qdedit", "--project", &prj_str]), &cwd);
+        match mode {
+            LaunchMode::Project { project_root, project_file, exists } => {
+                assert!(project_root.contains(tmp.path().file_name().unwrap().to_str().unwrap()));
+                assert!(project_file.contains("myproject.prj"));
+                assert!(exists);
+            }
+            _ => panic!("Expected Project"),
+        }
+    }
+
+    #[test]
+    fn flags_skipped_when_finding_file_arg() {
+        let cwd = PathBuf::from("/home/user");
+        let mode = parse_cli_args_from(&args(&["qdedit", "--verbose", "readme.md"]), &cwd);
+        match mode {
+            LaunchMode::Simple { file_path } => {
+                let p = file_path.unwrap();
+                assert!(p.contains("readme.md"));
+                // --verbose should be skipped
+                assert!(!p.contains("verbose"));
+            }
+            _ => panic!("Expected Simple"),
+        }
+    }
+
+    #[test]
+    fn project_flag_without_value_falls_through() {
+        let cwd = PathBuf::from("/tmp");
+        let mode = parse_cli_args_from(&args(&["qdedit", "--project"]), &cwd);
+        match mode {
+            LaunchMode::Simple { file_path } => assert!(file_path.is_none()),
+            _ => panic!("Expected Simple fallback"),
+        }
+    }
 }

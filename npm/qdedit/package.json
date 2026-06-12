@@ -1,0 +1,38 @@
+{
+  "name": "qdedit",
+  "version": "0.1.0",
+  "description": "A standalone, cross-platform desktop markdown editor with rich rendering and LLM chat integration",
+  "author": "deftio <deftio@deftio.com>",
+  "license": "BSD-2-Clause",
+  "homepage": "https://github.com/deftio/qdedit",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/deftio/qdedit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/deftio/qdedit/issues"
+  },
+  "keywords": [
+    "markdown",
+    "editor",
+    "desktop",
+    "tauri",
+    "quikdown",
+    "llm",
+    "ai",
+    "mermaid",
+    "latex"
+  ],
+  "bin": {
+    "qdedit": "bin/qdedit"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "optionalDependencies": {
+    "@deftio/qdedit-darwin-arm64": "0.1.0",
+    "@deftio/qdedit-darwin-x64": "0.1.0",
+    "@deftio/qdedit-linux-x64": "0.1.0",
+    "@deftio/qdedit-win32-x64": "0.1.0"
+  }
+}

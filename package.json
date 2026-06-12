@@ -3,7 +3,29 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "A standalone local markdown editor with rich fence rendering and LLM chat support",
+  "description": "A standalone, cross-platform desktop markdown editor with rich rendering and LLM chat integration",
+  "author": "deftio <deftio@deftio.com>",
+  "license": "BSD-2-Clause",
+  "homepage": "https://github.com/deftio/qdedit",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/deftio/qdedit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/deftio/qdedit/issues"
+  },
+  "keywords": [
+    "markdown",
+    "editor",
+    "desktop",
+    "tauri",
+    "quikdown",
+    "llm",
+    "ai",
+    "mermaid",
+    "latex",
+    "geojson"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -11,12 +33,19 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.2",
+    "@vitest/coverage-v8": "^4.1.8",
+    "happy-dom": "^20.10.2",
+    "jsdom": "^27.0.1",
     "typescript": "^6.0.3",
-    "vite": "^6.4.2"
+    "vite": "^6.4.2",
+    "vitest": "^4.1.8"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.0",

@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>qdedit — Markdown editor with LLM chat, powered by quikdown</title>
+  <meta name="description" content="A standalone, cross-platform desktop markdown editor with rich rendering and built-in LLM chat assistant. Powered by quikdown. macOS, Windows, Linux.">
+  <meta name="keywords" content="markdown editor, desktop markdown, LLM chat, AI writing assistant, quikdown, tauri app, mermaid diagrams, latex editor, local LLM, ollama">
+  <meta name="author" content="deftio@deftio.com">
+  <meta name="theme-color" content="#9550bb">
+  <link rel="canonical" href="https://deftio.github.io/qdedit/">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="qdedit">
+  <meta property="og:title" content="qdedit — Markdown editor with LLM chat">
+  <meta property="og:description" content="A standalone desktop markdown editor with rich rendering and built-in AI assistant. Powered by quikdown. macOS, Windows, Linux.">
+  <meta property="og:url" content="https://deftio.github.io/qdedit/">
+  <meta property="og:image" content="https://deftio.github.io/qdedit/assets/icon.png">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="qdedit — Markdown editor with LLM chat">
+  <meta name="twitter:description" content="Desktop markdown editor with rich rendering and built-in AI assistant. Powered by quikdown.">
+  <meta name="twitter:image" content="https://deftio.github.io/qdedit/assets/icon.png">
+
+  <!-- JSON-LD -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "qdedit",
+    "description": "A standalone, cross-platform desktop markdown editor with rich rendering and built-in LLM chat assistant.",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "macOS, Windows, Linux",
+    "softwareVersion": "0.1.0",
+    "license": "https://opensource.org/licenses/BSD-2-Clause",
+    "author": { "@type": "Person", "name": "deftio" },
+    "url": "https://github.com/deftio/qdedit"
+  }
+  </script>
+
+  <link rel="stylesheet" href="styles/qdedit-site.css">
+</head>
+<body class="qd-theme-light">
+
+  <!-- ============================================================
+       Navbar
+       ============================================================ -->
+  <nav class="qd-nav">
+    <div class="qd-nav-inner">
+      <a class="qd-nav-brand" href="./">
+        <img class="qd-nav-brand-icon" src="assets/icon.png" alt="">
+        <span class="qd-nav-brand-text">qdedit</span>
+        <span class="qd-nav-brand-version">v0.1.0</span>
+      </a>
+      <button class="qd-nav-toggle" id="qd-nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+        <span class="qd-nav-toggle-bar"></span>
+        <span class="qd-nav-toggle-bar"></span>
+        <span class="qd-nav-toggle-bar"></span>
+      </button>
+      <div class="qd-nav-links">
+        <a class="qd-nav-link" href="#features">Features</a>
+        <a class="qd-nav-link" href="#downloads">Downloads</a>
+        <a class="qd-nav-link" href="#quickstart">Quick Start</a>
+        <a class="qd-nav-link" href="#architecture">Architecture</a>
+        <a class="qd-nav-link" href="https://github.com/deftio/qdedit" target="_blank" rel="noopener">GitHub</a>
+        <a class="qd-nav-link" href="https://github.com/deftio/quikdown" target="_blank" rel="noopener">quikdown</a>
+        <button class="qd-nav-theme-btn" id="qd-theme-toggle" aria-label="Toggle theme">
+          <span id="qd-theme-icon"></span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+
+    <!-- ============================================================
+         Hero
+         ============================================================ -->
+    <section class="qd-hero">
+      <div class="qd-hero-inner">
+        <div class="qd-hero-content">
+          <span class="qd-hero-eyebrow">Desktop App &middot; macOS &middot; Windows &middot; Linux</span>
+          <h1>Markdown editor with built-in LLM&nbsp;assistant</h1>
+          <p class="qd-hero-sub">
+            A fast, native desktop editor powered by <a href="https://github.com/deftio/quikdown" style="color: white; text-decoration: underline;">quikdown</a>.
+            Rich rendering for Mermaid, LaTeX, GeoJSON, STL, CSV, Vega charts, and more &mdash;
+            all offline. Chat with an AI assistant that can read and edit your document.
+          </p>
+          <div class="qd-hero-cta-row">
+            <a class="qd-cta-primary" href="https://github.com/deftio/qdedit/releases">
+              <span>Download</span>
+              <span aria-hidden="true">&darr;</span>
+            </a>
+            <a class="qd-cta-secondary" href="https://github.com/deftio/qdedit" target="_blank" rel="noopener">
+              View on GitHub &rarr;
+            </a>
+          </div>
+        </div>
+        <img class="qd-hero-icon" src="assets/icon.png" alt="qdedit icon">
+      </div>
+    </section>
+
+    <!-- ============================================================
+         Features
+         ============================================================ -->
+    <section class="qd-section" id="features">
+      <div class="qd-container">
+        <div class="qd-section-head">
+          <span class="qd-section-eyebrow">Features</span>
+          <h2 class="qd-gradient-text">Everything you need in a markdown editor</h2>
+          <p>Built for developers, writers, and anyone who works with markdown daily.</p>
+        </div>
+
+        <div class="qd-grid qd-grid-3">
+          <div class="qd-feature">
+            <div class="qd-feature-icon">Q</div>
+            <h4>Rich Markdown Rendering</h4>
+            <p>Powered by quikdown standalone with syntax highlighting, Mermaid diagrams, LaTeX math, GeoJSON maps, 3D STL viewer, CSV tables, Vega charts, ABC music notation, and SVG &mdash; all rendered locally.</p>
+          </div>
+          <div class="qd-feature">
+            <div class="qd-feature-icon">AI</div>
+            <h4>LLM Chat Integration</h4>
+            <p>Built-in AI assistant (QD) with streaming responses and 20+ tools for reading, writing, and editing your document. Supports OpenAI-compatible APIs and Anthropic Claude.</p>
+          </div>
+          <div class="qd-feature">
+            <div class="qd-feature-icon">&oplus;</div>
+            <h4>Project Mode</h4>
+            <p>Open a folder to get a file tree sidebar, project-scoped file tools, persistent memory and key-value store, and automatic project state saving.</p>
+          </div>
+          <div class="qd-feature">
+            <div class="qd-feature-icon">&harr;</div>
+            <h4>Local LLM Auto-Detect</h4>
+            <p>Automatically finds Ollama and LM Studio running locally. No configuration needed &mdash; just start writing and chatting. Works fully offline.</p>
+          </div>
+          <div class="qd-feature">
+            <div class="qd-feature-icon">&lt;/&gt;</div>
+            <h4>Tool-Calling Loop</h4>
+            <p>QD can read your document, make edits, manage a scratchpad, and work with project files &mdash; all through a structured tool-calling loop with a stop button.</p>
+          </div>
+          <div class="qd-feature">
+            <div class="qd-feature-icon">&#9670;</div>
+            <h4>Native Desktop App</h4>
+            <p>Fast startup, low memory footprint, native file dialogs, keyboard shortcuts, auto dark mode, and resizable panels. Built with Tauri v2.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         Fence Renderers
+         ============================================================ -->
+    <section class="qd-section qd-section-soft">
+      <div class="qd-container">
+        <div class="qd-section-head">
+          <span class="qd-section-eyebrow">Rendering</span>
+          <h2 class="qd-gradient-text">Every fence type, rendered locally</h2>
+          <p>quikdown's standalone bundle includes all renderers. No external services, no network requests.</p>
+        </div>
+
+        <div class="qd-grid qd-grid-4">
+          <div class="qd-feature">
+            <h4>Code</h4>
+            <p>Syntax highlighting via highlight.js for 180+ languages.</p>
+          </div>
+          <div class="qd-feature">
+            <h4>Mermaid</h4>
+            <p>Flowcharts, sequence diagrams, Gantt charts, state diagrams, and more.</p>
+          </div>
+          <div class="qd-feature">
+            <h4>Math / LaTeX</h4>
+            <p>Inline and display math via MathJax. Full LaTeX equation support.</p>
+          </div>
+          <div class="qd-feature">
+            <h4>GeoJSON Maps</h4>
+            <p>Interactive Leaflet maps from GeoJSON. Points, polygons, and lines.</p>
+          </div>
+          <div class="qd-feature">
+            <h4>3D STL Viewer</h4>
+            <p>Render STL 3D models with orbit controls. Powered by Three.js.</p>
+          </div>
+          <div class="qd-feature">
+            <h4>CSV / TSV / PSV</h4>
+            <p>Tabular data rendered as clean HTML tables automatically.</p>
+          </div>
+          <div class="qd-feature">
+            <h4>Vega / Vega-Lite</h4>
+            <p>Declarative charts and visualizations from JSON specs.</p>
+          </div>
+          <div class="qd-feature">
+            <h4>SVG &amp; ABC Music</h4>
+            <p>Inline SVG rendering and ABC music notation with sheet music output.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         LLM Configuration
+         ============================================================ -->
+    <section class="qd-section">
+      <div class="qd-container">
+        <div class="qd-section-head">
+          <span class="qd-section-eyebrow">AI Assistant</span>
+          <h2 class="qd-gradient-text">Works with any LLM provider</h2>
+          <p>Connect to local models via Ollama or LM Studio, or use cloud APIs like Anthropic Claude and OpenRouter.</p>
+        </div>
+
+        <div class="qd-grid qd-grid-3">
+          <div class="qd-feature">
+            <h4>Ollama (Local)</h4>
+            <p>Auto-detected on <code>localhost:11434</code>. Run <code>ollama serve</code> and qdedit finds it automatically. Fully offline.</p>
+          </div>
+          <div class="qd-feature">
+            <h4>Anthropic Claude</h4>
+            <p>Connect to Claude Sonnet, Opus, or Haiku. Enter your API key in Settings. Streaming responses with tool calling.</p>
+          </div>
+          <div class="qd-feature">
+            <h4>OpenRouter &amp; More</h4>
+            <p>Any OpenAI-compatible API works: OpenRouter, LM Studio, Groq, Together, or your own endpoint.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         Downloads
+         ============================================================ -->
+    <section class="qd-section qd-section-soft" id="downloads">
+      <div class="qd-container">
+        <div class="qd-section-head">
+          <span class="qd-section-eyebrow">Downloads</span>
+          <h2 class="qd-gradient-text">Get qdedit for your platform</h2>
+          <p>Pre-built installers are available on the GitHub Releases page.</p>
+        </div>
+
+        <div class="qd-grid qd-grid-4">
+          <div class="qd-platform-card">
+            <div class="qd-platform-icon">&#63743;</div>
+            <h4>macOS (Apple Silicon)</h4>
+            <p>.dmg installer</p>
+          </div>
+          <div class="qd-platform-card">
+            <div class="qd-platform-icon">&#63743;</div>
+            <h4>macOS (Intel)</h4>
+            <p>.dmg installer</p>
+          </div>
+          <div class="qd-platform-card">
+            <div class="qd-platform-icon">&#8862;</div>
+            <h4>Windows</h4>
+            <p>.msi / .exe installer</p>
+          </div>
+          <div class="qd-platform-card">
+            <div class="qd-platform-icon">&#9655;</div>
+            <h4>Linux</h4>
+            <p>.deb / .AppImage</p>
+          </div>
+        </div>
+
+        <div class="qd-text-center qd-mt-lg">
+          <a class="qd-cta-standalone" href="https://github.com/deftio/qdedit/releases">
+            View All Releases &rarr;
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         Keyboard Shortcuts
+         ============================================================ -->
+    <section class="qd-section">
+      <div class="qd-container">
+        <div class="qd-grid qd-grid-2">
+          <div>
+            <h2 class="qd-gradient-text">Keyboard shortcuts</h2>
+            <table class="qd-table">
+              <thead>
+                <tr><th>Shortcut</th><th>Action</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><kbd>Cmd/Ctrl</kbd> + <kbd>O</kbd></td><td>Open file</td></tr>
+                <tr><td><kbd>Cmd/Ctrl</kbd> + <kbd>S</kbd></td><td>Save file</td></tr>
+                <tr><td><kbd>Enter</kbd></td><td>Send chat message</td></tr>
+                <tr><td><kbd>Shift</kbd> + <kbd>Enter</kbd></td><td>New line in chat</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div>
+            <h2 class="qd-gradient-text">Chat slash commands</h2>
+            <table class="qd-table">
+              <thead>
+                <tr><th>Command</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>/help</code></td><td>Show available commands</td></tr>
+                <tr><td><code>/clear</code></td><td>Clear chat history</td></tr>
+                <tr><td><code>/model</code></td><td>Show current LLM model</td></tr>
+                <tr><td><code>/memory</code></td><td>Show scratchpad contents</td></tr>
+                <tr><td><code>/tools</code></td><td>List available tools</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         Quick Start
+         ============================================================ -->
+    <section class="qd-section qd-section-soft" id="quickstart">
+      <div class="qd-container">
+        <div class="qd-section-head">
+          <span class="qd-section-eyebrow">Quick Start</span>
+          <h2 class="qd-gradient-text">Build from source</h2>
+          <p>Requires Node.js 18+ and Rust 1.70+.</p>
+        </div>
+
+        <div class="qd-grid qd-grid-2">
+          <div>
+            <h3>Development</h3>
+<pre><code># Install frontend dependencies
+npm install
+
+# Run in development mode (hot reload)
+npm run tauri:dev
+
+# TypeScript type checking
+npm run check
+
+# Rust compilation check
+cd src-tauri && cargo check</code></pre>
+          </div>
+          <div>
+            <h3>Production Build</h3>
+<pre><code># Build production installers
+npm run tauri:build
+
+# Output locations:
+#   macOS:   src-tauri/target/release/bundle/dmg/
+#   Windows: src-tauri/target/release/bundle/nsis/
+#   Linux:   src-tauri/target/release/bundle/deb/</code></pre>
+          </div>
+        </div>
+
+        <div class="qd-grid qd-grid-3 qd-mt-lg">
+          <div>
+            <h4>macOS</h4>
+<pre><code>xcode-select --install</code></pre>
+          </div>
+          <div>
+            <h4>Linux (Debian/Ubuntu)</h4>
+<pre><code>sudo apt install -y \
+  libwebkit2gtk-4.1-dev \
+  build-essential curl wget \
+  libssl-dev librsvg2-dev</code></pre>
+          </div>
+          <div>
+            <h4>Windows</h4>
+            <p>Visual Studio 2022 with "Desktop development with C++" workload.</p>
+          </div>
+        </div>
+
+        <div class="qd-text-center qd-mt-lg">
+          <h3>CLI Usage</h3>
+<pre style="display: inline-block; text-align: left;"><code># Open empty editor
+qdedit
+
+# Open a specific file
+qdedit document.md
+
+# Open folder in project mode
+qdedit --project ./mydir</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         Architecture
+         ============================================================ -->
+    <section class="qd-section" id="architecture">
+      <div class="qd-container">
+        <div class="qd-section-head">
+          <span class="qd-section-eyebrow">Architecture</span>
+          <h2 class="qd-gradient-text">How it's built</h2>
+          <p>Tauri v2 backend in Rust, TypeScript frontend in a webview, quikdown for rendering.</p>
+        </div>
+
+        <div class="qd-arch">
+<pre>src-tauri/                  Rust backend (Tauri v2)
+  src/commands/
+    fs.rs                   File I/O commands
+    llm.rs                  LLM API proxy with streaming
+    project.rs              Project state, memory, KV, file tools
+  src/main.rs               CLI parsing, app setup
+
+src/                        TypeScript frontend (Vite)
+  editor/editor.ts          quikdown editor wrapper
+  chat/chat-ui.ts           Chat UI, tool dispatch, slash commands
+  chat/providers.ts         LLM provider adapters (OpenAI, Anthropic)
+  settings/settings.ts      LLM config UI, auto-detect
+  project/file-tree.ts      Project mode file tree sidebar
+  main.ts                   App init, file ops, project mode
+
+index.html                  App shell</pre>
+        </div>
+
+        <div class="qd-grid qd-grid-3 qd-mt-lg">
+          <div class="qd-feature">
+            <h4>Markdown Only</h4>
+            <p>The LLM operates on raw markdown &mdash; it never sees or produces HTML. The user sees rendered preview via quikdown.</p>
+          </div>
+          <div class="qd-feature">
+            <h4>Backend Proxy</h4>
+            <p>LLM API calls are proxied through the Rust backend to avoid CORS issues and keep API keys out of the webview.</p>
+          </div>
+          <div class="qd-feature">
+            <h4>Offline Rendering</h4>
+            <p>quikdown's standalone bundle includes all fence renderers (~8 MB) for complete offline use. No CDN dependencies.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         Install / build-from-source strip
+         ============================================================ -->
+    <section class="qd-section">
+      <div class="qd-container">
+        <div class="qd-install-strip">
+          <span class="qd-install-strip-label">Get started</span>
+          <div class="qd-install-strip-actions">
+            <a href="https://github.com/deftio/qdedit/releases">Releases</a>
+            <a href="https://github.com/deftio/qdedit">Source Code</a>
+            <a href="https://github.com/deftio/qdedit/issues">Issues</a>
+            <a href="https://github.com/deftio/quikdown">quikdown</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============================================================
+       Footer
+       ============================================================ -->
+  <footer class="qd-footer">
+    <div class="qd-footer-inner">
+      <div class="qd-footer-cols">
+        <div class="qd-footer-col">
+          <h5>qdedit</h5>
+          <p>A standalone, cross-platform markdown editor with rich rendering and LLM chat integration. Built with Tauri v2 and powered by quikdown.</p>
+        </div>
+        <div class="qd-footer-col">
+          <h5>Product</h5>
+          <ul>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#downloads">Downloads</a></li>
+            <li><a href="#quickstart">Quick Start</a></li>
+            <li><a href="#architecture">Architecture</a></li>
+          </ul>
+        </div>
+        <div class="qd-footer-col">
+          <h5>Resources</h5>
+          <ul>
+            <li><a href="https://github.com/deftio/qdedit" target="_blank" rel="noopener">GitHub</a></li>
+            <li><a href="https://github.com/deftio/qdedit/issues" target="_blank" rel="noopener">Issues</a></li>
+            <li><a href="https://github.com/deftio/qdedit/releases" target="_blank" rel="noopener">Releases</a></li>
+            <li><a href="https://github.com/deftio/qdedit/blob/main/LICENSE" target="_blank" rel="noopener">License (BSD-2)</a></li>
+          </ul>
+        </div>
+        <div class="qd-footer-col">
+          <h5>Related</h5>
+          <ul>
+            <li><a href="https://github.com/deftio/quikdown" target="_blank" rel="noopener">quikdown</a></li>
+            <li><a href="https://deftio.github.io/quikdown/pages/" target="_blank" rel="noopener">quikdown site</a></li>
+            <li><a href="https://deftio.github.io/quikdown/pages/edit/" target="_blank" rel="noopener">quikdown editor</a></li>
+            <li><a href="https://github.com/deftio" target="_blank" rel="noopener">deftio</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="qd-footer-bottom">
+        <a class="qd-footer-brand" href="./">
+          <img src="assets/icon.png" alt="">
+          <span>qdedit</span>
+        </a>
+        <span>&copy; 2026 deftio. BSD-2-Clause License.</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="scripts/site.js" defer></script>
+</body>
+</html>

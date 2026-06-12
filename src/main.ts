@@ -90,7 +90,7 @@ async function saveFile() {
   }
 }
 
-function fileName(path: string): string {
+export function fileName(path: string): string {
   return path.split("/").pop() || path.split("\\").pop() || path;
 }
 
