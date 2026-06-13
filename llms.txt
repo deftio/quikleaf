@@ -1,10 +1,10 @@
-# qdedit
+# qudown
 
 > A standalone, cross-platform desktop markdown editor with rich rendering and LLM chat integration.
 
-## What is qdedit?
+## What is qudown?
 
-qdedit is a native desktop application built with Tauri v2 (Rust backend + webview frontend) and powered by quikdown for markdown rendering. It provides:
+qudown is a native desktop application built with Tauri v2 (Rust backend + webview frontend) and powered by quikdown for markdown rendering. It provides:
 
 - Rich markdown editing with live preview
 - Built-in LLM chat assistant ("QD") with tool calling
@@ -44,7 +44,7 @@ File (project mode): file_read, file_write, file_list, file_stat
 
 ## Links
 
-- Source: https://github.com/deftio/qdedit
+- Source: https://github.com/deftio/qudown
 - quikdown: https://github.com/deftio/quikdown
 - License: BSD-2-Clause
 - Author: deftio (deftio@deftio.com)

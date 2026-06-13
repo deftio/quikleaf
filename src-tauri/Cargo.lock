@@ -2512,7 +2512,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "qdedit"
+name = "qudown"
 version = "0.1.0"
 dependencies = [
  "chrono",

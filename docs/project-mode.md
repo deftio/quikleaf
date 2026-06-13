@@ -1,14 +1,14 @@
 # Project Mode
 
-Project mode gives qdedit folder-level awareness with a file tree sidebar, project-scoped file tools for the LLM, and persistent state.
+Project mode gives qudown folder-level awareness with a file tree sidebar, project-scoped file tools for the LLM, and persistent state.
 
 ## Launching
 
 ```bash
-qdedit --project ./mydir
+qudown --project ./mydir
 ```
 
-This creates (or loads) a `qdedit.prj` file in the specified directory.
+This creates (or loads) a `qudown.prj` file in the specified directory.
 
 ## Features
 
@@ -18,7 +18,7 @@ A collapsible sidebar shows the project's directory structure:
 
 - Folders listed first, then files
 - Hidden files (dotfiles) are filtered out
-- `qdedit.prj` is hidden from the tree
+- `qudown.prj` is hidden from the tree
 - Click a file to open it in the editor
 - Toggle visibility with the "Files" button in the title bar
 
@@ -37,15 +37,15 @@ All paths are relative to the project root. Path traversal outside the project r
 
 ### Persistent Memory
 
-The scratchpad (`/memory` slash command) persists across sessions in the `qdedit.prj` file. QD can use this to remember context between conversations.
+The scratchpad (`/memory` slash command) persists across sessions in the `qudown.prj` file. QD can use this to remember context between conversations.
 
 ### Key-Value Store
 
-Named key-value pairs persist in `qdedit.prj`. Useful for QD to track structured data like preferences, project metadata, or task lists.
+Named key-value pairs persist in `qudown.prj`. Useful for QD to track structured data like preferences, project metadata, or task lists.
 
 ## Project File Format
 
-`qdedit.prj` is a JSON file:
+`qudown.prj` is a JSON file:
 
 ```json
 {
@@ -66,6 +66,6 @@ Named key-value pairs persist in `qdedit.prj`. Useful for QD to track structured
 | File editing | Single file | Any file in project |
 | File tree sidebar | No | Yes |
 | File tools for QD | No | Yes |
-| Memory persistence | Session only | Saved to qdedit.prj |
-| KV store | Session only | Saved to qdedit.prj |
-| CLI | `qdedit file.md` | `qdedit --project ./dir` |
+| Memory persistence | Session only | Saved to qudown.prj |
+| KV store | Session only | Saved to qudown.prj |
+| CLI | `qudown file.md` | `qudown --project ./dir` |

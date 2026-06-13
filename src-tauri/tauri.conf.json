@@ -1,7 +1,7 @@
 {
-  "productName": "qdedit",
+  "productName": "qudown",
   "version": "0.1.0",
-  "identifier": "com.deftio.qdedit",
+  "identifier": "com.deftio.qudown",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "qdedit",
+        "title": "qudown",
         "width": 1200,
         "height": 800,
         "resizable": true,

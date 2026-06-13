@@ -14,10 +14,10 @@ const { execSync } = require("child_process");
 const VERSION = require("./package.json").version;
 
 const PLATFORMS = {
-  "darwin-arm64":  { pkg: "@deftio/qdedit-darwin-arm64", asset: "qdedit-darwin-aarch64.tar.gz" },
-  "darwin-x64":    { pkg: "@deftio/qdedit-darwin-x64",   asset: "qdedit-darwin-x86_64.tar.gz" },
-  "linux-x64":     { pkg: "@deftio/qdedit-linux-x64",    asset: "qdedit-linux-x86_64.tar.gz" },
-  "win32-x64":     { pkg: "@deftio/qdedit-win32-x64",    asset: "qdedit-windows-x86_64.zip" },
+  "darwin-arm64":  { pkg: "@deftio/qudown-darwin-arm64", asset: "qudown-darwin-aarch64.tar.gz" },
+  "darwin-x64":    { pkg: "@deftio/qudown-darwin-x64",   asset: "qudown-darwin-x86_64.tar.gz" },
+  "linux-x64":     { pkg: "@deftio/qudown-linux-x64",    asset: "qudown-linux-x86_64.tar.gz" },
+  "win32-x64":     { pkg: "@deftio/qudown-win32-x64",    asset: "qudown-windows-x86_64.zip" },
 };
 
 function alreadyInstalled(pkg, binName) {
@@ -55,7 +55,7 @@ async function main() {
     return;
   }
 
-  const binName = process.platform === "win32" ? "qdedit.exe" : "qdedit";
+  const binName = process.platform === "win32" ? "qudown.exe" : "qudown";
 
   // Check if optionalDependencies already provided the binary
   if (alreadyInstalled(info.pkg, binName)) {
@@ -69,9 +69,9 @@ async function main() {
     return; // Already downloaded
   }
 
-  const url = `https://github.com/deftio/qdedit/releases/download/v${VERSION}/${info.asset}`;
+  const url = `https://github.com/deftio/qudown/releases/download/v${VERSION}/${info.asset}`;
 
-  console.log(`qdedit: downloading binary for ${platformKey}...`);
+  console.log(`qudown: downloading binary for ${platformKey}...`);
 
   try {
     const data = await download(url);
@@ -101,11 +101,11 @@ async function main() {
       fs.chmodSync(destPath, 0o755);
     }
 
-    console.log(`qdedit: installed ${binName} for ${platformKey}`);
+    console.log(`qudown: installed ${binName} for ${platformKey}`);
   } catch (e) {
     console.warn(
-      `qdedit: failed to download binary (${e.message})\n` +
-      `Download manually from: https://github.com/deftio/qdedit/releases`
+      `qudown: failed to download binary (${e.message})\n` +
+      `Download manually from: https://github.com/deftio/qudown/releases`
     );
   }
 }

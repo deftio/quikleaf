@@ -14,23 +14,23 @@ jobs:
           - platform: macos-latest
             target: aarch64-apple-darwin
             npm-pkg: darwin-arm64
-            binary: qdedit
-            binary-path: src-tauri/target/aarch64-apple-darwin/release/qdedit
+            binary: qudown
+            binary-path: src-tauri/target/aarch64-apple-darwin/release/qudown
           - platform: macos-latest
             target: x86_64-apple-darwin
             npm-pkg: darwin-x64
-            binary: qdedit
-            binary-path: src-tauri/target/x86_64-apple-darwin/release/qdedit
+            binary: qudown
+            binary-path: src-tauri/target/x86_64-apple-darwin/release/qudown
           - platform: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             npm-pkg: linux-x64
-            binary: qdedit
-            binary-path: src-tauri/target/x86_64-unknown-linux-gnu/release/qdedit
+            binary: qudown
+            binary-path: src-tauri/target/x86_64-unknown-linux-gnu/release/qudown
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             npm-pkg: win32-x64
-            binary: qdedit.exe
-            binary-path: src-tauri/target/x86_64-pc-windows-msvc/release/qdedit.exe
+            binary: qudown.exe
+            binary-path: src-tauri/target/x86_64-pc-windows-msvc/release/qudown.exe
 
     runs-on: ${{ matrix.platform }}
 
@@ -68,9 +68,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'qdedit ${{ github.ref_name }}'
+          releaseName: 'qudown ${{ github.ref_name }}'
           releaseBody: |
-            See the [CHANGELOG](https://github.com/deftio/qdedit/blob/main/CHANGELOG.md) for details.
+            See the [CHANGELOG](https://github.com/deftio/qudown/blob/main/CHANGELOG.md) for details.
 
             ## Downloads
             | Platform | File |
@@ -82,9 +82,9 @@ jobs:
 
             ## npm
             ```bash
-            npm install -g qdedit
+            npm install -g qudown
             # or
-            npx qdedit
+            npx qudown
             ```
           releaseDraft: true
           prerelease: false
@@ -127,7 +127,7 @@ jobs:
           path: artifacts/
 
       # Publish each platform package
-      - name: Publish @deftio/qdedit-darwin-arm64
+      - name: Publish @deftio/qudown-darwin-arm64
         working-directory: artifacts/npm-darwin-arm64
         run: |
           jq '.version = "${{ steps.version.outputs.version }}"' package.json > tmp.json && mv tmp.json package.json
@@ -135,7 +135,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish @deftio/qdedit-darwin-x64
+      - name: Publish @deftio/qudown-darwin-x64
         working-directory: artifacts/npm-darwin-x64
         run: |
           jq '.version = "${{ steps.version.outputs.version }}"' package.json > tmp.json && mv tmp.json package.json
@@ -143,7 +143,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish @deftio/qdedit-linux-x64
+      - name: Publish @deftio/qudown-linux-x64
         working-directory: artifacts/npm-linux-x64
         run: |
           jq '.version = "${{ steps.version.outputs.version }}"' package.json > tmp.json && mv tmp.json package.json
@@ -151,7 +151,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish @deftio/qdedit-win32-x64
+      - name: Publish @deftio/qudown-win32-x64
         working-directory: artifacts/npm-win32-x64
         run: |
           jq '.version = "${{ steps.version.outputs.version }}"' package.json > tmp.json && mv tmp.json package.json
@@ -160,8 +160,8 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       # Publish the main wrapper package
-      - name: Publish qdedit
-        working-directory: npm/qdedit
+      - name: Publish qudown
+        working-directory: npm/qudown
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           # Update version in wrapper and all optionalDependencies

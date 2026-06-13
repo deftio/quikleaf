@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-qdedit is a standalone, cross-platform local markdown editor built on **Tauri v2** (Rust backend + webview frontend) with **quikdown** as the rendering engine. It provides rich markdown editing with live preview, LLM chat integration with tool calling, and project/folder awareness.
+qudown is a standalone, cross-platform local markdown editor built on **Tauri v2** (Rust backend + webview frontend) with **quikdown** as the rendering engine. It provides rich markdown editing with live preview, LLM chat integration with tool calling, and project/folder awareness.
 
-The full specification is in `dev/qdedit-spec.md`.
+The full specification is in `dev/qudown-spec.md`.
 
 ## Architecture
 
@@ -75,4 +75,4 @@ npm update quikdown
 1. **Phase 1** — Core editor: Tauri shell, quikdown editor, file open/save, CLI args
 2. **Phase 2 (current)** — Chat panel + LLM integration: tool-calling loop, provider adapters, document tools
 3. **Phase 3** — Memory/KV/screenshots: scratchpad, key-value store with timestamps, viewport capture
-4. **Phase 4** — Project mode: folder opening, file tree, qdedit.prj persistence
+4. **Phase 4** — Project mode: folder opening, file tree, qudown.prj persistence

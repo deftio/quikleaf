@@ -1,6 +1,6 @@
 # Architecture
 
-qdedit is a Tauri v2 desktop application with a Rust backend and TypeScript frontend.
+qudown is a Tauri v2 desktop application with a Rust backend and TypeScript frontend.
 
 ## Overview
 

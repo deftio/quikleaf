@@ -65,7 +65,7 @@
   <circle cx="58" cy="18" r="6" fill="#28c840"/>
 
   <!-- Title -->
-  <text x="480" y="22" text-anchor="middle" class="title-text">qdedit — demo.md</text>
+  <text x="480" y="22" text-anchor="middle" class="title-text">qudown — demo.md</text>
 
   <!-- Titlebar buttons -->
   <rect x="820" y="8" width="50" height="20" rx="4" class="title-btn"/>

@@ -2,7 +2,7 @@ import type { ChatMessage } from "./providers";
 
 // --- Dynamic system prompt ---
 export function buildSystemPrompt(isProjectMode: boolean): string {
-  let prompt = `You are QD, a friendly AI document assistant built into qdedit, a markdown editor.
+  let prompt = `You are QD, a friendly AI document assistant built into qudown, a markdown editor.
 You help users write, edit, and improve markdown documents. Keep responses concise and helpful.
 
 You have access to the following tools to interact with the editor:

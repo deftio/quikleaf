@@ -45,7 +45,7 @@ export async function loadTree(path?: string) {
 
     // Sort: dirs first, then files, alphabetical within each group
     const entries = result.entries
-      .filter(e => !e.name.startsWith(".") && e.name !== "qdedit.prj")
+      .filter(e => !e.name.startsWith(".") && e.name !== "qudown.prj")
       .sort((a, b) => {
         if (a.type !== b.type) return a.type === "dir" ? -1 : 1;
         return a.name.localeCompare(b.name);

@@ -1,6 +1,6 @@
 {
   "identifier": "default",
-  "description": "Default permissions for qdedit",
+  "description": "Default permissions for qudown",
   "windows": ["main"],
   "permissions": [
     "core:default",

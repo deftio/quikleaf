@@ -1,15 +1,15 @@
 [package]
-name = "qdedit"
+name = "qudown"
 version = "0.1.0"
 edition = "2021"
 description = "A standalone local markdown editor with rich rendering and LLM support"
 
 [lib]
-name = "qdedit_lib"
+name = "qudown_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [[bin]]
-name = "qdedit"
+name = "qudown"
 path = "src/main.rs"
 
 [dependencies]

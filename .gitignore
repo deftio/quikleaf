@@ -28,7 +28,7 @@ dev/signing/
 
 # npm platform binaries (only package.json is tracked)
 npm/*/bin/
-npm/qdedit/bin-fallback/
+npm/qudown/bin-fallback/
 
 # Vite cache
 .vite/
@@ -38,6 +38,10 @@ npm/qdedit/bin-fallback/
 
 # Test coverage
 coverage/
+
+# Playwright
+test-results/
+playwright-report/
 
 # Tauri generated
 src-tauri/gen/

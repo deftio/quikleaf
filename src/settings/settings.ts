@@ -8,7 +8,7 @@ export interface LLMSettings {
   model: string;
 }
 
-const STORAGE_KEY = "qdedit_llm_settings";
+const STORAGE_KEY = "qudown_llm_settings";
 
 const defaults: LLMSettings = {
   provider: "openai-compatible",

@@ -1,6 +1,6 @@
 # LLM Integration
 
-qdedit includes a built-in AI assistant called QD that can read, edit, and manage your documents through a tool-calling interface.
+qudown includes a built-in AI assistant called QD that can read, edit, and manage your documents through a tool-calling interface.
 
 ## Supported Providers
 
@@ -8,7 +8,7 @@ qdedit includes a built-in AI assistant called QD that can read, edit, and manag
 
 Any API following the OpenAI chat completions format:
 
-- **Ollama** — Auto-detected on `localhost:11434`. Run `ollama serve` and qdedit configures itself.
+- **Ollama** — Auto-detected on `localhost:11434`. Run `ollama serve` and qudown configures itself.
 - **LM Studio** — Auto-detected on `localhost:1234`.
 - **OpenRouter** — `https://openrouter.ai/api/v1` with API key.
 - **Groq** — `https://api.groq.com/openai/v1` with API key.
@@ -36,7 +36,7 @@ Click **Settings** in the title bar to configure:
 
 ## Auto-Detection
 
-On first launch (if no LLM is configured), qdedit probes:
+On first launch (if no LLM is configured), qudown probes:
 
 1. `http://localhost:11434/v1/models` (Ollama)
 2. `http://localhost:1234/v1/models` (LM Studio)
@@ -83,7 +83,7 @@ Persistent named storage:
 
 ### File Tools (Project Mode Only)
 
-Available when qdedit is launched with `--project ./dir`:
+Available when qudown is launched with `--project ./dir`:
 
 | Tool | Description |
 |------|-------------|

@@ -1,5 +1,5 @@
 /*
- * site.js — client-side script for the qdedit GitHub Pages site.
+ * site.js — client-side script for the qudown GitHub Pages site.
  *
  * Handles:
  *   - Theme cycling (light → dark → auto)
@@ -16,7 +16,7 @@
     // ----- Theme cycling -----
     var THEMES = ['qd-theme-light', 'qd-theme-dark', 'qd-theme-auto'];
     var ICONS  = { 'qd-theme-light': '\u2600\uFE0F', 'qd-theme-dark': '\uD83C\uDF19', 'qd-theme-auto': '\uD83D\uDDA5\uFE0F' };
-    var STORAGE_KEY = 'qdedit-site-theme';
+    var STORAGE_KEY = 'qudown-site-theme';
     var DEFAULT_THEME = 'qd-theme-light';
 
     function applyTheme(theme) {

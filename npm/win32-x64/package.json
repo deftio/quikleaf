@@ -1,13 +1,13 @@
 {
-  "name": "@deftio/qdedit-win32-x64",
+  "name": "@deftio/qudown-win32-x64",
   "version": "0.1.0",
-  "description": "qdedit binary for Windows x86_64",
+  "description": "qudown binary for Windows x86_64",
   "author": "deftio <deftio@deftio.com>",
   "license": "BSD-2-Clause",
-  "homepage": "https://github.com/deftio/qdedit",
+  "homepage": "https://github.com/deftio/qudown",
   "repository": {
     "type": "git",
-    "url": "https://github.com/deftio/qdedit.git"
+    "url": "https://github.com/deftio/qudown.git"
   },
   "os": ["win32"],
   "cpu": ["x64"]

@@ -1,4 +1,4 @@
-# qdedit
+# qudown
 
 A standalone, cross-platform desktop markdown editor with rich rendering and LLM chat integration.
 
@@ -7,22 +7,22 @@ Built with [Tauri v2](https://tauri.app) and powered by [quikdown](https://githu
 ## Install
 
 ```bash
-npm install -g qdedit
+npm install -g qudown
 ```
 
 Then run:
 
 ```bash
-qdedit                    # Open empty editor
-qdedit document.md        # Open a file
-qdedit --project ./mydir  # Open folder with project tools
+qudown                    # Open empty editor
+qudown document.md        # Open a file
+qudown --project ./mydir  # Open folder with project tools
 ```
 
 Or use without installing:
 
 ```bash
-npx qdedit
-npx qdedit document.md
+npx qudown
+npx qudown document.md
 ```
 
 ## Features
@@ -36,9 +36,9 @@ npx qdedit document.md
 
 ## Links
 
-- [GitHub](https://github.com/deftio/qdedit)
+- [GitHub](https://github.com/deftio/qudown)
 - [quikdown](https://github.com/deftio/quikdown)
-- [Releases](https://github.com/deftio/qdedit/releases)
+- [Releases](https://github.com/deftio/qudown/releases)
 
 ## License
 

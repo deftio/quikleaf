@@ -1,18 +1,18 @@
 {
-  "name": "qdedit",
+  "name": "qudown",
   "version": "0.1.0",
   "private": false,
   "type": "module",
   "description": "A standalone, cross-platform desktop markdown editor with rich rendering and LLM chat integration",
   "author": "deftio <deftio@deftio.com>",
   "license": "BSD-2-Clause",
-  "homepage": "https://github.com/deftio/qdedit",
+  "homepage": "https://github.com/deftio/qudown",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/deftio/qdedit.git"
+    "url": "git+https://github.com/deftio/qudown.git"
   },
   "bugs": {
-    "url": "https://github.com/deftio/qdedit/issues"
+    "url": "https://github.com/deftio/qudown/issues"
   },
   "keywords": [
     "markdown",
@@ -36,9 +36,13 @@
     "check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "dev:e2e": "vite --config vite.config.e2e.ts --port 1421",
+    "test:e2e": "playwright test",
+    "test:all": "vitest run && playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@tauri-apps/cli": "^2.11.2",
     "@vitest/coverage-v8": "^4.1.8",
     "happy-dom": "^20.10.2",

@@ -1,13 +1,13 @@
 {
-  "name": "@deftio/qdedit-darwin-arm64",
+  "name": "@deftio/qudown-darwin-arm64",
   "version": "0.1.0",
-  "description": "qdedit binary for macOS Apple Silicon (aarch64)",
+  "description": "qudown binary for macOS Apple Silicon (aarch64)",
   "author": "deftio <deftio@deftio.com>",
   "license": "BSD-2-Clause",
-  "homepage": "https://github.com/deftio/qdedit",
+  "homepage": "https://github.com/deftio/qudown",
   "repository": {
     "type": "git",
-    "url": "https://github.com/deftio/qdedit.git"
+    "url": "https://github.com/deftio/qudown.git"
   },
   "os": ["darwin"],
   "cpu": ["arm64"]

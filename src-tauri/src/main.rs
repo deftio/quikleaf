@@ -24,7 +24,7 @@ pub fn parse_cli_args_from(args: &[String], cwd: &Path) -> LaunchMode {
 
             // Check if it's a directory
             if absolute_path.is_dir() {
-                let prj_file = absolute_path.join("qdedit.prj");
+                let prj_file = absolute_path.join("qudown.prj");
                 let exists = prj_file.exists();
                 return LaunchMode::Project {
                     project_root: absolute_path.to_string_lossy().to_string(),
@@ -185,7 +185,7 @@ fn main() {
             commands::project::screenshot_viewport,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running qdedit");
+        .expect("error while running qudown");
 }
 
 #[cfg(test)]
@@ -200,7 +200,7 @@ mod tests {
     #[test]
     fn no_args_returns_simple_none() {
         let cwd = PathBuf::from("/tmp");
-        let mode = parse_cli_args_from(&args(&["qdedit"]), &cwd);
+        let mode = parse_cli_args_from(&args(&["qudown"]), &cwd);
         match mode {
             LaunchMode::Simple { file_path } => assert!(file_path.is_none()),
             _ => panic!("Expected Simple"),
@@ -210,7 +210,7 @@ mod tests {
     #[test]
     fn file_arg_returns_simple_with_path() {
         let cwd = PathBuf::from("/home/user");
-        let mode = parse_cli_args_from(&args(&["qdedit", "readme.md"]), &cwd);
+        let mode = parse_cli_args_from(&args(&["qudown", "readme.md"]), &cwd);
         match mode {
             LaunchMode::Simple { file_path } => {
                 let p = file_path.unwrap();
@@ -224,7 +224,7 @@ mod tests {
     #[test]
     fn absolute_file_arg_preserved() {
         let cwd = PathBuf::from("/tmp");
-        let mode = parse_cli_args_from(&args(&["qdedit", "/absolute/path.md"]), &cwd);
+        let mode = parse_cli_args_from(&args(&["qudown", "/absolute/path.md"]), &cwd);
         match mode {
             LaunchMode::Simple { file_path } => {
                 assert_eq!(file_path.unwrap(), "/absolute/path.md");
@@ -238,11 +238,11 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let dir_str = tmp.path().to_string_lossy().to_string();
         let cwd = PathBuf::from("/tmp");
-        let mode = parse_cli_args_from(&args(&["qdedit", "--project", &dir_str]), &cwd);
+        let mode = parse_cli_args_from(&args(&["qudown", "--project", &dir_str]), &cwd);
         match mode {
             LaunchMode::Project { project_root, project_file, exists } => {
                 assert!(project_root.contains(&dir_str) || project_root.contains(tmp.path().file_name().unwrap().to_str().unwrap()));
-                assert!(project_file.contains("qdedit.prj"));
+                assert!(project_file.contains("qudown.prj"));
                 assert!(!exists); // No prj file created yet
             }
             _ => panic!("Expected Project"),
@@ -256,7 +256,7 @@ mod tests {
         std::fs::write(&prj_file, "{}").unwrap();
         let prj_str = prj_file.to_string_lossy().to_string();
         let cwd = PathBuf::from("/tmp");
-        let mode = parse_cli_args_from(&args(&["qdedit", "--project", &prj_str]), &cwd);
+        let mode = parse_cli_args_from(&args(&["qudown", "--project", &prj_str]), &cwd);
         match mode {
             LaunchMode::Project { project_root, project_file, exists } => {
                 assert!(project_root.contains(tmp.path().file_name().unwrap().to_str().unwrap()));
@@ -270,7 +270,7 @@ mod tests {
     #[test]
     fn flags_skipped_when_finding_file_arg() {
         let cwd = PathBuf::from("/home/user");
-        let mode = parse_cli_args_from(&args(&["qdedit", "--verbose", "readme.md"]), &cwd);
+        let mode = parse_cli_args_from(&args(&["qudown", "--verbose", "readme.md"]), &cwd);
         match mode {
             LaunchMode::Simple { file_path } => {
                 let p = file_path.unwrap();
@@ -285,7 +285,7 @@ mod tests {
     #[test]
     fn project_flag_without_value_falls_through() {
         let cwd = PathBuf::from("/tmp");
-        let mode = parse_cli_args_from(&args(&["qdedit", "--project"]), &cwd);
+        let mode = parse_cli_args_from(&args(&["qudown", "--project"]), &cwd);
         match mode {
             LaunchMode::Simple { file_path } => assert!(file_path.is_none()),
             _ => panic!("Expected Simple fallback"),
