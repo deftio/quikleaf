@@ -7,7 +7,7 @@ test.describe("Chat panel", () => {
     await page.waitForSelector("#editor-container", { state: "visible" });
     await page.evaluate(() => {
       localStorage.setItem(
-        "qudown_llm_settings",
+        "quikleaf_llm_settings",
         JSON.stringify({
           provider: "openai-compatible",
           host: "http://localhost:11434",
@@ -138,7 +138,7 @@ test.describe("Chat panel", () => {
 
   test("no LLM configured shows config prompt", async ({ page }) => {
     // Clear settings
-    await page.evaluate(() => localStorage.removeItem("qudown_llm_settings"));
+    await page.evaluate(() => localStorage.removeItem("quikleaf_llm_settings"));
     // Need to re-navigate so settings are cleared when send() reads them
     await page.goto("/");
     await page.waitForSelector("#editor-container", { state: "visible" });

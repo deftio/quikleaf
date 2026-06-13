@@ -20,7 +20,7 @@ pub fn parse_cli_args_from(args: &[String], cwd: &Path) -> LaunchMode {
             };
 
             if absolute_path.is_dir() {
-                let prj_file = absolute_path.join("qudown.prj");
+                let prj_file = absolute_path.join("quikleaf.prj");
                 let exists = prj_file.exists();
                 return LaunchMode::Project {
                     project_root: absolute_path.to_string_lossy().to_string(),
@@ -178,5 +178,5 @@ pub fn run() {
             commands::project::screenshot_viewport,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running qudown");
+        .expect("error while running quikleaf");
 }

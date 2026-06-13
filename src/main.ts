@@ -60,7 +60,7 @@ async function openFile() {
         currentFilePath = path;
         setMarkdown(content);
         statusFile.textContent = currentFilePath;
-        document.title = `qudown — ${fileName(currentFilePath)}`;
+        document.title = `quikleaf — ${fileName(currentFilePath)}`;
       }
     }
   } catch (e) {
@@ -82,7 +82,7 @@ async function saveFile() {
         currentFilePath = path;
         await writeTextFile(currentFilePath, md);
         statusFile.textContent = currentFilePath;
-        document.title = `qudown — ${fileName(currentFilePath)}`;
+        document.title = `quikleaf — ${fileName(currentFilePath)}`;
       }
     }
   } catch (e) {
@@ -267,7 +267,7 @@ async function init() {
         currentFilePath = launchMode.file_path;
         setMarkdown(content);
         statusFile.textContent = currentFilePath;
-        document.title = `qudown — ${fileName(currentFilePath)}`;
+        document.title = `quikleaf — ${fileName(currentFilePath)}`;
       }
     } else if (launchMode.type === "Project") {
       // Project mode
@@ -285,7 +285,7 @@ async function init() {
             currentFilePath = openFile;
             setMarkdown(content);
             statusFile.textContent = `[Project] ${openFile}`;
-            document.title = `qudown — ${fileName(openFile)}`;
+            document.title = `quikleaf — ${fileName(openFile)}`;
           } catch {
             // File may have been deleted
           }
@@ -318,7 +318,7 @@ async function init() {
         currentFilePath = cliFile;
         setMarkdown(content);
         statusFile.textContent = currentFilePath;
-        document.title = `qudown — ${fileName(currentFilePath)}`;
+        document.title = `quikleaf — ${fileName(currentFilePath)}`;
       }
     } catch {}
   }
@@ -332,7 +332,7 @@ export async function loadFileIntoEditor(relativePath: string) {
     setMarkdown(content);
     await invoke("set_open_file", { path: relativePath });
     statusFile.textContent = `[Project] ${relativePath}`;
-    document.title = `qudown — ${fileName(relativePath)}`;
+    document.title = `quikleaf — ${fileName(relativePath)}`;
   } catch (e) {
     console.error("Failed to load file:", e);
   }

@@ -1,10 +1,10 @@
-# agents.md — AI Agent Integration Guide for qudown
+# agents.md — AI Agent Integration Guide for quikleaf
 
-This file describes how AI agents can interact with qudown, both as the built-in QD assistant and as external tooling.
+This file describes how AI agents can interact with quikleaf, both as the built-in QD assistant and as external tooling.
 
 ## Built-in Agent: QD
 
-qudown includes a built-in LLM-powered assistant called QD. QD communicates via a tool-calling loop and operates exclusively on raw markdown (never HTML).
+quikleaf includes a built-in LLM-powered assistant called QD. QD communicates via a tool-calling loop and operates exclusively on raw markdown (never HTML).
 
 ### System Prompt
 
@@ -80,7 +80,7 @@ Users can type these in the chat input:
 
 ## Provider Configuration
 
-qudown supports two provider types:
+quikleaf supports two provider types:
 
 ### OpenAI-compatible
 - Any API that follows the OpenAI chat completions format
@@ -95,11 +95,11 @@ qudown supports two provider types:
 
 ## External Agent Integration
 
-External agents (CI/CD, scripts, other tools) can interact with qudown's project files:
+External agents (CI/CD, scripts, other tools) can interact with quikleaf's project files:
 
 ### Project File Format
 
-When qudown runs in project mode (`--project ./dir`), it creates a `qudown.prj` JSON file containing:
+When quikleaf runs in project mode (`--project ./dir`), it creates a `quikleaf.prj` JSON file containing:
 - `project_root`: absolute path to the project directory
 - `open_file`: currently open file path (relative)
 - `memory`: scratchpad contents
@@ -107,7 +107,7 @@ When qudown runs in project mode (`--project ./dir`), it creates a `qudown.prj` 
 
 ### Memory and KV as Agent Communication
 
-Agents can read/write the `qudown.prj` file to communicate with the user through QD:
+Agents can read/write the `quikleaf.prj` file to communicate with the user through QD:
 - Write to `memory` to pass context to QD
 - Write to `kv` to store structured data QD can access
 - QD will see these values when it uses `memory_read` or `kv_get`

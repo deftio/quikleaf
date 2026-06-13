@@ -1,13 +1,13 @@
 {
-  "name": "@deftio/qudown-linux-x64",
+  "name": "@deftio/quikleaf-linux-x64",
   "version": "0.1.0",
-  "description": "qudown binary for Linux x86_64",
+  "description": "quikleaf binary for Linux x86_64",
   "author": "deftio <deftio@deftio.com>",
   "license": "BSD-2-Clause",
-  "homepage": "https://github.com/deftio/qudown",
+  "homepage": "https://github.com/deftio/quikleaf",
   "repository": {
     "type": "git",
-    "url": "https://github.com/deftio/qudown.git"
+    "url": "https://github.com/deftio/quikleaf.git"
   },
   "os": ["linux"],
   "cpu": ["x64"]

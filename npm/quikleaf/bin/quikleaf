@@ -1,0 +1,66 @@
+#!/usr/bin/env node
+
+/**
+ * quikleaf CLI wrapper — finds and executes the platform-specific binary.
+ *
+ * Binary comes from one of:
+ *   1. optionalDependencies (@deftio/quikleaf-{platform}-{arch})
+ *   2. Fallback downloaded by install.js
+ */
+
+const { execFileSync } = require("child_process");
+const path = require("path");
+const fs = require("fs");
+
+const PLATFORMS = {
+  "darwin-arm64":  "@deftio/quikleaf-darwin-arm64",
+  "darwin-x64":    "@deftio/quikleaf-darwin-x64",
+  "linux-x64":     "@deftio/quikleaf-linux-x64",
+  "win32-x64":     "@deftio/quikleaf-win32-x64",
+};
+
+function getBinaryPath() {
+  const platformKey = `${process.platform}-${process.arch}`;
+  const pkg = PLATFORMS[platformKey];
+
+  if (!pkg) {
+    console.error(
+      `quikleaf: unsupported platform ${process.platform} ${process.arch}\n` +
+      `Supported: ${Object.keys(PLATFORMS).join(", ")}\n` +
+      `Download manually: https://github.com/deftio/quikleaf/releases`
+    );
+    process.exit(1);
+  }
+
+  const binName = process.platform === "win32" ? "quikleaf.exe" : "quikleaf";
+
+  // Method 1: Try optionalDependencies
+  try {
+    const pkgDir = path.dirname(require.resolve(`${pkg}/package.json`));
+    const binPath = path.join(pkgDir, "bin", binName);
+    if (fs.existsSync(binPath)) return binPath;
+  } catch (_e) {
+    // Not installed via optionalDependencies
+  }
+
+  // Method 2: Try fallback location (downloaded by install.js)
+  const fallback = path.join(__dirname, "..", "bin-fallback", binName);
+  if (fs.existsSync(fallback)) return fallback;
+
+  console.error(
+    `quikleaf: binary not found for ${platformKey}\n` +
+    `Try reinstalling: npm install -g quikleaf\n` +
+    `Or download from: https://github.com/deftio/quikleaf/releases`
+  );
+  process.exit(1);
+}
+
+const binary = getBinaryPath();
+const args = process.argv.slice(2);
+
+try {
+  execFileSync(binary, args, { stdio: "inherit" });
+} catch (e) {
+  if (e.status !== null) process.exit(e.status);
+  throw e;
+}

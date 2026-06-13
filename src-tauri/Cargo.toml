@@ -1,15 +1,15 @@
 [package]
-name = "qudown"
+name = "quikleaf"
 version = "0.1.0"
 edition = "2021"
 description = "A standalone local markdown editor with rich rendering and LLM support"
 
 [lib]
-name = "qudown_lib"
+name = "quikleaf_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [[bin]]
-name = "qudown"
+name = "quikleaf"
 path = "src/main.rs"
 
 [dependencies]

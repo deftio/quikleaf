@@ -57,21 +57,21 @@ describe("loadSettings / saveSettings", () => {
       model: "phi3",
     };
     saveSettings(settings);
-    const raw = localStorage.getItem("qudown_llm_settings");
+    const raw = localStorage.getItem("quikleaf_llm_settings");
     expect(raw).not.toBeNull();
     const parsed = JSON.parse(raw!);
     expect(parsed.model).toBe("phi3");
   });
 
   it("returns defaults on corrupted JSON", () => {
-    localStorage.setItem("qudown_llm_settings", "{not valid json}");
+    localStorage.setItem("quikleaf_llm_settings", "{not valid json}");
     const s = loadSettings();
     expect(s.provider).toBe("openai-compatible");
     expect(s.host).toBe("http://localhost:11434");
   });
 
   it("merges partial saved data with defaults", () => {
-    localStorage.setItem("qudown_llm_settings", JSON.stringify({ model: "custom" }));
+    localStorage.setItem("quikleaf_llm_settings", JSON.stringify({ model: "custom" }));
     const s = loadSettings();
     expect(s.model).toBe("custom");
     expect(s.host).toBe("http://localhost:11434"); // from defaults

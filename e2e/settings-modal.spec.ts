@@ -16,7 +16,7 @@ test.describe("Settings modal", () => {
     // Save settings to localStorage
     await page.evaluate(() => {
       localStorage.setItem(
-        "qudown_llm_settings",
+        "quikleaf_llm_settings",
         JSON.stringify({
           provider: "openai-compatible",
           host: "http://testhost:1234",
@@ -51,7 +51,7 @@ test.describe("Settings modal", () => {
 
     // localStorage should be updated
     const saved = await page.evaluate(() =>
-      JSON.parse(localStorage.getItem("qudown_llm_settings") || "{}")
+      JSON.parse(localStorage.getItem("quikleaf_llm_settings") || "{}")
     );
     expect(saved.model).toBe("my-model");
     expect(saved.host).toBe("http://myhost:8080");
@@ -67,7 +67,7 @@ test.describe("Settings modal", () => {
 
     // localStorage should not have the value
     const saved = await page.evaluate(() =>
-      localStorage.getItem("qudown_llm_settings")
+      localStorage.getItem("quikleaf_llm_settings")
     );
     // It's either null or doesn't contain "should-not-save"
     if (saved) {
@@ -135,7 +135,7 @@ test.describe("Settings modal", () => {
   test("Status text format: model @ host", async ({ page }) => {
     await page.evaluate(() => {
       localStorage.setItem(
-        "qudown_llm_settings",
+        "quikleaf_llm_settings",
         JSON.stringify({
           provider: "openai-compatible",
           host: "http://localhost:11434",
@@ -155,7 +155,7 @@ test.describe("Settings modal", () => {
     page,
   }) => {
     // Clear any saved settings before navigation
-    await page.evaluate(() => localStorage.removeItem("qudown_llm_settings"));
+    await page.evaluate(() => localStorage.removeItem("quikleaf_llm_settings"));
 
     // Configure mock models BEFORE page load via addInitScript
     await page.addInitScript(() => {

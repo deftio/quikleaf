@@ -1,13 +1,13 @@
 {
-  "name": "@deftio/qudown-darwin-x64",
+  "name": "@deftio/quikleaf-darwin-x64",
   "version": "0.1.0",
-  "description": "qudown binary for macOS Intel (x86_64)",
+  "description": "quikleaf binary for macOS Intel (x86_64)",
   "author": "deftio <deftio@deftio.com>",
   "license": "BSD-2-Clause",
-  "homepage": "https://github.com/deftio/qudown",
+  "homepage": "https://github.com/deftio/quikleaf",
   "repository": {
     "type": "git",
-    "url": "https://github.com/deftio/qudown.git"
+    "url": "https://github.com/deftio/quikleaf.git"
   },
   "os": ["darwin"],
   "cpu": ["x64"]

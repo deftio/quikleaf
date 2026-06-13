@@ -1,10 +1,10 @@
-# qudown — Specification
+# quikleaf — Specification
 
 ## Overview
 
-qudown is a standalone, cross-platform, local markdown editor built on Tauri and quikdown. It provides rich markdown rendering (SVG, math, mermaid, maps, STL, CSV, and upcoming vega/abcjs fences), a split editor/preview pane, and an integrated LLM chat panel with tool-calling support. The LLM operates on the markdown source via tools — it has no special access beyond what the tools expose.
+quikleaf is a standalone, cross-platform, local markdown editor built on Tauri and quikdown. It provides rich markdown rendering (SVG, math, mermaid, maps, STL, CSV, and upcoming vega/abcjs fences), a split editor/preview pane, and an integrated LLM chat panel with tool-calling support. The LLM operates on the markdown source via tools — it has no special access beyond what the tools expose.
 
-When used without LLM features, qudown is simply a fast, capable local markdown editor with rich fence rendering and local image support.
+When used without LLM features, quikleaf is simply a fast, capable local markdown editor with rich fence rendering and local image support.
 
 ## Principles
 
@@ -12,12 +12,12 @@ When used without LLM features, qudown is simply a fast, capable local markdown 
 - **quikdown is the rendering engine.** The standalone build bundles all fence libraries. quikdown is owned by the author and can be extended (new fence types, executable fences in the future).
 - **The LLM is a tool user.** It reads and writes markdown through explicit tool calls. It has no hidden context injection or RAG. It sees what it asks to see.
 - **Transparency.** Chat history, memory, KV store, and document edit history are all inspectable by the user. Nothing is hidden.
-- **Progressive complexity.** `qudown myfile.md` is a simple editor. Opening a project adds folder awareness, LLM memory persistence, and KV storage. The user opts in to complexity.
+- **Progressive complexity.** `quikleaf myfile.md` is a simple editor. Opening a project adds folder awareness, LLM memory persistence, and KV storage. The user opts in to complexity.
 
 ## Architecture
 
 ```
-qudown/
+quikleaf/
 ├── src-tauri/                 # Rust backend (Tauri)
 │   ├── src/
 │   │   ├── main.rs            # App bootstrap, CLI arg parsing, window setup
@@ -27,7 +27,7 @@ qudown/
 │   │   │   ├── llm.rs         # LLM API proxy (HTTP calls, key management)
 │   │   │   ├── memory.rs      # Scratchpad read/write
 │   │   │   ├── kv.rs          # Key-value store CRUD
-│   │   │   ├── project.rs     # Project file load/save (qudown.prj)
+│   │   │   ├── project.rs     # Project file load/save (quikleaf.prj)
 │   │   │   └── screenshot.rs  # Viewport/document screenshot capture
 │   │   └── asset_protocol.rs  # Custom protocol for local image resolution
 │   ├── Cargo.toml
@@ -47,7 +47,7 @@ qudown/
 │   └── project/
 │       └── file-tree.ts       # File tree sidebar (project mode)
 ├── dev/                       # Specs, design docs
-│   └── qudown-spec.md         # This file
+│   └── quikleaf-spec.md         # This file
 ├── package.json
 ├── vite.config.ts
 └── tsconfig.json
@@ -82,15 +82,15 @@ User asks LLM ─────────→ chat panel sends message + tool def
 
 ## Modes of Operation
 
-### Simple Mode: `qudown myfile.md`
+### Simple Mode: `quikleaf myfile.md`
 
 Opens a single file in the editor. No project, no file tree, no persistence of LLM state. The chat panel is available but chat history is ephemeral (lost on close). Memory and KV tools are available in-session but not persisted.
 
-### Project Mode: `qudown --project mydir/`
+### Project Mode: `quikleaf --project mydir/`
 
-Opens a folder. Shows file tree sidebar. LLM can read/write files within the project. If a `qudown.prj` file exists, loads chat history, memory, KV, and preferences from it. If not, starts fresh. The user can optionally save state to `qudown.prj` at any time.
+Opens a folder. Shows file tree sidebar. LLM can read/write files within the project. If a `quikleaf.prj` file exists, loads chat history, memory, KV, and preferences from it. If not, starts fresh. The user can optionally save state to `quikleaf.prj` at any time.
 
-### Project Mode: `qudown --project mydir/qudown.prj`
+### Project Mode: `quikleaf --project mydir/quikleaf.prj`
 
 Opens an existing project file directly. Restores all state.
 
@@ -134,7 +134,7 @@ The loop has a configurable iteration limit (default: 20) to prevent runaway too
 
 ### Chat History
 
-The complete chat history (including tool calls and tool results) is preserved in memory during the session. In project mode, it can be persisted to `qudown.prj`. The full history is always sent to the LLM on each turn (no summarization in v1; context window limits are the user's problem to manage via model selection).
+The complete chat history (including tool calls and tool results) is preserved in memory during the session. In project mode, it can be persisted to `quikleaf.prj`. The full history is always sent to the LLM on each turn (no summarization in v1; context window limits are the user's problem to manage via model selection).
 
 ## LLM Tool Definitions
 
@@ -193,7 +193,7 @@ All tool calls are logged with timestamps to an append-only log. The log capture
 { "ts": "2026-05-25T23:14:07Z", "tool": "kv_set", "params": { "key": "api_base", "value": "..." }, "result": { "success": true }, "source": "llm" }
 ```
 
-The `source` field is `"llm"` for LLM-initiated tool calls or `"user"` for user-initiated actions (e.g., manual save). The log is stored in memory during the session and persisted to `qudown.prj` in project mode. It provides a complete audit trail of all LLM actions for debugging and replay.
+The `source` field is `"llm"` for LLM-initiated tool calls or `"user"` for user-initiated actions (e.g., manual save). The log is stored in memory during the session and persisted to `quikleaf.prj` in project mode. It provides a complete audit trail of all LLM actions for debugging and replay.
 
 ### Screenshot Tools (executed in Rust via IPC)
 
@@ -222,7 +222,7 @@ Allows the LLM to re-scan conversation history, e.g., after memory compaction or
 
 ### Provider Configuration
 
-Stored in `qudown.prj` (project mode) or `~/.qudown/config.json` (global defaults).
+Stored in `quikleaf.prj` (project mode) or `~/.quikleaf/config.json` (global defaults).
 
 ```json
 {
@@ -254,7 +254,7 @@ Stored in `qudown.prj` (project mode) or `~/.qudown/config.json` (global default
 
 API keys are stored in the Rust backend (config file on disk) and never sent to the webview. The webview sends `{ provider, model, messages, tools }` to a Rust IPC command, which adds the appropriate auth headers and makes the HTTP request. This prevents key leakage through browser devtools or XSS.
 
-## Project File: `qudown.prj`
+## Project File: `quikleaf.prj`
 
 A JSON file that persists session state. Saved manually by the user (File > Save Project) or auto-saved on close if the user has opted in.
 
@@ -291,19 +291,19 @@ A JSON file that persists session state. Saved manually by the user (File > Save
 ## CLI Interface
 
 ```
-qudown                          # Open empty editor
-qudown myfile.md                # Open a single file
-qudown --project ./mydir/       # Open a folder as a project
-qudown --project ./mydir/qudown.prj  # Open an existing project file
-qudown --version                # Print version
-qudown --help                   # Print help
+quikleaf                          # Open empty editor
+quikleaf myfile.md                # Open a single file
+quikleaf --project ./mydir/       # Open a folder as a project
+quikleaf --project ./mydir/quikleaf.prj  # Open an existing project file
+quikleaf --version                # Print version
+quikleaf --help                   # Print help
 ```
 
 ## UI Layout
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  qudown   [File ▾] [Settings ▾]          [provider ▾]  │
+│  quikleaf   [File ▾] [Settings ▾]          [provider ▾]  │
 ├──────────────┬──────────────────────────────────────────┤
 │              │  ┌─────────┬────────────┐               │
 │  Chat Panel  │  │  Source  │  Preview   │               │
@@ -356,7 +356,7 @@ cargo test               # Run Rust backend tests
 - Tauri project scaffolded with Vite + TypeScript frontend
 - quikdown_edit_standalone embedded in the webview
 - File open/save via system dialogs
-- CLI: `qudown myfile.md` opens the file
+- CLI: `quikleaf myfile.md` opens the file
 - Local image resolution via custom asset protocol
 - Theme support (light/dark/auto)
 - Status bar with file path
@@ -383,8 +383,8 @@ cargo test               # Run Rust backend tests
 - Open folder as project
 - File tree sidebar
 - File tools (read/write/list/stat) with path sandboxing
-- `qudown.prj` load/save (chat history, memory, KV, preferences)
-- CLI: `qudown --project ./dir/`
+- `quikleaf.prj` load/save (chat history, memory, KV, preferences)
+- CLI: `quikleaf --project ./dir/`
 
 ### Future Considerations
 

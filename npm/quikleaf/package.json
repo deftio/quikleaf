@@ -1,16 +1,16 @@
 {
-  "name": "qudown",
+  "name": "quikleaf",
   "version": "0.1.0",
   "description": "A standalone, cross-platform desktop markdown editor with rich rendering and LLM chat integration",
   "author": "deftio <deftio@deftio.com>",
   "license": "BSD-2-Clause",
-  "homepage": "https://github.com/deftio/qudown",
+  "homepage": "https://github.com/deftio/quikleaf",
   "repository": {
     "type": "git",
-    "url": "https://github.com/deftio/qudown.git"
+    "url": "https://github.com/deftio/quikleaf.git"
   },
   "bugs": {
-    "url": "https://github.com/deftio/qudown/issues"
+    "url": "https://github.com/deftio/quikleaf/issues"
   },
   "keywords": [
     "markdown",
@@ -24,15 +24,15 @@
     "latex"
   ],
   "bin": {
-    "qudown": "bin/qudown"
+    "quikleaf": "bin/quikleaf"
   },
   "scripts": {
     "postinstall": "node install.js"
   },
   "optionalDependencies": {
-    "@deftio/qudown-darwin-arm64": "0.1.0",
-    "@deftio/qudown-darwin-x64": "0.1.0",
-    "@deftio/qudown-linux-x64": "0.1.0",
-    "@deftio/qudown-win32-x64": "0.1.0"
+    "@deftio/quikleaf-darwin-arm64": "0.1.0",
+    "@deftio/quikleaf-darwin-x64": "0.1.0",
+    "@deftio/quikleaf-linux-x64": "0.1.0",
+    "@deftio/quikleaf-win32-x64": "0.1.0"
   }
 }

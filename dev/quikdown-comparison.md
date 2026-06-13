@@ -3,7 +3,7 @@
 **Date:** June 2026  
 **Overview:** This document compares Quikdown — a new lightweight JavaScript Markdown parser and embeddable editor — against popular full desktop Markdown editors and leading web/JavaScript Markdown libraries. 
 
-Quikdown excels in being extremely small, secure by default, bidirectional (HTML ↔ Markdown), and rich in technical fence support. A desktop version called **qudown** (built with Tauri) is currently in progress, featuring offline/standalone fences, CLI support, automation options, standalone GUI editor, and LLM integration.
+Quikdown excels in being extremely small, secure by default, bidirectional (HTML ↔ Markdown), and rich in technical fence support. A desktop version called **quikleaf** (built with Tauri) is currently in progress, featuring offline/standalone fences, CLI support, automation options, standalone GUI editor, and LLM integration.
 
 ## 1. Desktop / Full Editors Comparison
 
@@ -16,10 +16,10 @@ Quikdown excels in being extremely small, secure by default, bidirectional (HTML
 | **Bidirectional Editing**        | Excellent (edit rendered HTML → MD)  | Limited                              | Good (source toggle)                | Manual                              |
 | **Rich Media / Fences**          | Outstanding (Mermaid, MathJax, Vega, GeoJSON, STL 3D, ABC music, CSV tables, etc.) | Excellent via plugins                | Good (Mermaid, Math, diagrams)      | Good with extensions                |
 | **Security (XSS-safe)**          | Excellent (built-in sanitization)    | Good                                 | Good                                | Depends on setup                    |
-| **File Management**              | Excellent (qudown: native + CLI)     | Excellent (vaults, folders, search)  | Good (local files + outline)        | Excellent (project/folder)          |
+| **File Management**              | Excellent (quikleaf: native + CLI)     | Excellent (vaults, folders, search)  | Good (local files + outline)        | Excellent (project/folder)          |
 | **Plugin / Extension Ecosystem** | Growing (fence plugins + MCP for AI) | Massive (2,000+ community plugins)   | Limited (themes mainly)             | Very large                          |
-| **Desktop App**                  | **Yes (qudown in progress - Tauri)** | Yes (Windows/Mac/Linux + mobile)    | Yes (Windows/Mac/Linux)             | Yes                                 |
-| **Export Options**               | HTML, PDF, CLI + automation (qudown) | Many via plugins                     | PDF, HTML, Word (via Pandoc)        | Flexible via extensions             |
+| **Desktop App**                  | **Yes (quikleaf in progress - Tauri)** | Yes (Windows/Mac/Linux + mobile)    | Yes (Windows/Mac/Linux)             | Yes                                 |
+| **Export Options**               | HTML, PDF, CLI + automation (quikleaf) | Many via plugins                     | PDF, HTML, Word (via Pandoc)        | Flexible via extensions             |
 | **AI / Agent Integration**       | Strong (MCP server, structured outputs) | Good via plugins                     | Limited                             | Excellent (Copilot etc.)            |
 | **Offline / Air-gapped**         | Yes (standalone bundle)              | Yes                                  | Yes                                 | Yes                                 |
 | **Themes**                       | Light/Dark/Auto + custom CSS         | Excellent + community                | Excellent built-in themes           | Highly customizable                 |
@@ -63,13 +63,13 @@ For highly custom web editors, **Tiptap** and **Milkdown** offer more mature eco
 
 ---
 
-## qudown Roadmap Suggestions
+## quikleaf Roadmap Suggestions
 
 **If I could tell the developer one focused recommendation right now:**
 
 **Prioritize a rock-solid, buttery-smooth bidirectional editing experience in the desktop app (Typora-level seamlessness), paired with excellent default themes and one-click export to clean PDF.**
 
-This would immediately make qudown stand out from Obsidian (more rigid panes) and Typora (no CLI/automation). Nail the core writing feel first — everything else (CLI, LLM, etc.) becomes a massive bonus on top of a great editor.
+This would immediately make quikleaf stand out from Obsidian (more rigid panes) and Typora (no CLI/automation). Nail the core writing feel first — everything else (CLI, LLM, etc.) becomes a massive bonus on top of a great editor.
 
 ### Additional High-Impact Suggestions
 1. **Polish the Core Writing Experience**
@@ -102,7 +102,7 @@ This would immediately make qudown stand out from Obsidian (more rigid panes) an
    - Easy theming engine
    - Good documentation + starter templates
 
-Focusing on these will help qudown quickly become a top-tier Markdown editor that combines the best of lightweight design, technical richness, and modern features.
+Focusing on these will help quikleaf quickly become a top-tier Markdown editor that combines the best of lightweight design, technical richness, and modern features.
 
 ---
 *Generated with assistance from Grok (xAI). Feedback welcome.*

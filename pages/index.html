@@ -3,45 +3,45 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>qudown — Markdown editor with LLM chat, powered by quikdown</title>
+  <title>quikleaf — Markdown editor with LLM chat, powered by quikdown</title>
   <meta name="description" content="A standalone, cross-platform desktop markdown editor with rich rendering and built-in LLM chat assistant. Powered by quikdown. macOS, Windows, Linux.">
   <meta name="keywords" content="markdown editor, desktop markdown, LLM chat, AI writing assistant, quikdown, tauri app, mermaid diagrams, latex editor, local LLM, ollama">
   <meta name="author" content="deftio@deftio.com">
   <meta name="theme-color" content="#9550bb">
-  <link rel="canonical" href="https://deftio.github.io/qudown/">
+  <link rel="canonical" href="https://deftio.github.io/quikleaf/">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
 
   <!-- Open Graph -->
   <meta property="og:type" content="website">
-  <meta property="og:site_name" content="qudown">
-  <meta property="og:title" content="qudown — Markdown editor with LLM chat">
+  <meta property="og:site_name" content="quikleaf">
+  <meta property="og:title" content="quikleaf — Markdown editor with LLM chat">
   <meta property="og:description" content="A standalone desktop markdown editor with rich rendering and built-in AI assistant. Powered by quikdown. macOS, Windows, Linux.">
-  <meta property="og:url" content="https://deftio.github.io/qudown/">
-  <meta property="og:image" content="https://deftio.github.io/qudown/assets/icon.png">
+  <meta property="og:url" content="https://deftio.github.io/quikleaf/">
+  <meta property="og:image" content="https://deftio.github.io/quikleaf/assets/icon.png">
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="qudown — Markdown editor with LLM chat">
+  <meta name="twitter:title" content="quikleaf — Markdown editor with LLM chat">
   <meta name="twitter:description" content="Desktop markdown editor with rich rendering and built-in AI assistant. Powered by quikdown.">
-  <meta name="twitter:image" content="https://deftio.github.io/qudown/assets/icon.png">
+  <meta name="twitter:image" content="https://deftio.github.io/quikleaf/assets/icon.png">
 
   <!-- JSON-LD -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    "name": "qudown",
+    "name": "quikleaf",
     "description": "A standalone, cross-platform desktop markdown editor with rich rendering and built-in LLM chat assistant.",
     "applicationCategory": "DeveloperApplication",
     "operatingSystem": "macOS, Windows, Linux",
     "softwareVersion": "0.1.0",
     "license": "https://opensource.org/licenses/BSD-2-Clause",
     "author": { "@type": "Person", "name": "deftio" },
-    "url": "https://github.com/deftio/qudown"
+    "url": "https://github.com/deftio/quikleaf"
   }
   </script>
 
-  <link rel="stylesheet" href="styles/qudown-site.css">
+  <link rel="stylesheet" href="styles/quikleaf-site.css">
 </head>
 <body class="qd-theme-light">
 
@@ -52,7 +52,7 @@
     <div class="qd-nav-inner">
       <a class="qd-nav-brand" href="./">
         <img class="qd-nav-brand-icon" src="assets/icon.png" alt="">
-        <span class="qd-nav-brand-text">qudown</span>
+        <span class="qd-nav-brand-text">quikleaf</span>
         <span class="qd-nav-brand-version">v0.1.0</span>
       </a>
       <button class="qd-nav-toggle" id="qd-nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
@@ -65,7 +65,7 @@
         <a class="qd-nav-link" href="#downloads">Downloads</a>
         <a class="qd-nav-link" href="#quickstart">Quick Start</a>
         <a class="qd-nav-link" href="#architecture">Architecture</a>
-        <a class="qd-nav-link" href="https://github.com/deftio/qudown" target="_blank" rel="noopener">GitHub</a>
+        <a class="qd-nav-link" href="https://github.com/deftio/quikleaf" target="_blank" rel="noopener">GitHub</a>
         <a class="qd-nav-link" href="https://github.com/deftio/quikdown" target="_blank" rel="noopener">quikdown</a>
         <button class="qd-nav-theme-btn" id="qd-theme-toggle" aria-label="Toggle theme">
           <span id="qd-theme-icon"></span>
@@ -90,16 +90,16 @@
             all offline. Chat with an AI assistant that can read and edit your document.
           </p>
           <div class="qd-hero-cta-row">
-            <a class="qd-cta-primary" href="https://github.com/deftio/qudown/releases">
+            <a class="qd-cta-primary" href="https://github.com/deftio/quikleaf/releases">
               <span>Download</span>
               <span aria-hidden="true">&darr;</span>
             </a>
-            <a class="qd-cta-secondary" href="https://github.com/deftio/qudown" target="_blank" rel="noopener">
+            <a class="qd-cta-secondary" href="https://github.com/deftio/quikleaf" target="_blank" rel="noopener">
               View on GitHub &rarr;
             </a>
           </div>
         </div>
-        <img class="qd-hero-icon" src="assets/icon.png" alt="qudown icon">
+        <img class="qd-hero-icon" src="assets/icon.png" alt="quikleaf icon">
       </div>
     </section>
 
@@ -211,7 +211,7 @@
         <div class="qd-grid qd-grid-3">
           <div class="qd-feature">
             <h4>Ollama (Local)</h4>
-            <p>Auto-detected on <code>localhost:11434</code>. Run <code>ollama serve</code> and qudown finds it automatically. Fully offline.</p>
+            <p>Auto-detected on <code>localhost:11434</code>. Run <code>ollama serve</code> and quikleaf finds it automatically. Fully offline.</p>
           </div>
           <div class="qd-feature">
             <h4>Anthropic Claude</h4>
@@ -232,7 +232,7 @@
       <div class="qd-container">
         <div class="qd-section-head">
           <span class="qd-section-eyebrow">Downloads</span>
-          <h2 class="qd-gradient-text">Get qudown for your platform</h2>
+          <h2 class="qd-gradient-text">Get quikleaf for your platform</h2>
           <p>Pre-built installers are available on the GitHub Releases page.</p>
         </div>
 
@@ -260,7 +260,7 @@
         </div>
 
         <div class="qd-text-center qd-mt-lg">
-          <a class="qd-cta-standalone" href="https://github.com/deftio/qudown/releases">
+          <a class="qd-cta-standalone" href="https://github.com/deftio/quikleaf/releases">
             View All Releases &rarr;
           </a>
         </div>
@@ -365,13 +365,13 @@ npm run tauri:build
         <div class="qd-text-center qd-mt-lg">
           <h3>CLI Usage</h3>
 <pre style="display: inline-block; text-align: left;"><code># Open empty editor
-qudown
+quikleaf
 
 # Open a specific file
-qudown document.md
+quikleaf document.md
 
 # Open folder in project mode
-qudown --project ./mydir</code></pre>
+quikleaf --project ./mydir</code></pre>
         </div>
       </div>
     </section>
@@ -431,9 +431,9 @@ index.html                  App shell</pre>
         <div class="qd-install-strip">
           <span class="qd-install-strip-label">Get started</span>
           <div class="qd-install-strip-actions">
-            <a href="https://github.com/deftio/qudown/releases">Releases</a>
-            <a href="https://github.com/deftio/qudown">Source Code</a>
-            <a href="https://github.com/deftio/qudown/issues">Issues</a>
+            <a href="https://github.com/deftio/quikleaf/releases">Releases</a>
+            <a href="https://github.com/deftio/quikleaf">Source Code</a>
+            <a href="https://github.com/deftio/quikleaf/issues">Issues</a>
             <a href="https://github.com/deftio/quikdown">quikdown</a>
           </div>
         </div>
@@ -449,7 +449,7 @@ index.html                  App shell</pre>
     <div class="qd-footer-inner">
       <div class="qd-footer-cols">
         <div class="qd-footer-col">
-          <h5>qudown</h5>
+          <h5>quikleaf</h5>
           <p>A standalone, cross-platform markdown editor with rich rendering and LLM chat integration. Built with Tauri v2 and powered by quikdown.</p>
         </div>
         <div class="qd-footer-col">
@@ -464,10 +464,10 @@ index.html                  App shell</pre>
         <div class="qd-footer-col">
           <h5>Resources</h5>
           <ul>
-            <li><a href="https://github.com/deftio/qudown" target="_blank" rel="noopener">GitHub</a></li>
-            <li><a href="https://github.com/deftio/qudown/issues" target="_blank" rel="noopener">Issues</a></li>
-            <li><a href="https://github.com/deftio/qudown/releases" target="_blank" rel="noopener">Releases</a></li>
-            <li><a href="https://github.com/deftio/qudown/blob/main/LICENSE" target="_blank" rel="noopener">License (BSD-2)</a></li>
+            <li><a href="https://github.com/deftio/quikleaf" target="_blank" rel="noopener">GitHub</a></li>
+            <li><a href="https://github.com/deftio/quikleaf/issues" target="_blank" rel="noopener">Issues</a></li>
+            <li><a href="https://github.com/deftio/quikleaf/releases" target="_blank" rel="noopener">Releases</a></li>
+            <li><a href="https://github.com/deftio/quikleaf/blob/main/LICENSE" target="_blank" rel="noopener">License (BSD-2)</a></li>
           </ul>
         </div>
         <div class="qd-footer-col">
@@ -483,7 +483,7 @@ index.html                  App shell</pre>
       <div class="qd-footer-bottom">
         <a class="qd-footer-brand" href="./">
           <img src="assets/icon.png" alt="">
-          <span>qudown</span>
+          <span>quikleaf</span>
         </a>
         <span>&copy; 2026 deftio. BSD-2-Clause License.</span>
       </div>

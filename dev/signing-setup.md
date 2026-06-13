@@ -1,4 +1,4 @@
-# Code Signing & Notarization Setup for qudown
+# Code Signing & Notarization Setup for quikleaf
 
 Step-by-step guide to obtaining all credentials needed for signed releases on macOS, Windows, and Linux.
 
@@ -14,7 +14,7 @@ Step-by-step guide to obtaining all credentials needed for signed releases on ma
 
 ## 1. macOS Code Signing & Notarization
 
-Without this, users see "qudown is damaged and can't be opened" and must run `xattr -cr`.
+Without this, users see "quikleaf is damaged and can't be opened" and must run `xattr -cr`.
 
 ### Step 1: Enroll in Apple Developer Program
 
@@ -49,7 +49,7 @@ Without this, users see "qudown is damaged and can't be opened" and must run `xa
 
 1. Go to https://appleid.apple.com/account/manage
 2. Sign In & Security > App-Specific Passwords
-3. Click "+" — label it "qudown-notarization"
+3. Click "+" — label it "quikleaf-notarization"
 4. Copy the generated password
 
 ### Step 5: Get your Team ID

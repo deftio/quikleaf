@@ -7,7 +7,7 @@ test.describe("File tree", () => {
         launchInfo: {
           type: "Project",
           project_root: "/test/project",
-          project_file: "/test/project/qudown.prj",
+          project_file: "/test/project/quikleaf.prj",
           exists: false,
         },
         fsStore: {
@@ -31,7 +31,7 @@ test.describe("File tree", () => {
         launchInfo: {
           type: "Project",
           project_root: "/test/project",
-          project_file: "/test/project/qudown.prj",
+          project_file: "/test/project/quikleaf.prj",
           exists: false,
         },
         fsStore: { "readme.md": "# Hello" },
@@ -51,7 +51,7 @@ test.describe("File tree", () => {
         launchInfo: {
           type: "Project",
           project_root: "/test/project",
-          project_file: "/test/project/qudown.prj",
+          project_file: "/test/project/quikleaf.prj",
           exists: false,
         },
         fsStore: {
@@ -76,7 +76,7 @@ test.describe("File tree", () => {
         launchInfo: {
           type: "Project",
           project_root: "/test/project",
-          project_file: "/test/project/qudown.prj",
+          project_file: "/test/project/quikleaf.prj",
           exists: false,
         },
         fsStore: {
@@ -91,7 +91,7 @@ test.describe("File tree", () => {
     await page.waitForSelector("#editor-container", { state: "visible" });
     await page.waitForSelector(".file-tree-item", { timeout: 5000 });
 
-    // Only readme.md should appear (dotfiles and qudown.prj filtered out)
+    // Only readme.md should appear (dotfiles and quikleaf.prj filtered out)
     const items = page.locator(".file-tree-item");
     const count = await items.count();
     expect(count).toBe(1);
@@ -106,7 +106,7 @@ test.describe("File tree", () => {
         launchInfo: {
           type: "Project",
           project_root: "/test/project",
-          project_file: "/test/project/qudown.prj",
+          project_file: "/test/project/quikleaf.prj",
           exists: false,
         },
         fsStore: {
@@ -131,7 +131,7 @@ test.describe("File tree", () => {
         launchInfo: {
           type: "Project",
           project_root: "/test/project",
-          project_file: "/test/project/qudown.prj",
+          project_file: "/test/project/quikleaf.prj",
           exists: false,
         },
         fsStore: {

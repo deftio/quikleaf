@@ -14,10 +14,10 @@ const { execSync } = require("child_process");
 const VERSION = require("./package.json").version;
 
 const PLATFORMS = {
-  "darwin-arm64":  { pkg: "@deftio/qudown-darwin-arm64", asset: "qudown-darwin-aarch64.tar.gz" },
-  "darwin-x64":    { pkg: "@deftio/qudown-darwin-x64",   asset: "qudown-darwin-x86_64.tar.gz" },
-  "linux-x64":     { pkg: "@deftio/qudown-linux-x64",    asset: "qudown-linux-x86_64.tar.gz" },
-  "win32-x64":     { pkg: "@deftio/qudown-win32-x64",    asset: "qudown-windows-x86_64.zip" },
+  "darwin-arm64":  { pkg: "@deftio/quikleaf-darwin-arm64", asset: "quikleaf-darwin-aarch64.tar.gz" },
+  "darwin-x64":    { pkg: "@deftio/quikleaf-darwin-x64",   asset: "quikleaf-darwin-x86_64.tar.gz" },
+  "linux-x64":     { pkg: "@deftio/quikleaf-linux-x64",    asset: "quikleaf-linux-x86_64.tar.gz" },
+  "win32-x64":     { pkg: "@deftio/quikleaf-win32-x64",    asset: "quikleaf-windows-x86_64.zip" },
 };
 
 function alreadyInstalled(pkg, binName) {
@@ -55,7 +55,7 @@ async function main() {
     return;
   }
 
-  const binName = process.platform === "win32" ? "qudown.exe" : "qudown";
+  const binName = process.platform === "win32" ? "quikleaf.exe" : "quikleaf";
 
   // Check if optionalDependencies already provided the binary
   if (alreadyInstalled(info.pkg, binName)) {
@@ -69,9 +69,9 @@ async function main() {
     return; // Already downloaded
   }
 
-  const url = `https://github.com/deftio/qudown/releases/download/v${VERSION}/${info.asset}`;
+  const url = `https://github.com/deftio/quikleaf/releases/download/v${VERSION}/${info.asset}`;
 
-  console.log(`qudown: downloading binary for ${platformKey}...`);
+  console.log(`quikleaf: downloading binary for ${platformKey}...`);
 
   try {
     const data = await download(url);
@@ -101,11 +101,11 @@ async function main() {
       fs.chmodSync(destPath, 0o755);
     }
 
-    console.log(`qudown: installed ${binName} for ${platformKey}`);
+    console.log(`quikleaf: installed ${binName} for ${platformKey}`);
   } catch (e) {
     console.warn(
-      `qudown: failed to download binary (${e.message})\n` +
-      `Download manually from: https://github.com/deftio/qudown/releases`
+      `quikleaf: failed to download binary (${e.message})\n` +
+      `Download manually from: https://github.com/deftio/quikleaf/releases`
     );
   }
 }

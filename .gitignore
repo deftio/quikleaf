@@ -27,8 +27,10 @@ Thumbs.db
 dev/signing/
 
 # npm platform binaries (only package.json is tracked)
-npm/*/bin/
-npm/qudown/bin-fallback/
+npm/darwin-*/bin/
+npm/linux-*/bin/
+npm/win32-*/bin/
+npm/quikleaf/bin-fallback/
 
 # Vite cache
 .vite/

@@ -43,7 +43,7 @@ test.describe("Chat slash commands", () => {
   test("/model shows 'No LLM configured' when unconfigured", async ({
     page,
   }) => {
-    await page.evaluate(() => localStorage.removeItem("qudown_llm_settings"));
+    await page.evaluate(() => localStorage.removeItem("quikleaf_llm_settings"));
     // Re-navigate to clear any in-memory settings
     await page.goto("/");
     await page.waitForSelector("#editor-container", { state: "visible" });

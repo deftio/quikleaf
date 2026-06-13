@@ -48,14 +48,14 @@ mod tests {
 
     #[test]
     fn read_nonexistent_file_returns_error() {
-        let result = read_file_inner("/tmp/definitely_does_not_exist_qudown_test.txt");
+        let result = read_file_inner("/tmp/definitely_does_not_exist_quikleaf_test.txt");
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Failed to read file"));
     }
 
     #[test]
     fn save_to_invalid_directory_returns_error() {
-        let result = save_file_inner("/nonexistent_dir_qudown_test/foo/bar.txt", "content");
+        let result = save_file_inner("/nonexistent_dir_quikleaf_test/foo/bar.txt", "content");
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Failed to save file"));
     }

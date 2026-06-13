@@ -1,6 +1,6 @@
 {
   "identifier": "default",
-  "description": "Default permissions for qudown",
+  "description": "Default permissions for quikleaf",
   "windows": ["main"],
   "permissions": [
     "core:default",

@@ -1,15 +1,15 @@
-# qudown
+# quikleaf
 
 [![License](https://img.shields.io/badge/license-BSD--2--Clause-blue.svg)](LICENSE)
-[![npm version](https://img.shields.io/npm/v/qudown.svg)](https://www.npmjs.com/package/qudown)
-[![CI](https://github.com/deftio/qudown/actions/workflows/ci.yml/badge.svg)](https://github.com/deftio/qudown/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/deftio/qudown/branch/main/graph/badge.svg)](https://codecov.io/gh/deftio/qudown)
+[![npm version](https://img.shields.io/npm/v/quikleaf.svg)](https://www.npmjs.com/package/quikleaf)
+[![CI](https://github.com/deftio/quikleaf/actions/workflows/ci.yml/badge.svg)](https://github.com/deftio/quikleaf/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/deftio/quikleaf/branch/main/graph/badge.svg)](https://codecov.io/gh/deftio/quikleaf)
 
 A standalone, cross-platform local markdown editor with rich rendering and LLM chat integration.
 
 Built with [Tauri v2](https://tauri.app) and powered by [quikdown](https://github.com/deftio/quikdown).
 
-![qudown editor with rich fence rendering](pages/assets/qudown-demo.svg)
+![quikleaf editor with rich fence rendering](pages/assets/quikleaf-demo.svg)
 
 ## Features
 
@@ -36,7 +36,7 @@ npm run tauri:build
 
 ### Pre-built Releases
 
-Download installers from the [Releases](https://github.com/deftio/qudown/releases) page:
+Download installers from the [Releases](https://github.com/deftio/quikleaf/releases) page:
 
 | Platform | Format |
 |----------|--------|
@@ -50,21 +50,21 @@ Download installers from the [Releases](https://github.com/deftio/qudown/release
 ### Simple Mode (single file)
 
 ```bash
-qudown                    # Open empty editor
-qudown document.md        # Open a file
+quikleaf                    # Open empty editor
+quikleaf document.md        # Open a file
 ```
 
 ### Project Mode (folder)
 
 ```bash
-qudown --project ./mydir  # Open folder with file tree and project tools
+quikleaf --project ./mydir  # Open folder with file tree and project tools
 ```
 
 Project mode enables:
 - File tree sidebar
 - File read/write/list/stat tools for the LLM
 - Persistent memory and key-value store
-- Project state saved to `qudown.prj`
+- Project state saved to `quikleaf.prj`
 
 ### Keyboard Shortcuts
 
@@ -87,7 +87,7 @@ Project mode enables:
 
 ## LLM Configuration
 
-Click **Settings** in the title bar, or let qudown auto-detect a local Ollama or LM Studio instance.
+Click **Settings** in the title bar, or let quikleaf auto-detect a local Ollama or LM Studio instance.
 
 ### Example Configurations
 
@@ -185,9 +185,9 @@ index.html              App shell with all CSS
 
 ## Troubleshooting
 
-**macOS: "qudown is damaged and can't be opened"**
+**macOS: "quikleaf is damaged and can't be opened"**
 ```bash
-xattr -cr /Applications/qudown.app
+xattr -cr /Applications/quikleaf.app
 ```
 
 **LLM not responding:** Check endpoint is reachable, API key is correct, and model name matches. For Ollama, ensure `ollama serve` is running.
@@ -202,7 +202,7 @@ See [LICENSE](LICENSE) for details.
 
 ## Links
 
-- [qudown on GitHub](https://github.com/deftio/qudown)
+- [quikleaf on GitHub](https://github.com/deftio/quikleaf)
 - [quikdown on GitHub](https://github.com/deftio/quikdown)
-- [Issues](https://github.com/deftio/qudown/issues)
-- [Full Specification](dev/qudown-spec.md)
+- [Issues](https://github.com/deftio/quikleaf/issues)
+- [Full Specification](dev/quikleaf-spec.md)
