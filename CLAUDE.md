@@ -64,6 +64,40 @@ Note: first `cargo build` or `tauri dev` compiles all Rust dependencies (~2 min)
 - The quikdown standalone bundle uses eval internally (Mermaid) — the Vite build warning is expected and harmless
 - `allowExternalFetch: true` is set on the editor so map tiles load from OSM and Vega specs can use external data URLs
 
+## Testing
+
+```bash
+npm test                    # Unit tests (vitest)
+npm run test:e2e            # E2E tests (Playwright)
+npm run test:all            # Both unit + E2E
+npm run test:coverage       # Unit tests with coverage
+```
+
+## Release Workflow
+
+Versioned releases are authored only by the maintainer. Claude Code should never run `npm run release` or `npm run feature` autonomously.
+
+The version is tracked in three files that must stay in sync: `package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json`. The `feature` script handles this automatically.
+
+```bash
+# 1. Start a feature branch (from main) — auto-bumps version in all 3 files
+npm run feature -- "short-description"            # patch bump (default)
+npm run feature -- "short-description" minor       # minor bump
+npm run feature -- "short-description" major       # major bump
+
+# 2. Work on the feature branch, commit changes
+
+# 3. Release: runs all tests, creates PR with squash auto-merge
+npm run release                                    # full test suite
+npm run release:no-playwright                      # skip E2E tests
+
+# 4. After PR merges, tag and push to trigger release workflow
+git checkout main && git pull
+git tag v<VERSION> && git push origin v<VERSION>
+```
+
+The release workflow (`.github/workflows/release.yml`) triggers on tag push and builds platform binaries, creates a GitHub Release, and publishes npm packages.
+
 ## Updating quikdown
 
 ```bash

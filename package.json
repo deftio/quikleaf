@@ -39,7 +39,10 @@
     "test:coverage": "vitest run --coverage",
     "dev:e2e": "vite --config vite.config.e2e.ts --port 1421",
     "test:e2e": "playwright test",
-    "test:all": "vitest run && playwright test"
+    "test:all": "vitest run && playwright test",
+    "feature": "bash ./tools/feature.sh",
+    "release": "bash ./tools/release.sh",
+    "release:no-playwright": "SKIP_PLAYWRIGHT=1 bash ./tools/release.sh"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
