@@ -3,9 +3,9 @@
 [![License](https://img.shields.io/badge/license-BSD--2--Clause-blue.svg)](LICENSE)
 [![npm version](https://img.shields.io/npm/v/quikleaf.svg)](https://www.npmjs.com/package/quikleaf)
 [![CI](https://github.com/deftio/quikleaf/actions/workflows/ci.yml/badge.svg)](https://github.com/deftio/quikleaf/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/deftio/quikleaf/branch/main/graph/badge.svg)](https://codecov.io/gh/deftio/quikleaf)
 
-A standalone, cross-platform local markdown editor with rich rendering and LLM chat integration.
+
+A standalone, cross-platform **local** markdown editor with rich rendering and LLM chat integration.
 
 Built with [Tauri v2](https://tauri.app) and powered by [quikdown](https://github.com/deftio/quikdown).
 
