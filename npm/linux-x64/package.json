@@ -9,6 +9,9 @@
     "type": "git",
     "url": "https://github.com/deftio/quikleaf.git"
   },
+  "files": [
+    "bin/"
+  ],
   "os": ["linux"],
   "cpu": ["x64"]
 }

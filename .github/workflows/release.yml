@@ -16,21 +16,25 @@ jobs:
             npm-pkg: darwin-arm64
             binary: quikleaf
             binary-path: src-tauri/target/aarch64-apple-darwin/release/quikleaf
+            archive-name: quikleaf-darwin-aarch64
           - platform: macos-latest
             target: x86_64-apple-darwin
             npm-pkg: darwin-x64
             binary: quikleaf
             binary-path: src-tauri/target/x86_64-apple-darwin/release/quikleaf
+            archive-name: quikleaf-darwin-x86_64
           - platform: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             npm-pkg: linux-x64
             binary: quikleaf
             binary-path: src-tauri/target/x86_64-unknown-linux-gnu/release/quikleaf
+            archive-name: quikleaf-linux-x86_64
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             npm-pkg: win32-x64
             binary: quikleaf.exe
             binary-path: src-tauri/target/x86_64-pc-windows-msvc/release/quikleaf.exe
+            archive-name: quikleaf-windows-x86_64
 
     runs-on: ${{ matrix.platform }}
 
@@ -96,6 +100,26 @@ jobs:
           mkdir -p npm/${{ matrix.npm-pkg }}/bin
           cp ${{ matrix.binary-path }} npm/${{ matrix.npm-pkg }}/bin/${{ matrix.binary }}
           chmod +x npm/${{ matrix.npm-pkg }}/bin/${{ matrix.binary }} 2>/dev/null || true
+
+      - name: Create release archive
+        shell: bash
+        run: |
+          mkdir -p release-archives
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cd npm/${{ matrix.npm-pkg }}/bin
+            7z a -tzip ../../../release-archives/${{ matrix.archive-name }}.zip ${{ matrix.binary }}
+            cd ../../..
+          else
+            tar czf release-archives/${{ matrix.archive-name }}.tar.gz -C npm/${{ matrix.npm-pkg }}/bin ${{ matrix.binary }}
+          fi
+
+      - name: Upload release archive
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-archives/*
+          tag_name: ${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload npm package artifact
         uses: actions/upload-artifact@v4

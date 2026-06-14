@@ -23,6 +23,11 @@
     "mermaid",
     "latex"
   ],
+  "files": [
+    "bin/",
+    "install.js",
+    "README.md"
+  ],
   "bin": {
     "quikleaf": "bin/quikleaf"
   },
