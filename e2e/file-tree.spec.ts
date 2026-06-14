@@ -146,12 +146,14 @@ test.describe("File tree", () => {
 
     await page.locator(".file-tree-item").first().click();
 
-    // Check that file_read was invoked
-    const log = await page.evaluate(() =>
-      (window as any).__E2E__.invokeLog.filter(
-        (l: any) => l.cmd === "file_read"
-      )
-    );
-    expect(log.length).toBeGreaterThan(0);
+    // Wait for file_read to be invoked (async due to dynamic import)
+    await expect(async () => {
+      const log = await page.evaluate(() =>
+        (window as any).__E2E__.invokeLog.filter(
+          (l: any) => l.cmd === "file_read"
+        )
+      );
+      expect(log.length).toBeGreaterThan(0);
+    }).toPass({ timeout: 5000 });
   });
 });

@@ -9,7 +9,7 @@ A standalone, cross-platform local markdown editor with rich rendering and LLM c
 
 Built with [Tauri v2](https://tauri.app) and powered by [quikdown](https://github.com/deftio/quikdown).
 
-![quikleaf editor with rich fence rendering](pages/assets/quikleaf-demo.svg)
+![quikleaf editor with rich fence rendering](docs/assets/quikleaf-demo.svg)
 
 ## Features
 
