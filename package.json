@@ -1,7 +1,7 @@
 {
   "name": "quikleaf",
   "version": "1.0.1",
-  "private": true,
+
   "type": "module",
   "description": "A standalone, cross-platform desktop markdown editor with rich rendering and LLM chat integration",
   "author": "deftio <deftio@deftio.com>",
@@ -31,8 +31,9 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build",
+    "setup": "node tools/check-deps.cjs",
+    "tauri:dev": "node tools/check-deps.cjs && tauri dev",
+    "tauri:build": "node tools/check-deps.cjs && tauri build",
     "check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

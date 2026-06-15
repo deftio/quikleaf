@@ -105,7 +105,12 @@ async function main() {
   } catch (e) {
     console.warn(
       `quikleaf: failed to download binary (${e.message})\n` +
-      `Download manually from: https://github.com/deftio/quikleaf/releases`
+      `\n` +
+      `Options:\n` +
+      `  1. Download manually from: https://github.com/deftio/quikleaf/releases\n` +
+      `  2. Build from source:\n` +
+      `     git clone https://github.com/deftio/quikleaf.git && cd quikleaf\n` +
+      `     npm install && npm run setup && npm run tauri:build`
     );
   }
 }
