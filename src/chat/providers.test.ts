@@ -75,6 +75,7 @@ describe("buildRequestBody", () => {
     host: "http://localhost:11434",
     apiKey: "",
     model: "llama3",
+    showToolCalls: false,
   };
 
   it("builds OpenAI format without tools", () => {
@@ -208,6 +209,7 @@ describe("sendChat", () => {
       host: "http://localhost:11434",
       apiKey: "test-key",
       model: "llama3",
+      showToolCalls: false,
     };
     const messages = [{ role: "user" as const, content: "hello" }];
     const result = await sendChat(settings, messages);
@@ -235,6 +237,7 @@ describe("listModels", () => {
       host: "https://api.anthropic.com",
       apiKey: "sk-test",
       model: "",
+      showToolCalls: false,
     };
     const models = await listModels(settings);
     expect(models.length).toBeGreaterThan(0);
@@ -247,6 +250,7 @@ describe("listModels", () => {
       host: "https://api.anthropic.com",
       apiKey: "",
       model: "",
+      showToolCalls: false,
     };
     await expect(listModels(settings)).rejects.toThrow("API key");
   });
@@ -261,6 +265,7 @@ describe("listModels", () => {
       host: "http://localhost:11434",
       apiKey: "",
       model: "",
+      showToolCalls: false,
     };
     const models = await listModels(settings);
     expect(models).toEqual(["model-a", "model-b"]);

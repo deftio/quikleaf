@@ -194,6 +194,7 @@ function initAbout() {
   const btnAbout = document.getElementById("btn-about")!;
 
   btnAbout.addEventListener("click", () => {
+    closeHelpMenu();
     overlay.classList.add("open");
   });
 
@@ -230,17 +231,36 @@ document.addEventListener("keydown", (e) => {
 });
 
 // --- File menu dropdown ---
+const btnHelpMenu = document.getElementById("btn-help-menu") as HTMLButtonElement | null;
+const helpMenuDropdown = document.getElementById("help-menu-dropdown");
+
 function closeFileMenu() {
   fileMenuDropdown.classList.remove("open");
 }
 
+function closeHelpMenu() {
+  helpMenuDropdown?.classList.remove("open");
+}
+
+function closeAllMenus() {
+  closeFileMenu();
+  closeHelpMenu();
+}
+
 btnFileMenu.addEventListener("click", (e) => {
   e.stopPropagation();
+  closeHelpMenu();
   fileMenuDropdown.classList.toggle("open");
 });
 
-document.addEventListener("click", () => {
+btnHelpMenu?.addEventListener("click", (e) => {
+  e.stopPropagation();
   closeFileMenu();
+  helpMenuDropdown?.classList.toggle("open");
+});
+
+document.addEventListener("click", () => {
+  closeAllMenus();
 });
 
 // --- Button handlers ---

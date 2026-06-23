@@ -4,23 +4,23 @@ import type { LLMSettings } from "./settings";
 
 describe("isConfigured", () => {
   it("returns false when host is empty", () => {
-    expect(isConfigured({ provider: "openai-compatible", host: "", apiKey: "", model: "llama3" })).toBe(false);
+    expect(isConfigured({ provider: "openai-compatible", host: "", apiKey: "", model: "llama3", showToolCalls: false })).toBe(false);
   });
 
   it("returns false when model is empty", () => {
-    expect(isConfigured({ provider: "openai-compatible", host: "http://localhost", apiKey: "", model: "" })).toBe(false);
+    expect(isConfigured({ provider: "openai-compatible", host: "http://localhost", apiKey: "", model: "", showToolCalls: false })).toBe(false);
   });
 
   it("returns false when host is whitespace only", () => {
-    expect(isConfigured({ provider: "openai-compatible", host: "   ", apiKey: "", model: "llama3" })).toBe(false);
+    expect(isConfigured({ provider: "openai-compatible", host: "   ", apiKey: "", model: "llama3", showToolCalls: false })).toBe(false);
   });
 
   it("returns true when host and model are set", () => {
-    expect(isConfigured({ provider: "openai-compatible", host: "http://localhost", apiKey: "", model: "llama3" })).toBe(true);
+    expect(isConfigured({ provider: "openai-compatible", host: "http://localhost", apiKey: "", model: "llama3", showToolCalls: false })).toBe(true);
   });
 
   it("returns true even without API key (local LLMs)", () => {
-    expect(isConfigured({ provider: "openai-compatible", host: "http://localhost:11434", apiKey: "", model: "mistral" })).toBe(true);
+    expect(isConfigured({ provider: "openai-compatible", host: "http://localhost:11434", apiKey: "", model: "mistral", showToolCalls: false })).toBe(true);
   });
 });
 
@@ -43,6 +43,7 @@ describe("loadSettings / saveSettings", () => {
       host: "https://api.anthropic.com",
       apiKey: "sk-test",
       model: "claude-sonnet-4-20250514",
+      showToolCalls: false,
     };
     saveSettings(settings);
     const loaded = loadSettings();
@@ -55,6 +56,7 @@ describe("loadSettings / saveSettings", () => {
       host: "http://localhost:1234",
       apiKey: "",
       model: "phi3",
+      showToolCalls: false,
     };
     saveSettings(settings);
     const raw = localStorage.getItem("quikleaf_llm_settings");

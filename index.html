@@ -691,6 +691,21 @@
       background: var(--bg-tertiary);
     }
 
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-weight: 500;
+      margin-top: 20px;
+    }
+
+    .checkbox-row input[type="checkbox"] {
+      width: auto;
+      margin: 0;
+      cursor: pointer;
+    }
+
     /* ═══════════════════════════════════════════════════════════════════
        About Modal
     ═══════════════════════════════════════════════════════════════════ */
@@ -890,7 +905,12 @@
       <div id="titlebar-right">
         <span id="llm-status"></span>
         <button class="titlebar-btn" id="btn-settings">Settings</button>
-        <button class="titlebar-btn" id="btn-about">About</button>
+        <div class="titlebar-menu">
+          <button class="titlebar-btn" id="btn-help-menu">Help</button>
+          <div class="titlebar-dropdown" id="help-menu-dropdown">
+            <button class="dropdown-item" id="btn-about">About quikleaf</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -944,6 +964,11 @@
       <div class="hint">Model name as the provider expects it. Click "Fetch Models" to list available models from the host.</div>
       <div id="models-list"></div>
 
+      <label class="checkbox-row">
+        <input type="checkbox" id="set-show-tools" />
+        Show tool calls in chat
+      </label>
+
       <div class="btn-row">
         <button id="settings-cancel">Cancel</button>
         <button id="settings-save" class="primary">Save</button>
@@ -956,18 +981,19 @@
     <div id="about-modal">
       <img class="about-logo" src="/icon.png" alt="quikleaf" />
       <div class="about-name">quikleaf</div>
-      <div class="about-version">Version 0.1.0</div>
+      <div class="about-version">Version 1.0.3</div>
       <div class="about-desc">
         A cross-platform markdown editor with rich fence rendering,
         live preview, and LLM chat integration.
-        Powered by <strong>quikdown</strong>.
+        Powered by <strong>quikdown</strong> and <strong>Tauri</strong>.
       </div>
       <div class="about-links">
-        <a href="https://github.com/deftio/quikleaf" target="_blank">quikleaf on GitHub</a>
-        <a href="https://github.com/deftio/quikdown" target="_blank">quikdown on GitHub</a>
+        <a href="https://github.com/deftio/quikleaf" target="_blank">quikleaf</a>
+        <a href="https://github.com/deftio/quikdown" target="_blank">quikdown</a>
+        <a href="https://tauri.app" target="_blank">Tauri</a>
       </div>
-      <div class="about-copyright">&copy; 2026 deftio. All rights reserved.</div>
-      <div class="about-license">BSD 2-Clause License</div>
+      <div class="about-copyright">&copy; deftio 2026</div>
+      <div class="about-license">Free open source software under the BSD-2-Clause license</div>
     </div>
   </div>
 

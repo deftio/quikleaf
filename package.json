@@ -1,6 +1,6 @@
 {
   "name": "quikleaf",
-  "version": "1.0.2",
+  "version": "1.0.3",
 
   "type": "module",
   "description": "A standalone, cross-platform desktop markdown editor with rich rendering and LLM chat integration",

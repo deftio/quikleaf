@@ -6,6 +6,7 @@ export interface LLMSettings {
   host: string;
   apiKey: string;
   model: string;
+  showToolCalls: boolean;
 }
 
 const STORAGE_KEY = "quikleaf_llm_settings";
@@ -15,6 +16,7 @@ const defaults: LLMSettings = {
   host: "http://localhost:11434",
   apiKey: "",
   model: "",
+  showToolCalls: false,
 };
 
 export function loadSettings(): LLMSettings {
@@ -43,6 +45,7 @@ export function initSettingsUI(): void {
   const inputHost = document.getElementById("set-host") as HTMLInputElement;
   const inputKey = document.getElementById("set-api-key") as HTMLInputElement;
   const inputModel = document.getElementById("set-model") as HTMLInputElement;
+  const inputShowTools = document.getElementById("set-show-tools") as HTMLInputElement;
   const modelsList = document.getElementById("models-list")!;
   const llmStatus = document.getElementById("llm-status")!;
 
@@ -65,6 +68,7 @@ export function initSettingsUI(): void {
     inputHost.value = s.host;
     inputKey.value = s.apiKey;
     inputModel.value = s.model;
+    inputShowTools.checked = s.showToolCalls;
     modelsList.innerHTML = "";
     overlay.classList.add("open");
   }
@@ -85,6 +89,7 @@ export function initSettingsUI(): void {
       host: inputHost.value.trim(),
       apiKey: inputKey.value,
       model: inputModel.value.trim(),
+      showToolCalls: inputShowTools.checked,
     });
     updateStatus();
     closeModal();
@@ -106,6 +111,7 @@ export function initSettingsUI(): void {
         host,
         apiKey: inputKey.value,
         model: "",
+        showToolCalls: false,
       };
       const models = await listModels(tempSettings);
       if (models.length === 0) {
@@ -159,6 +165,7 @@ export function initSettingsUI(): void {
             host: ep.host,
             apiKey: "",
             model: names[0],
+            showToolCalls: false,
           };
           saveSettings(autoSettings);
           updateStatus();
