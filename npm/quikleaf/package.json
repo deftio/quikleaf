@@ -1,6 +1,6 @@
 {
   "name": "quikleaf",
-  "version": "0.1.0",
+  "version": "1.0.3",
   "description": "A standalone, cross-platform desktop markdown editor with rich rendering and LLM chat integration",
   "author": "deftio <deftio@deftio.com>",
   "license": "BSD-2-Clause",
@@ -35,9 +35,9 @@
     "postinstall": "node install.js"
   },
   "optionalDependencies": {
-    "@deftio/quikleaf-darwin-arm64": "0.1.0",
-    "@deftio/quikleaf-darwin-x64": "0.1.0",
-    "@deftio/quikleaf-linux-x64": "0.1.0",
-    "@deftio/quikleaf-win32-x64": "0.1.0"
+    "@deftio/quikleaf-darwin-arm64": "1.0.3",
+    "@deftio/quikleaf-darwin-x64": "1.0.3",
+    "@deftio/quikleaf-linux-x64": "1.0.3",
+    "@deftio/quikleaf-win32-x64": "1.0.3"
   }
 }

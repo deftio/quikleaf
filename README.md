@@ -34,6 +34,13 @@ Download from the [Releases](https://github.com/deftio/quikleaf/releases) page:
 | Windows | `.msi` / `.exe` |
 | Linux | `.deb` / `.AppImage` |
 
+### Install via npm
+
+```bash
+npm install -g quikleaf
+quikleaf document.md
+```
+
 ### Build from source
 
 ```bash

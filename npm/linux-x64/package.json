@@ -1,6 +1,6 @@
 {
   "name": "@deftio/quikleaf-linux-x64",
-  "version": "0.1.0",
+  "version": "1.0.3",
   "description": "quikleaf binary for Linux x86_64",
   "author": "deftio <deftio@deftio.com>",
   "license": "BSD-2-Clause",
