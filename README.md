@@ -212,4 +212,6 @@ See [LICENSE](LICENSE) for details.
 - [quikleaf on GitHub](https://github.com/deftio/quikleaf)
 - [quikdown on GitHub](https://github.com/deftio/quikdown)
 - [Issues](https://github.com/deftio/quikleaf/issues)
-- [Full Specification](dev/quikleaf-spec.md)
+- [Full Specification](dev/quikleaf-spec.md) 
+
+
