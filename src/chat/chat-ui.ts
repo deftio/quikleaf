@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { loadSettings, isConfigured } from "../settings/settings";
-import { sendChat, sendChatStream, type ChatMessage } from "./providers";
+import { sendChatStream, type ChatMessage } from "./providers";
 import { getMarkdown, setMarkdown, undo, redo, insertAtCursor, getSelection } from "../editor/editor";
 import {
   buildSystemPrompt,
@@ -18,17 +18,6 @@ let messages: ChatMessage[] = [];
 let sending = false;
 let abortRequested = false;
 let projectMode = false;
-
-/** Timeout wrapper for promises (default 60s) */
-function withTimeout<T>(promise: Promise<T>, ms = 60000, label = "LLM call"): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms);
-    promise.then(
-      (v) => { clearTimeout(timer); resolve(v); },
-      (e) => { clearTimeout(timer); reject(e); },
-    );
-  });
-}
 
 // --- DOM refs ---
 const chatMessages = document.getElementById("chat-messages")!;
@@ -204,6 +193,7 @@ function updateBubble(div: HTMLDivElement, text: string) {
  * Show a tool call in the chat as a compact entry.
  */
 function appendToolBubble(name: string, result: string) {
+  if (!loadSettings().showToolCalls) return;
   const div = document.createElement("div");
   div.className = "chat-msg tool";
   const shortResult = result.length > 200 ? result.substring(0, 200) + "..." : result;
@@ -327,12 +317,53 @@ async function send() {
         iterations++;
 
         try {
-          const loopResult = await withTimeout(sendChat(settings, toSend, tools), 60000, "Tool loop call");
-          const msg = loopResult.message;
+          let loopAccum = "";
+          let loopBubble: HTMLDivElement | null = null;
+          let loopTimer: ReturnType<typeof setTimeout> | null = null;
 
-          const moreCalls = normalizeToolCalls(msg.tool_calls || [], settings.provider);
+          const loopStream = sendChatStream(settings, toSend, tools, (token: string) => {
+            loopAccum += token;
+            if (!loopBubble) {
+              loopBubble = appendBubble("assistant", loopAccum);
+              loopBubble.classList.add("streaming");
+            }
+            if (!loopTimer) {
+              loopTimer = setTimeout(() => {
+                loopTimer = null;
+                if (loopBubble) updateBubble(loopBubble, loopAccum);
+              }, 50);
+            }
+          });
+
+          const loopResult = await loopStream.done;
+
+          if (loopTimer) {
+            clearTimeout(loopTimer);
+            loopTimer = null;
+          }
+          // loopBubble is mutated inside the onChunk closure, so TS can't track it
+          const bubble = loopBubble as HTMLDivElement | null;
+          if (bubble) bubble.classList.remove("streaming");
+
+          if (loopResult.error) {
+            if (!bubble) {
+              appendBubble("assistant", `Error: ${loopResult.error}`);
+            } else {
+              updateBubble(bubble, `Error: ${loopResult.error}`);
+            }
+            break;
+          }
+
+          const moreCalls = normalizeToolCalls(loopResult.toolCalls, settings.provider);
           if (moreCalls.length > 0) {
-            const asstMsg = buildAssistantToolCallMessage(moreCalls, msg.content || "", settings.provider);
+            if (loopResult.fullText && bubble) {
+              updateBubble(bubble, loopResult.fullText);
+              messages.push({ role: "assistant", content: loopResult.fullText });
+            } else if (bubble) {
+              bubble.remove();
+            }
+
+            const asstMsg = buildAssistantToolCallMessage(moreCalls, loopResult.fullText, settings.provider);
             messages.push(asstMsg);
             toSend.push(asstMsg);
 
@@ -358,9 +389,13 @@ async function send() {
             continue;
           }
 
-          const content = msg.content || "";
+          const content = loopResult.fullText || "";
+          if (bubble) {
+            updateBubble(bubble, content);
+          } else {
+            appendBubble("assistant", content || "(empty response)");
+          }
           messages.push({ role: "assistant", content });
-          appendBubble("assistant", content);
           break;
         } catch (e: any) {
           appendBubble("assistant", `Error: ${e.message || e}`);

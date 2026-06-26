@@ -7,19 +7,22 @@ test.describe("About modal", () => {
   });
 
   test("About button opens overlay", async ({ page }) => {
+    await page.click("#btn-help-menu");
     await page.click("#btn-about");
     const overlay = page.locator("#about-overlay");
     await expect(overlay).toHaveClass(/open/);
   });
 
   test("version and description visible", async ({ page }) => {
+    await page.click("#btn-help-menu");
     await page.click("#btn-about");
     const modal = page.locator("#about-modal");
-    await expect(modal.locator(".about-version")).toContainText("0.1.0");
+    await expect(modal.locator(".about-version")).toContainText(/\d+\.\d+\.\d+/);
     await expect(modal.locator(".about-desc")).toContainText("markdown editor");
   });
 
   test("Escape closes about modal", async ({ page }) => {
+    await page.click("#btn-help-menu");
     await page.click("#btn-about");
     const overlay = page.locator("#about-overlay");
     await expect(overlay).toHaveClass(/open/);
@@ -29,6 +32,7 @@ test.describe("About modal", () => {
   });
 
   test("Backdrop click closes about modal", async ({ page }) => {
+    await page.click("#btn-help-menu");
     await page.click("#btn-about");
     const overlay = page.locator("#about-overlay");
     await expect(overlay).toHaveClass(/open/);
@@ -38,6 +42,7 @@ test.describe("About modal", () => {
   });
 
   test("links recorded in shell mock", async ({ page }) => {
+    await page.click("#btn-help-menu");
     await page.click("#btn-about");
 
     // Click the first link in about modal

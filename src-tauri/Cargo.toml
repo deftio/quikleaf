@@ -1,6 +1,6 @@
 [package]
 name = "quikleaf"
-version = "1.0.2"
+version = "1.0.3"
 edition = "2021"
 description = "A standalone local markdown editor with rich rendering and LLM support"
 

@@ -2522,7 +2522,7 @@ dependencies = [
 
 [[package]]
 name = "quikleaf"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "chrono",
  "futures-util",

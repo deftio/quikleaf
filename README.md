@@ -23,20 +23,9 @@ Built with [Tauri v2](https://tauri.app) and powered by [quikdown](https://githu
 
 ## Quick Start
 
-```bash
-# Install dependencies
-npm install
+### Pre-built installers (recommended)
 
-# Run in development mode
-npm run tauri:dev
-
-# Build production installers
-npm run tauri:build
-```
-
-### Pre-built Releases
-
-Download installers from the [Releases](https://github.com/deftio/quikleaf/releases) page:
+Download from the [Releases](https://github.com/deftio/quikleaf/releases) page:
 
 | Platform | Format |
 |----------|--------|
@@ -44,6 +33,24 @@ Download installers from the [Releases](https://github.com/deftio/quikleaf/relea
 | macOS (Intel) | `.dmg` |
 | Windows | `.msi` / `.exe` |
 | Linux | `.deb` / `.AppImage` |
+
+### Install via npm
+
+```bash
+npm install -g quikleaf
+quikleaf document.md
+```
+
+### Build from source
+
+```bash
+git clone https://github.com/deftio/quikleaf.git && cd quikleaf
+npm install && npm run setup && npm run tauri:build
+```
+
+`npm run setup` checks for required system dependencies (Node.js, Rust,
+platform libraries) and prints install commands for your platform.
+The built app and installers are in `src-tauri/target/release/bundle/`.
 
 ## Usage
 

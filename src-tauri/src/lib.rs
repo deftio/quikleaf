@@ -3,6 +3,7 @@ mod commands;
 use commands::project::{ProjectState, LaunchMode};
 use std::path::{Path, PathBuf};
 use tauri::Manager;
+use tauri::menu::{Menu, Submenu, PredefinedMenuItem};
 
 pub struct LaunchInfo(pub LaunchMode);
 
@@ -177,6 +178,34 @@ pub fn run() {
             commands::project::file_stat,
             commands::project::screenshot_viewport,
         ])
+        .setup(|app| {
+            let handle = app.handle();
+            let app_menu = Submenu::with_items(handle, "quikleaf", true, &[
+                &PredefinedMenuItem::about(handle, Some("About quikleaf"), None)?,
+                &PredefinedMenuItem::separator(handle)?,
+                &PredefinedMenuItem::hide(handle, Some("Hide quikleaf"))?,
+                &PredefinedMenuItem::hide_others(handle, Some("Hide Others"))?,
+                &PredefinedMenuItem::show_all(handle, Some("Show All"))?,
+                &PredefinedMenuItem::separator(handle)?,
+                &PredefinedMenuItem::quit(handle, Some("Quit quikleaf"))?,
+            ])?;
+            let edit_menu = Submenu::with_items(handle, "Edit", true, &[
+                &PredefinedMenuItem::undo(handle, None)?,
+                &PredefinedMenuItem::redo(handle, None)?,
+                &PredefinedMenuItem::separator(handle)?,
+                &PredefinedMenuItem::cut(handle, None)?,
+                &PredefinedMenuItem::copy(handle, None)?,
+                &PredefinedMenuItem::paste(handle, None)?,
+                &PredefinedMenuItem::select_all(handle, None)?,
+            ])?;
+            let window_menu = Submenu::with_items(handle, "Window", true, &[
+                &PredefinedMenuItem::minimize(handle, None)?,
+                &PredefinedMenuItem::close_window(handle, None)?,
+            ])?;
+            let menu = Menu::with_items(handle, &[&app_menu, &edit_menu, &window_menu])?;
+            app.set_menu(menu)?;
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running quikleaf");
 }
