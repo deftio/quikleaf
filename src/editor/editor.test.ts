@@ -84,16 +84,30 @@ describe("editor wrapper functions (with init)", () => {
     expect(instance.redo).toHaveBeenCalled();
   });
 
-  it("delegates insertAtCursor to insertText", () => {
-    const instance = editor.getEditor();
-    editor.insertAtCursor("inserted");
-    expect(instance.insertText).toHaveBeenCalledWith("inserted");
+  it("insertAtCursor splices text into the source textarea at the caret", () => {
+    const ta = editor.getEditor().sourceTextarea as HTMLTextAreaElement;
+    ta.value = "hello world";
+    ta.setSelectionRange(5, 5);
+    editor.insertAtCursor(", there");
+    expect(ta.value).toBe("hello, there world");
   });
 
-  it("delegates getSelection to the instance", () => {
-    const instance = editor.getEditor();
-    instance.getSelection.mockReturnValue("selected text");
-    expect(editor.getSelection()).toBe("selected text");
+  it("insertAtCursor replaces the current selection and fires input", () => {
+    const ta = editor.getEditor().sourceTextarea as HTMLTextAreaElement;
+    const onInput = vi.fn();
+    ta.addEventListener("input", onInput);
+    ta.value = "keep DROP keep";
+    ta.setSelectionRange(5, 9);
+    editor.insertAtCursor("NEW");
+    expect(ta.value).toBe("keep NEW keep");
+    expect(onInput).toHaveBeenCalled();
+  });
+
+  it("getSelection returns the selected slice of the source textarea", () => {
+    const ta = editor.getEditor().sourceTextarea as HTMLTextAreaElement;
+    ta.value = "alpha beta gamma";
+    ta.setSelectionRange(6, 10);
+    expect(editor.getSelection()).toBe("beta");
   });
 
   it("delegates getHTML to the instance", () => {

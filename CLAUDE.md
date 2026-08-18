@@ -20,7 +20,7 @@ The full specification is in `dev/quikleaf-spec.md`.
 
 ### Key Dependencies
 
-- **quikdown** (npm: `quikdown@1.2.17`) — Standalone editor with all fence libraries bundled (~7.7 MB). Supports: syntax highlighting, mermaid, math/LaTeX, geojson maps, STL 3D, CSV/PSV/TSV, SVG, ABC music notation, Vega/Vega-Lite charts, sanitized HTML. Imported via Vite alias `quikdown-standalone` (see `vite.config.ts`).
+- **quikdown** (npm: `quikdown@1.2.21`) — Standalone editor with all fence libraries bundled (~8.4 MB). Supports: syntax highlighting, mermaid, math/LaTeX, geojson maps, STL 3D, CSV/PSV/TSV, SVG, ABC music notation, Vega/Vega-Lite charts, sanitized HTML. Imported via Vite alias `quikdown-standalone` (see `vite.config.ts`). The standalone bundle fetches its offline Natural Earth basemap (`basemap_*.topojson`) from its own directory at runtime, so `vite.config.ts` copies those files into `dist/assets/` alongside the chunk.
 - **Tauri v2 plugins**: `tauri-plugin-dialog` (file open/save dialogs), `tauri-plugin-fs` (filesystem access)
 - **reqwest** (Rust) — HTTP client for proxying LLM API calls through the backend
 - **@tauri-apps/api** — JS-side IPC to invoke Rust commands

@@ -30,15 +30,20 @@ vi.mock("@tauri-apps/plugin-shell", () => ({
 
 // Stub quikdown — the standalone editor (used with `new QuikdownEditor(...)`)
 vi.mock("quikdown-standalone", () => {
+  // Mirror the real QuikdownEditor surface only — it has no insertText() or
+  // getSelection(); editor.ts drives the source textarea for those.
   class MockEditor {
     getMarkdown = vi.fn(() => "");
     setMarkdown = vi.fn();
     getHTML = vi.fn(() => "");
     undo = vi.fn();
     redo = vi.fn();
-    insertText = vi.fn();
-    getSelection = vi.fn(() => "");
-    constructor(_container: any, _options: any) {}
+    sourceTextarea: HTMLTextAreaElement;
+    constructor(container: any, _options: any) {
+      this.sourceTextarea = document.createElement("textarea");
+      this.sourceTextarea.className = "qde-textarea";
+      (container ?? document.body).appendChild(this.sourceTextarea);
+    }
   }
   return { default: MockEditor };
 });

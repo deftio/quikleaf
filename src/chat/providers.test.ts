@@ -6,6 +6,7 @@ import {
   parseResponse,
   sendChat,
   listModels,
+  ANTHROPIC_MAX_TOKENS,
 } from "./providers";
 import { invoke } from "@tauri-apps/api/core";
 import type { LLMSettings } from "../settings/settings";
@@ -99,7 +100,7 @@ describe("buildRequestBody", () => {
     const anthropicSettings: LLMSettings = {
       ...settings,
       provider: "anthropic",
-      model: "claude-sonnet-4-20250514",
+      model: "claude-opus-5",
     };
     const messages = [
       { role: "system" as const, content: "You are helpful." },
@@ -107,7 +108,7 @@ describe("buildRequestBody", () => {
     ];
     const body = buildRequestBody(anthropicSettings, messages);
     expect(body.system).toBe("You are helpful.");
-    expect(body.max_tokens).toBe(4096);
+    expect(body.max_tokens).toBe(ANTHROPIC_MAX_TOKENS);
     expect(body.messages).toHaveLength(1);
     expect(body.messages[0].role).toBe("user");
   });
@@ -116,7 +117,7 @@ describe("buildRequestBody", () => {
     const anthropicSettings: LLMSettings = {
       ...settings,
       provider: "anthropic",
-      model: "claude-sonnet-4-20250514",
+      model: "claude-opus-5",
     };
     const messages = [
       { role: "user" as const, content: JSON.stringify([{ type: "tool_result", content: "ok" }]) },
@@ -129,7 +130,7 @@ describe("buildRequestBody", () => {
     const anthropicSettings: LLMSettings = {
       ...settings,
       provider: "anthropic",
-      model: "claude-sonnet-4-20250514",
+      model: "claude-opus-5",
     };
     const messages = [{ role: "user" as const, content: "just text" }];
     const body = buildRequestBody(anthropicSettings, messages);
@@ -241,7 +242,7 @@ describe("listModels", () => {
     };
     const models = await listModels(settings);
     expect(models.length).toBeGreaterThan(0);
-    expect(models).toContain("claude-sonnet-4-20250514");
+    expect(models).toContain("claude-opus-5");
   });
 
   it("throws for Anthropic without API key", async () => {

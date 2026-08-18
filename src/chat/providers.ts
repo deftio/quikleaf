@@ -9,6 +9,12 @@ export interface ChatMessage {
   tool_call_id?: string;
 }
 
+/**
+ * Anthropic requires an explicit max_tokens. Current models allow far more than
+ * this, but responses beyond it are truncated mid-sentence, so keep it generous.
+ */
+export const ANTHROPIC_MAX_TOKENS = 16000;
+
 export interface LLMResult {
   message: ChatMessage;
   error?: string;
@@ -81,7 +87,7 @@ export function buildRequestBody(
 
     const body: any = {
       model: settings.model,
-      max_tokens: 4096,
+      max_tokens: ANTHROPIC_MAX_TOKENS,
       messages: nonSystem,
     };
     if (system) body.system = system;
@@ -238,6 +244,18 @@ export function sendChatStream(
 }
 
 /**
+ * Well-known Anthropic model IDs, offered when the user has not typed one.
+ * Current-generation IDs carry no date suffix.
+ */
+export const ANTHROPIC_MODELS = [
+  "claude-opus-5",
+  "claude-sonnet-5",
+  "claude-fable-5",
+  "claude-opus-4-8",
+  "claude-haiku-4-5",
+];
+
+/**
  * Fetch available models from the endpoint.
  * Anthropic requires an API key and uses a different endpoint/auth scheme.
  */
@@ -249,15 +267,9 @@ export async function listModels(
       throw new Error("Anthropic requires an API key to list models. Enter your API key above.");
     }
     // Anthropic uses x-api-key header — proxy through llm_chat with a GET-style workaround
-    // Since our proxy only supports POST, return the well-known Anthropic models
-    return [
-      "claude-sonnet-4-20250514",
-      "claude-opus-4-20250514",
-      "claude-haiku-4-20250414",
-      "claude-3-5-sonnet-20241022",
-      "claude-3-5-haiku-20241022",
-      "claude-3-opus-20240229",
-    ];
+    // Since our proxy only supports POST, return the well-known Anthropic models.
+    // Current-generation IDs are unversioned — do not append date suffixes.
+    return ANTHROPIC_MODELS;
   }
 
   // OpenAI-compatible: use the /v1/models endpoint
