@@ -1,6 +1,6 @@
 {
   "productName": "quikleaf",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "identifier": "com.deftio.quikleaf",
   "build": {
     "frontendDist": "../dist",

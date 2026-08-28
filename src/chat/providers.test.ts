@@ -7,6 +7,7 @@ import {
   sendChat,
   listModels,
   ANTHROPIC_MAX_TOKENS,
+  ANTHROPIC_MAX_TOKENS_STREAMING,
 } from "./providers";
 import { invoke } from "@tauri-apps/api/core";
 import type { LLMSettings } from "../settings/settings";
@@ -111,6 +112,18 @@ describe("buildRequestBody", () => {
     expect(body.max_tokens).toBe(ANTHROPIC_MAX_TOKENS);
     expect(body.messages).toHaveLength(1);
     expect(body.messages[0].role).toBe("user");
+  });
+
+  it("Anthropic: streaming requests get the larger max_tokens ceiling", () => {
+    const anthropicSettings: LLMSettings = {
+      ...settings,
+      provider: "anthropic",
+      model: "claude-opus-5",
+    };
+    const messages = [{ role: "user" as const, content: "hello" }];
+    const streamed = buildRequestBody(anthropicSettings, messages, undefined, true);
+    expect(streamed.max_tokens).toBe(ANTHROPIC_MAX_TOKENS_STREAMING);
+    expect(ANTHROPIC_MAX_TOKENS_STREAMING).toBeGreaterThan(ANTHROPIC_MAX_TOKENS);
   });
 
   it("Anthropic: parses JSON-stringified content blocks", () => {

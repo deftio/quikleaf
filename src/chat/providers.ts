@@ -10,10 +10,13 @@ export interface ChatMessage {
 }
 
 /**
- * Anthropic requires an explicit max_tokens. Current models allow far more than
- * this, but responses beyond it are truncated mid-sentence, so keep it generous.
+ * Anthropic requires an explicit max_tokens; responses beyond it are truncated
+ * mid-sentence, so keep it generous. Non-streaming requests stay under the
+ * default HTTP timeout, so they get the smaller ceiling; streaming requests
+ * have no such constraint and get room for a full-length reply.
  */
 export const ANTHROPIC_MAX_TOKENS = 16000;
+export const ANTHROPIC_MAX_TOKENS_STREAMING = 64000;
 
 export interface LLMResult {
   message: ChatMessage;
@@ -87,7 +90,7 @@ export function buildRequestBody(
 
     const body: any = {
       model: settings.model,
-      max_tokens: ANTHROPIC_MAX_TOKENS,
+      max_tokens: stream ? ANTHROPIC_MAX_TOKENS_STREAMING : ANTHROPIC_MAX_TOKENS,
       messages: nonSystem,
     };
     if (system) body.system = system;
