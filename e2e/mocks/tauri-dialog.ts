@@ -18,3 +18,8 @@ export async function open(_options?: any): Promise<string | string[] | null> {
 export async function save(_options?: any): Promise<string | null> {
   return getE2E().saveResult ?? null;
 }
+
+/** Confirmation prompt; resolves window.__E2E__.askResult (default: true). */
+export async function ask(_message: string, _options?: any): Promise<boolean> {
+  return getE2E().askResult ?? true;
+}

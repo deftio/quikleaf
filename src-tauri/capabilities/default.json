@@ -6,6 +6,7 @@
     "core:default",
     "core:event:default",
     "dialog:default",
+    "dialog:allow-ask",
     "dialog:allow-open",
     "dialog:allow-save",
     "fs:default",

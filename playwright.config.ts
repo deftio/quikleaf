@@ -5,7 +5,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // 4 locally: the first load of the 8 MB quikdown chunk times out under
+  // heavier contention; CI stays single-worker.
+  workers: process.env.CI ? 1 : 4,
   reporter: process.env.CI ? "github" : "list",
   use: {
     baseURL: "http://localhost:1421",

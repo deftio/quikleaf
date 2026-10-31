@@ -10,7 +10,7 @@ test.describe("About modal", () => {
     await page.click("#btn-help-menu");
     await page.click("#btn-about");
     const overlay = page.locator("#about-overlay");
-    await expect(overlay).toHaveClass(/open/);
+    await expect(overlay).toHaveClass(/bw_bccl_modal_show/);
   });
 
   test("version and description visible", async ({ page }) => {
@@ -25,20 +25,20 @@ test.describe("About modal", () => {
     await page.click("#btn-help-menu");
     await page.click("#btn-about");
     const overlay = page.locator("#about-overlay");
-    await expect(overlay).toHaveClass(/open/);
+    await expect(overlay).toHaveClass(/bw_bccl_modal_show/);
 
     await page.keyboard.press("Escape");
-    await expect(overlay).not.toHaveClass(/open/);
+    await expect(overlay).not.toHaveClass(/bw_bccl_modal_show/);
   });
 
   test("Backdrop click closes about modal", async ({ page }) => {
     await page.click("#btn-help-menu");
     await page.click("#btn-about");
     const overlay = page.locator("#about-overlay");
-    await expect(overlay).toHaveClass(/open/);
+    await expect(overlay).toHaveClass(/bw_bccl_modal_show/);
 
     await overlay.click({ position: { x: 10, y: 10 } });
-    await expect(overlay).not.toHaveClass(/open/);
+    await expect(overlay).not.toHaveClass(/bw_bccl_modal_show/);
   });
 
   test("links recorded in shell mock", async ({ page }) => {

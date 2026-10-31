@@ -15,6 +15,7 @@ vi.mock("@tauri-apps/api/event", () => ({
 vi.mock("@tauri-apps/plugin-dialog", () => ({
   open: vi.fn(async () => null),
   save: vi.fn(async () => null),
+  ask: vi.fn(async () => true),
 }));
 
 // Stub @tauri-apps/plugin-fs
@@ -56,7 +57,10 @@ vi.mock("quikdown", () => {
   return { default: fn };
 });
 
-// Set up minimal DOM structure needed by modules that grab elements at import time
+// The UI is built by bitwrench at runtime from TACO objects, so modules no
+// longer grab elements at import time. main.ts mounts the whole shell into
+// #app; chat-ui.ts appends bubbles to #chat-messages, which the chat tests
+// exercise without mounting the shell, so that one container is pre-created.
 function ensureElement(id: string, tag = "div") {
   if (!document.getElementById(id)) {
     const el = document.createElement(tag);
@@ -65,38 +69,5 @@ function ensureElement(id: string, tag = "div") {
   }
 }
 
-// chat-ui.ts grabs these at module load
 ensureElement("chat-messages");
-ensureElement("chat-input", "textarea");
-ensureElement("chat-send", "button");
-
-// settings.ts DOM
-ensureElement("settings-overlay");
-ensureElement("btn-settings", "button");
-ensureElement("settings-cancel", "button");
-ensureElement("settings-save", "button");
-ensureElement("settings-fetch-models", "button");
-ensureElement("models-list");
-ensureElement("llm-status");
-const selectEl = document.createElement("select");
-selectEl.id = "set-provider";
-if (!document.getElementById("set-provider")) document.body.appendChild(selectEl);
-ensureElement("set-host", "input");
-ensureElement("set-api-key", "input");
-ensureElement("set-model", "input");
-
-// main.ts DOM
 ensureElement("app");
-ensureElement("editor-container");
-ensureElement("btn-file-menu", "button");
-ensureElement("file-menu-dropdown");
-ensureElement("btn-open", "button");
-ensureElement("btn-save", "button");
-ensureElement("btn-toggle-chat", "button");
-ensureElement("chat-panel");
-ensureElement("status-file");
-ensureElement("about-overlay");
-ensureElement("about-modal");
-ensureElement("btn-about", "button");
-ensureElement("file-tree");
-ensureElement("file-tree-list");

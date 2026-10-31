@@ -1,12 +1,26 @@
 name: Release
 
+# Triggered two ways:
+#   1. push of a v* tag (works when a human pushes the tag).
+#   2. workflow_dispatch from ci.yml's `tag` job, run with `--ref vX.Y.Z`.
+#      CI pushes the tag with GITHUB_TOKEN, and GitHub does not fire `push`
+#      workflows for events created by GITHUB_TOKEN, so CI dispatches us
+#      explicitly. With `--ref vX.Y.Z`, github.ref is `refs/tags/vX.Y.Z`
+#      and github.ref_name is `vX.Y.Z`, so everything below works for both.
+#
+# Required repo secret: NPM_TOKEN (npm automation token with publish rights
+# to `quikleaf` and the `@deftio/quikleaf-*` platform packages). It cannot
+# be verified from the CLI without admin access; check Settings > Secrets.
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 jobs:
   build:
+    permissions:
+      contents: write   # tauri-action / action-gh-release create and upload the release
     strategy:
       fail-fast: false
       matrix:
@@ -90,7 +104,11 @@ jobs:
             # or
             npx quikleaf
             ```
-          releaseDraft: true
+          # Must be published (not draft): npm/quikleaf/install.js falls back to
+          # downloading https://github.com/deftio/quikleaf/releases/download/<tag>/<asset>,
+          # and draft release assets are not reachable at that URL. Assets are
+          # attached below by action-gh-release, which updates this same release.
+          releaseDraft: false
           prerelease: false
           args: --target ${{ matrix.target }}
 
@@ -130,6 +148,9 @@ jobs:
   publish-npm:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    # True for both a tag push and a workflow_dispatch run with --ref vX.Y.Z.
     if: startsWith(github.ref, 'refs/tags/v')
 
     steps:

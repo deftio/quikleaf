@@ -1,11 +1,44 @@
+import bw from "bitwrench";
 import { invoke } from "@tauri-apps/api/core";
-import { open as openDialog, save } from "@tauri-apps/plugin-dialog";
-import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
-import { open as shellOpen } from "@tauri-apps/plugin-shell";
-import { initEditor, getMarkdown, setMarkdown } from "./editor/editor";
-import { initSettingsUI } from "./settings/settings";
-import { initChat, setProjectMode } from "./chat/chat-ui";
-import { initFileTree, loadTree, showFileTree, hideFileTree } from "./project/file-tree";
+import "./ui/theme"; // generates and injects all CSS at import
+import { setDarkMode } from "./ui/theme";
+import { el } from "./ui/taco";
+import { initMenus, makeMain, makeStatusbar, makeTitlebar, setChatDisplay, setStatusFile, setToggleState, toggleChatPanel } from "./ui/shell";
+import { initTabBar, makeTabBar } from "./ui/tabbar";
+import { initAbout, installCli } from "./ui/about";
+import { initStats } from "./ui/stats";
+import { handleOutlineKeydown, initOutline, makeOutlinePanel, toggleOutline } from "./ui/outline";
+import { handleFindKeydown, initFindBar, makeFindBar, openFind } from "./ui/findbar";
+import { handleFocusKeydown, makeFocusExitPill, toggleFocusMode } from "./ui/focus";
+import { exportHtml, printDocument } from "./editor/export";
+import { initEditor } from "./editor/editor";
+import {
+  closeDocument,
+  handleKeydown,
+  initDocuments,
+  newDocument,
+  openFileDialog,
+  openPath,
+  saveActiveDocument,
+  setDocumentsProjectMode,
+  showTab,
+} from "./editor/documents";
+import { chatDisplayOf, initSettingsUI, loadSettings, openSettings } from "./settings/settings";
+import { logEvent } from "./diag/perf";
+import { initChat, makeChatPanel, setProjectMode } from "./chat/chat-ui";
+import {
+  hideFileTree,
+  highlightFile,
+  isFileTreeVisible,
+  loadTree,
+  makeFileTreePanel,
+  setOnFileClick,
+  showFileTree,
+} from "./project/file-tree";
+
+import { activeTab } from "./editor/tabs";
+
+export { fileName } from "./editor/tabs";
 
 // --- Types ---
 interface LaunchModeSimple {
@@ -21,341 +54,131 @@ interface LaunchModeProject {
 type LaunchMode = LaunchModeSimple | LaunchModeProject;
 
 // --- State ---
-let currentFilePath: string | null = null;
-let isProjectMode = false;
+let openAbout: () => void = () => {};
 
-// --- DOM refs ---
-const editorContainer = document.getElementById("editor-container")!;
-const btnFileMenu = document.getElementById("btn-file-menu") as HTMLButtonElement;
-const fileMenuDropdown = document.getElementById("file-menu-dropdown")!;
-const btnOpen = document.getElementById("btn-open") as HTMLButtonElement;
-const btnSave = document.getElementById("btn-save") as HTMLButtonElement;
-const btnToggleChat = document.getElementById("btn-toggle-chat") as HTMLButtonElement;
-const btnToggleFiles = document.getElementById("btn-toggle-files") as HTMLButtonElement | null;
-const chatPanel = document.getElementById("chat-panel")!;
-const statusFile = document.getElementById("status-file")!;
+// --- Shell ---
+// The whole UI is TACO. Mounting replaces #app's children with the three
+// rows; dialogs are appended to #app afterwards by their own modules.
+bw.mount("#app", [
+  makeTitlebar({
+    onNew: () => newDocument(),
+    onOpen: () => openFileDialog(),
+    onSave: () => saveActiveDocument(),
+    onCloseTab: () => closeDocument(),
+    onToggleChat: () => toggleChatPanel(),
+    onToggleFiles: () => toggleFiles(),
+    onToggleOutline: () => toggleOutline(),
+    onFocusMode: () => toggleFocusMode(),
+    onFind: () => openFind(),
+    onExportHtml: () => exportHtml(),
+    onPrint: () => printDocument(),
+    onSettings: () => openSettings(),
+    onAbout: () => openAbout(),
+    onInstallCli: () => installCli(),
+  }),
+  makeMain(
+    [makeFileTreePanel(), makeOutlinePanel(), makeChatPanel()],
+    [
+      makeTabBar({
+        onSelect: (id) => showTab(id),
+        onClose: (id) => closeDocument(id),
+        onNew: () => newDocument(),
+      }),
+      makeFindBar(),
+    ],
+  ),
+  makeStatusbar(),
+  makeFocusExitPill(),
+]);
 
-// --- Editor init ---
-initEditor(editorContainer);
-
-// --- Settings + Chat init ---
+initMenus();
+initEditor(el("editor-container")!);
+initTabBar();
+initStats();
+initOutline();
+initFindBar();
 initSettingsUI();
 initChat();
-initFileTree();
+setChatDisplay(chatDisplayOf(loadSettings()));
+openAbout = initAbout();
+setOnFileClick((path) => loadFileIntoEditor(path));
+logEvent({ kind: "app", event: "start", version: __APP_VERSION__ });
 
-// --- File operations ---
-async function openFile() {
-  try {
-    const selected = await openDialog({
-      multiple: false,
-      filters: [
-        { name: "Markdown", extensions: ["md", "markdown", "txt"] },
-        { name: "All Files", extensions: ["*"] },
-      ],
-    });
-    if (selected) {
-      const path = typeof selected === "string" ? selected : (Array.isArray(selected) ? selected[0] : null);
-      if (path) {
-        const content = await readTextFile(path);
-        currentFilePath = path;
-        setMarkdown(content);
-        statusFile.textContent = currentFilePath;
-        document.title = `quikleaf — ${fileName(currentFilePath)}`;
-      }
-    }
-  } catch (e) {
-    console.error("Failed to open file:", e);
-  }
-}
-
-async function saveFile() {
-  const md = getMarkdown();
-  try {
-    if (currentFilePath) {
-      await writeTextFile(currentFilePath, md);
-    } else {
-      const path = await save({
-        filters: [{ name: "Markdown", extensions: ["md", "markdown"] }],
-        defaultPath: "untitled.md",
-      });
-      if (path) {
-        currentFilePath = path;
-        await writeTextFile(currentFilePath, md);
-        statusFile.textContent = currentFilePath;
-        document.title = `quikleaf — ${fileName(currentFilePath)}`;
-      }
-    }
-  } catch (e) {
-    console.error("Failed to save file:", e);
-  }
-}
-
-export function fileName(path: string): string {
-  return path.split("/").pop() || path.split("\\").pop() || path;
-}
-
-// --- Dark mode detection ---
-function initDarkMode() {
-  const app = document.getElementById("app")!;
-  const darkModeQuery = window.matchMedia("(prefers-color-scheme: dark)");
-
-  function updateDarkMode(e: MediaQueryList | MediaQueryListEvent) {
-    if (e.matches) {
-      app.classList.add("dark");
-    } else {
-      app.classList.remove("dark");
-    }
-  }
-
-  updateDarkMode(darkModeQuery);
-  darkModeQuery.addEventListener("change", updateDarkMode);
-}
-
-// --- Chat panel toggle ---
-function toggleChat() {
-  chatPanel.classList.toggle("hidden");
-  btnToggleChat.classList.toggle("active", !chatPanel.classList.contains("hidden"));
-}
-
-// --- File tree toggle ---
 function toggleFiles() {
-  const fileTree = document.getElementById("file-tree");
-  if (!fileTree) return;
-  if (fileTree.classList.contains("hidden")) {
-    showFileTree();
-  } else {
-    hideFileTree();
-  }
+  const show = !isFileTreeVisible();
+  if (show) showFileTree();
+  else hideFileTree();
+  setToggleState("btn-toggle-files", show);
 }
 
-// --- Chat panel resizing ---
-function initChatResizer() {
-  let isResizing = false;
-  let startX = 0;
-  let startWidth = 0;
-
-  const resizeHandle = document.createElement("div");
-  resizeHandle.style.cssText = `
-    position: absolute;
-    right: -4px;
-    top: 0;
-    bottom: 0;
-    width: 8px;
-    cursor: ew-resize;
-    z-index: 10;
-    transition: background 0.15s ease;
-  `;
-
-  resizeHandle.addEventListener("mouseenter", () => {
-    if (!isResizing) {
-      resizeHandle.style.background = "var(--accent-primary)";
-    }
-  });
-
-  resizeHandle.addEventListener("mouseleave", () => {
-    if (!isResizing) {
-      resizeHandle.style.background = "transparent";
-    }
-  });
-
-  chatPanel.style.position = "relative";
-  chatPanel.appendChild(resizeHandle);
-
-  resizeHandle.addEventListener("mousedown", (e) => {
-    isResizing = true;
-    startX = e.clientX;
-    startWidth = chatPanel.offsetWidth;
-    document.body.style.cursor = "ew-resize";
-    document.body.style.userSelect = "none";
-    resizeHandle.style.background = "var(--accent-primary)";
-  });
-
-  document.addEventListener("mousemove", (e) => {
-    if (!isResizing) return;
-    const delta = e.clientX - startX;
-    const newWidth = Math.max(300, Math.min(600, startWidth + delta));
-    chatPanel.style.width = `${newWidth}px`;
-  });
-
-  document.addEventListener("mouseup", () => {
-    if (isResizing) {
-      isResizing = false;
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      resizeHandle.style.background = "transparent";
-    }
-  });
-}
-
-// --- About modal ---
-function initAbout() {
-  const overlay = document.getElementById("about-overlay")!;
-  const modal = document.getElementById("about-modal")!;
-  const btnAbout = document.getElementById("btn-about")!;
-
-  btnAbout.addEventListener("click", () => {
-    closeHelpMenu();
-    overlay.classList.add("open");
-  });
-
-  overlay.addEventListener("click", (e) => {
-    if (e.target === overlay) overlay.classList.remove("open");
-  });
-
-  // Open links in system browser via shell plugin
-  modal.querySelectorAll("a[href]").forEach((link) => {
-    link.addEventListener("click", (e) => {
-      e.preventDefault();
-      const href = (link as HTMLAnchorElement).href;
-      shellOpen(href).catch(console.error);
-    });
-  });
-
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && overlay.classList.contains("open")) {
-      overlay.classList.remove("open");
-    }
-  });
+// --- Dark mode follows the OS ---
+function initDarkMode() {
+  const query = window.matchMedia("(prefers-color-scheme: dark)");
+  const apply = (e: MediaQueryList | MediaQueryListEvent) => setDarkMode(e.matches);
+  apply(query);
+  query.addEventListener("change", apply);
 }
 
 // --- Keyboard shortcuts ---
+// Documents first (new/open/save/close/cycle tabs), then find (Cmd+F/H, Esc),
+// outline (Cmd+Shift+O), focus mode (Cmd+Shift+D, Esc) and print (Cmd+P).
 document.addEventListener("keydown", (e) => {
-  const mod = e.metaKey || e.ctrlKey;
-  if (mod && e.key === "o") {
+  if (handleKeydown(e) || handleFindKeydown(e) || handleOutlineKeydown(e) || handleFocusKeydown(e)) return;
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "p") {
     e.preventDefault();
-    openFile();
-  } else if (mod && e.key === "s") {
-    e.preventDefault();
-    saveFile();
+    printDocument();
   }
 });
-
-// --- File menu dropdown ---
-const btnHelpMenu = document.getElementById("btn-help-menu") as HTMLButtonElement | null;
-const helpMenuDropdown = document.getElementById("help-menu-dropdown");
-
-function closeFileMenu() {
-  fileMenuDropdown.classList.remove("open");
-}
-
-function closeHelpMenu() {
-  helpMenuDropdown?.classList.remove("open");
-}
-
-function closeAllMenus() {
-  closeFileMenu();
-  closeHelpMenu();
-}
-
-btnFileMenu.addEventListener("click", (e) => {
-  e.stopPropagation();
-  closeHelpMenu();
-  fileMenuDropdown.classList.toggle("open");
-});
-
-btnHelpMenu?.addEventListener("click", (e) => {
-  e.stopPropagation();
-  closeFileMenu();
-  helpMenuDropdown?.classList.toggle("open");
-});
-
-document.addEventListener("click", () => {
-  closeAllMenus();
-});
-
-// --- Button handlers ---
-btnOpen.addEventListener("click", () => { closeFileMenu(); openFile(); });
-btnSave.addEventListener("click", () => { closeFileMenu(); saveFile(); });
-btnToggleChat.addEventListener("click", toggleChat);
-if (btnToggleFiles) {
-  btnToggleFiles.addEventListener("click", toggleFiles);
-}
 
 // --- Startup ---
 async function init() {
   initDarkMode();
-  initChatResizer();
-  initAbout();
+  await initDocuments();
 
   try {
     const launchMode = await invoke<LaunchMode>("get_launch_info");
 
     if (launchMode.type === "Simple") {
-      // Simple mode: load file if provided
-      if (launchMode.file_path) {
-        const content = await readTextFile(launchMode.file_path);
-        currentFilePath = launchMode.file_path;
-        setMarkdown(content);
-        statusFile.textContent = currentFilePath;
-        document.title = `quikleaf — ${fileName(currentFilePath)}`;
-      }
+      if (launchMode.file_path) await openPath(launchMode.file_path);
     } else if (launchMode.type === "Project") {
-      // Project mode
-      isProjectMode = true;
+      setDocumentsProjectMode(true, launchMode.project_root);
       setProjectMode(true);
 
       if (launchMode.exists) {
-        // Load existing project
         const data = await invoke<any>("project_load", { path: launchMode.project_file });
         if (data.open_file) {
-          // Read and display the last-open file
-          try {
-            const openFile: string = data.open_file;
-            const content = await invoke<string>("file_read", { path: openFile });
-            currentFilePath = openFile;
-            setMarkdown(content);
-            statusFile.textContent = `[Project] ${openFile}`;
-            document.title = `quikleaf — ${fileName(openFile)}`;
-          } catch {
-            // File may have been deleted
-          }
+          // File may have been deleted; openPath logs and leaves the untitled tab.
+          await openPath(data.open_file, true);
         }
       } else {
-        // Initialize new project
         await invoke("project_init", {
           root: launchMode.project_root,
           file: launchMode.project_file,
         });
       }
 
-      // Show file tree and project indicator
-      statusFile.textContent = `[Project] ${launchMode.project_root}`;
       showFileTree();
-      loadTree();
-
-      // Show the Files button
-      if (btnToggleFiles) {
-        btnToggleFiles.style.display = "";
-      }
+      await loadTree();
+      bw.removeClass("btn-toggle-files", "hidden");
+      setToggleState("btn-toggle-files", true);
+      // The tree did not exist when the remembered file was opened; sync its highlight now.
+      const active = activeTab();
+      if (active?.projectRelative) highlightFile(active.path);
     }
   } catch (e) {
     console.error("Startup failed:", e);
-    // Fall back to trying the old get_cli_file command
+    setStatusFile("No file open");
+    // Fall back to the older get_cli_file command
     try {
       const cliFile = await invoke<string | null>("get_cli_file");
-      if (cliFile) {
-        const content = await readTextFile(cliFile);
-        currentFilePath = cliFile;
-        setMarkdown(content);
-        statusFile.textContent = currentFilePath;
-        document.title = `quikleaf — ${fileName(currentFilePath)}`;
-      }
+      if (cliFile) await openPath(cliFile);
     } catch {}
   }
 }
 
-/** Load a file into the editor (used by file tree clicks) */
+/** Open a project file in a tab (used by file tree clicks). */
 export async function loadFileIntoEditor(relativePath: string) {
-  try {
-    const content = await invoke<string>("file_read", { path: relativePath });
-    currentFilePath = relativePath;
-    setMarkdown(content);
-    await invoke("set_open_file", { path: relativePath });
-    statusFile.textContent = `[Project] ${relativePath}`;
-    document.title = `quikleaf — ${fileName(relativePath)}`;
-  } catch (e) {
-    console.error("Failed to load file:", e);
-  }
+  await openPath(relativePath, true);
 }
 
 init();

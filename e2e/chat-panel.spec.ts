@@ -53,7 +53,7 @@ test.describe("Chat panel", () => {
 
     const userBubble = page.locator(".chat-msg.user").first();
     await expect(userBubble).toBeVisible();
-    await expect(userBubble).toHaveText("Hello there");
+    await expect(userBubble.locator(".chat-body")).toHaveText("Hello there");
   });
 
   test("Enter sends message", async ({ page }) => {
@@ -62,7 +62,7 @@ test.describe("Chat panel", () => {
 
     const userBubble = page.locator(".chat-msg.user").first();
     await expect(userBubble).toBeVisible();
-    await expect(userBubble).toHaveText("Test enter");
+    await expect(userBubble.locator(".chat-body")).toHaveText("Test enter");
   });
 
   test("Shift+Enter inserts newline, does not send", async ({ page }) => {

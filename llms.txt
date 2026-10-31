@@ -7,25 +7,41 @@
 quikleaf is a native desktop application built with Tauri v2 (Rust backend + webview frontend) and powered by quikdown for markdown rendering. It provides:
 
 - Rich markdown editing with live preview
-- Built-in LLM chat assistant ("QD") with tool calling
+- Built-in LLM chat assistant ("QD") with tool calling, reviewable edits and a plan card
+- Multiple documents in tabs (Cmd/Ctrl+N, Cmd/Ctrl+W, Ctrl+Tab)
+- Writing tools: outline panel, find & replace (case / regex), word count and reading time, focus mode, Export HTML, Print / PDF
 - Support for Mermaid diagrams, LaTeX math, GeoJSON maps, 3D STL, CSV tables, Vega charts, ABC music notation, SVG
 - Project mode with file tree, persistent memory, and key-value store
 - Auto-detection of local LLM servers (Ollama, LM Studio)
-- Support for OpenAI-compatible APIs and Anthropic Claude
+- Support for OpenAI-compatible APIs (Ollama, LM Studio, Docker Model Runner, OpenRouter, Groq) and Anthropic Claude, with presets in Settings
+
+## Install options
+
+- Pre-built installers (.dmg, .msi/.exe, .deb/.AppImage) from https://github.com/deftio/quikleaf/releases, built automatically for every tagged release from v1.1.0 on.
+- npm: `npm install -g quikleaf` (or `npx quikleaf file.md`) — a launcher that pulls the platform binary from `@deftio/quikleaf-<platform>` or the GitHub release.
+- Build from source: `npm install && npm run setup && npm run tauri:build` (Node 18+, Rust stable, platform webkit deps).
+- From the installed macOS app: Help → Install Command Line Tool writes a `quikleaf` shim so `quikleaf file.md` and `quikleaf --project ./dir` work from a terminal.
 
 ## Architecture
 
 - Backend: Rust (Tauri v2) — handles file I/O, CLI parsing, LLM API proxying
-- Frontend: TypeScript (Vite) — runs in Tauri's webview
+- Frontend: TypeScript (Vite) — runs in Tauri's webview; UI built with bitwrench.js TACO objects (src/ui/)
 - Rendering: quikdown standalone bundle (~8 MB) with all fence renderers included
-- LLM: Tool-calling loop with 20+ tools for document/memory/KV/file operations
+- LLM: Tool-calling loop with 26 tools (document, tabs, plan, memory, KV, project files, project search); optional review of edits as diff cards (Settings > Agent); a plan card for multi-step work
 
 ## Key Files
 
 - src-tauri/src/commands/llm.rs — LLM API proxy with streaming
 - src-tauri/src/commands/project.rs — Project state, memory, KV, file tools
 - src-tauri/src/commands/fs.rs — File I/O commands
-- src/chat/chat-ui.ts — Chat UI, tool dispatch, slash commands
+- src/ui/theme.ts — bitwrench light/dark themes and app CSS
+- src/ui/shell.ts — Title bar, menus, toggle buttons, status bar (TACO)
+- src/editor/tabs.ts, src/editor/documents.ts — tab model and session controller
+- src/chat/review.ts, src/chat/plan.ts, src/chat/diff.ts — edit review cards, plan card, line diff
+- src/ui/findbar.ts, src/ui/outline.ts, src/ui/focus.ts — find & replace, outline panel, focus mode
+- src/diag/perf.ts — Timing math and performance-log client
+- src-tauri/src/commands/diag.rs — Performance log file + CLI shim installer
+- src/chat/chat-ui.ts — Chat panel, tool dispatch, slash commands
 - src/chat/providers.ts — LLM provider adapters (OpenAI, Anthropic)
 - src/editor/editor.ts — quikdown editor wrapper
 - src/settings/settings.ts — LLM configuration UI
@@ -37,10 +53,18 @@ The LLM operates on raw markdown only — it never sees or produces HTML. API ca
 
 ### Available Tools
 
-Document: document_read, document_write, document_replace, document_insert, document_undo, document_redo, document_get_selection
+Document: document_read, document_write, document_replace, document_insert, document_undo, document_redo, document_get_selection, document_outline
+Tabs: tabs_list, tab_switch, tab_open (project mode)
+Plan: plan_set, plan_update
 Memory: memory_read, memory_write, memory_append, memory_clear
 Key-Value: kv_get, kv_set, kv_delete, kv_list
-File (project mode): file_read, file_write, file_list, file_stat
+File (project mode): file_read, file_write, file_list, file_stat, project_search
+
+Edit approval (Settings > Agent): "always" reviews every document and file edit, "files" (default) reviews project file writes only, "never" applies directly. Reviewed edits render as a diff card with Accept/Reject; a rejected tool returns {success:false, rejected:true} and the model is told to ask rather than retry.
+
+## Diagnostics
+
+Timestamps and per-request timing (time to first token, total, ≈tokens, tok/s) show under chat messages; tool calls show their duration. A JSON-lines performance log is written to the OS log dir (macOS: ~/Library/Logs/com.deftio.quikleaf/quikleaf-perf.jsonl) unless disabled in Settings. `/log` shows the path and recent entries. Help → Install Command Line Tool writes a `quikleaf` shim so the macOS app is usable from a terminal.
 
 ## Links
 

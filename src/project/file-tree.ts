@@ -1,3 +1,5 @@
+import bw from "bitwrench";
+import type { Taco } from "bitwrench";
 import { invoke } from "@tauri-apps/api/core";
 
 interface FileEntry {
@@ -10,13 +12,18 @@ interface FileListResponse {
   entries: FileEntry[];
 }
 
-let fileTreeEl: HTMLElement | null = null;
-let fileTreeListEl: HTMLElement | null = null;
 let onFileClick: ((path: string) => void) | null = null;
 
-export function initFileTree() {
-  fileTreeEl = document.getElementById("file-tree");
-  fileTreeListEl = document.getElementById("file-tree-list");
+/** The project sidebar as TACO. Hidden until project mode turns it on. */
+export function makeFileTreePanel(): Taco {
+  return {
+    t: "div",
+    a: { id: "file-tree", class: "hidden" },
+    c: [
+      { t: "div", a: { id: "file-tree-header" }, c: "Files" },
+      { t: "div", a: { id: "file-tree-list" } },
+    ],
+  };
 }
 
 export function setOnFileClick(handler: (path: string) => void) {
@@ -24,16 +31,60 @@ export function setOnFileClick(handler: (path: string) => void) {
 }
 
 export function showFileTree() {
-  fileTreeEl?.classList.remove("hidden");
+  bw.removeClass("file-tree", "hidden");
 }
 
 export function hideFileTree() {
-  fileTreeEl?.classList.add("hidden");
+  bw.addClass("file-tree", "hidden");
+}
+
+export function isFileTreeVisible(): boolean {
+  return !bw.hasClass("file-tree", "hidden");
+}
+
+function note(text: string, error = false): Taco {
+  return { t: "div", a: { class: `file-tree-note${error ? " error" : ""}` }, c: text };
+}
+
+function selectItem(e: Event): void {
+  bw.removeClass(bw.$(".file-tree-item.active"), "active");
+  bw.addClass(e.currentTarget as HTMLElement, "active");
+}
+
+/**
+ * Highlight the entry for a project-relative path (e.g. when the active tab
+ * changes), or clear the highlight with null. Unknown paths clear it too.
+ */
+export function highlightFile(path: string | null): void {
+  bw.removeClass(bw.$(".file-tree-item.active"), "active");
+  if (!path) return;
+  for (const item of bw.$(".file-tree-item")) {
+    if (item.getAttribute("title") === path && !item.classList.contains("dir")) bw.addClass(item, "active");
+  }
+}
+
+function makeItem(entry: FileEntry): Taco {
+  const icon = entry.type === "dir" ? "📁" : getFileIcon(entry.name);
+  const isFile = entry.type === "file";
+  return {
+    t: "div",
+    a: {
+      class: `file-tree-item${isFile ? "" : " dir"}`,
+      title: entry.name,
+      onclick: isFile
+        ? (e: Event) => {
+            selectItem(e);
+            onFileClick?.(entry.name);
+          }
+        : undefined,
+    },
+    c: `${icon} ${entry.name}`,
+  };
 }
 
 export async function loadTree(path?: string) {
-  if (!fileTreeListEl) return;
-  fileTreeListEl.innerHTML = "<div style='padding:8px;color:var(--text-tertiary);font-size:12px;'>Loading...</div>";
+  if (!bw.el("file-tree-list")) return;
+  bw.patch("file-tree-list", note("Loading..."));
 
   try {
     const result = await invoke<FileListResponse>("file_list", {
@@ -41,54 +92,22 @@ export async function loadTree(path?: string) {
       recursive: true,
     });
 
-    fileTreeListEl.innerHTML = "";
-
     // Sort: dirs first, then files, alphabetical within each group
     const entries = result.entries
-      .filter(e => !e.name.startsWith(".") && e.name !== "quikleaf.prj")
+      .filter((e) => !e.name.startsWith(".") && e.name !== "quikleaf.prj")
       .sort((a, b) => {
         if (a.type !== b.type) return a.type === "dir" ? -1 : 1;
         return a.name.localeCompare(b.name);
       });
 
     if (entries.length === 0) {
-      fileTreeListEl.innerHTML = "<div style='padding:8px;color:var(--text-tertiary);font-size:12px;'>Empty project</div>";
+      bw.patch("file-tree-list", note("Empty project"));
       return;
     }
 
-    for (const entry of entries) {
-      const item = document.createElement("div");
-      item.className = "file-tree-item";
-      if (entry.type === "dir") {
-        item.classList.add("dir");
-      }
-
-      const icon = entry.type === "dir" ? "📁" : getFileIcon(entry.name);
-      const displayName = entry.name.includes("/") ? entry.name : entry.name;
-      item.textContent = `${icon} ${displayName}`;
-      item.title = entry.name;
-
-      if (entry.type === "file") {
-        item.addEventListener("click", () => {
-          // Remove active state from siblings
-          fileTreeListEl!.querySelectorAll(".file-tree-item.active").forEach(el => el.classList.remove("active"));
-          item.classList.add("active");
-
-          if (onFileClick) {
-            onFileClick(entry.name);
-          } else {
-            // Use the loadFileIntoEditor from main.ts via dynamic import
-            import("../main").then(mod => {
-              mod.loadFileIntoEditor(entry.name);
-            }).catch(console.error);
-          }
-        });
-      }
-
-      fileTreeListEl.appendChild(item);
-    }
+    bw.patch("file-tree-list", entries.map(makeItem));
   } catch (e) {
-    fileTreeListEl.innerHTML = `<div style='padding:8px;color:var(--danger);font-size:12px;'>Failed to load: ${e}</div>`;
+    bw.patch("file-tree-list", note(`Failed to load: ${e}`, true));
   }
 }
 

@@ -54,13 +54,20 @@ jobs:
         run: cargo test
         working-directory: src-tauri
 
-  # After CI passes on main, auto-tag to trigger the release workflow
+  # After CI passes on main, auto-tag and kick off the release workflow.
+  #
+  # NOTE: a tag pushed with the default GITHUB_TOKEN does NOT fire the
+  # release.yml `push: tags` trigger (GitHub suppresses workflow runs for
+  # events created by GITHUB_TOKEN). That is why v1.0.3 / v1.0.4 never
+  # produced installers or npm binaries. workflow_dispatch is the documented
+  # exception, so after pushing the tag we dispatch release.yml explicitly.
   tag:
     needs: check
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write   # push the tag
+      actions: write    # gh workflow run release.yml
     steps:
       - uses: actions/checkout@v4
 
@@ -82,3 +89,13 @@ jobs:
         run: |
           git tag ${{ steps.version.outputs.version }}
           git push origin ${{ steps.version.outputs.version }}
+
+      # Explicit dispatch because the tag push above will not trigger
+      # release.yml on its own (see note on this job). Only runs when the
+      # tag was newly created, so re-runs of CI on main do not re-release.
+      - name: Dispatch release workflow
+        if: steps.check-tag.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.version }}
+        run: gh workflow run release.yml --ref "${TAG}"

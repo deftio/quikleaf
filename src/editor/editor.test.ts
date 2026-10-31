@@ -41,6 +41,12 @@ describe("editor wrapper functions (without init)", () => {
     expect(() => editor.insertAtCursor("text")).not.toThrow();
   });
 
+  it("replaceRange does not throw and the textarea/preview getters return null when not initialized", () => {
+    expect(() => editor.replaceRange(0, 1, "x")).not.toThrow();
+    expect(editor.getSourceTextarea()).toBeNull();
+    expect(editor.getPreviewPane()).toBeNull();
+  });
+
   it("getEditor returns null when not initialized", () => {
     expect(editor.getEditor()).toBeNull();
   });
@@ -103,6 +109,28 @@ describe("editor wrapper functions (with init)", () => {
     expect(onInput).toHaveBeenCalled();
   });
 
+  it("getSourceTextarea returns the instance's textarea; getPreviewPane its preview panel (or null)", () => {
+    const instance = editor.getEditor();
+    expect(editor.getSourceTextarea()).toBe(instance.sourceTextarea);
+    expect(editor.getPreviewPane()).toBeNull();
+    const preview = document.createElement("div");
+    instance.previewPanel = preview;
+    expect(editor.getPreviewPane()).toBe(preview);
+  });
+
+  it("replaceRange replaces a span and fires input (selection modes are exercised in the browser e2e)", () => {
+    const ta = editor.getEditor().sourceTextarea as HTMLTextAreaElement;
+    const onInput = vi.fn();
+    ta.addEventListener("input", onInput);
+    ta.value = "the cat sat";
+    editor.replaceRange(4, 7, "dog", "preserve");
+    expect(ta.value).toBe("the dog sat");
+    expect(onInput).toHaveBeenCalledTimes(1);
+    editor.replaceRange(0, 3, "a");
+    expect(ta.value).toBe("a dog sat");
+    expect(onInput).toHaveBeenCalledTimes(2);
+  });
+
   it("getSelection returns the selected slice of the source textarea", () => {
     const ta = editor.getEditor().sourceTextarea as HTMLTextAreaElement;
     ta.value = "alpha beta gamma";
@@ -114,5 +142,35 @@ describe("editor wrapper functions (with init)", () => {
     const instance = editor.getEditor();
     instance.getHTML.mockReturnValue("<p>test</p>");
     expect(editor.getHTML()).toBe("<p>test</p>");
+  });
+});
+
+describe("change listeners", () => {
+  let editor: typeof import("./editor");
+
+  beforeEach(async () => {
+    vi.resetModules();
+    editor = await import("./editor");
+  });
+
+  it("notifyEditorChange fans out to every listener until unsubscribed", () => {
+    const a = vi.fn();
+    const b = vi.fn();
+    const offA = editor.onEditorChange(a);
+    editor.onEditorChange(b);
+    editor.notifyEditorChange("# md", "<h1>md</h1>");
+    expect(a).toHaveBeenCalledWith("# md", "<h1>md</h1>");
+    expect(b).toHaveBeenCalledWith("# md", "<h1>md</h1>");
+    offA();
+    editor.notifyEditorChange("x", "");
+    expect(a).toHaveBeenCalledTimes(1);
+    expect(b).toHaveBeenCalledTimes(2);
+  });
+
+  it("setMarkdown resolves to undefined with and without an instance", async () => {
+    await expect(editor.setMarkdown("a")).resolves.toBeUndefined();
+    editor.initEditor(document.createElement("div"));
+    await expect(editor.setMarkdown("b")).resolves.toBeUndefined();
+    expect(editor.getEditor().setMarkdown).toHaveBeenCalledWith("b");
   });
 });
