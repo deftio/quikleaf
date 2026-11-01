@@ -4,11 +4,22 @@
 # CI handles tagging and publishing automatically after merge.
 #
 # Usage:
-#   npm run release
+#   npm run release                 # all gates, then push + PR + auto-merge
+#   npm run release -- --dry-run    # all gates, no push, no PR, nothing mutated
+#   SKIP_PLAYWRIGHT=1 npm run release
 #
 # Run this from your feature branch when you're ready to ship.
 #
 set -euo pipefail
+
+DRY_RUN=0
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run|-n) DRY_RUN=1 ;;
+    -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
+    *) echo "Unknown argument: $arg" >&2; exit 2 ;;
+  esac
+done
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -68,8 +79,9 @@ info "=== TypeScript check ==="
 npx tsc --noEmit || die "TypeScript check failed."
 echo ""
 
-info "=== Running unit tests ==="
-npm test || die "Unit tests failed. Fix failures before releasing."
+info "=== Running unit tests with coverage gate ==="
+# vitest.config.ts enforces the coverage thresholds; this fails below them.
+npm run test:coverage || die "Unit tests or coverage thresholds failed. Fix before releasing."
 echo ""
 
 if [ "${SKIP_PLAYWRIGHT:-}" != "1" ]; then
@@ -91,6 +103,15 @@ info "=== Rust tests ==="
 echo ""
 
 # --- capture any drift and commit it before releasing -------------------------
+
+if [ "$DRY_RUN" = "1" ]; then
+  if ! git diff --quiet || ! git diff --cached --quiet; then
+    warn "Dry run: tests left uncommitted changes (would be auto-committed in a real release):"
+    git status --short
+  fi
+  info "=== Dry run complete: all gates passed for $TAG. Nothing was pushed or committed. ==="
+  exit 0
+fi
 
 if ! git diff --quiet || ! git diff --cached --quiet; then
   warn "Tests produced uncommitted changes."

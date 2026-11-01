@@ -47,7 +47,10 @@ describe("loadSettings / saveSettings", () => {
     };
     saveSettings(settings);
     const loaded = loadSettings();
-    expect(loaded).toEqual(settings);
+    // loadSettings fills in defaults for newer optional fields
+    expect(loaded).toMatchObject(settings);
+    expect(loaded.showTimestamps).toBe(true);
+    expect(loaded.perfLog).toBe(true);
   });
 
   it("uses correct localStorage key", () => {

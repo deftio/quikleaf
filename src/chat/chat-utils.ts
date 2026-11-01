@@ -15,6 +15,13 @@ You have access to the following tools to interact with the editor:
 - **document_undo**: Undo the last editor change.
 - **document_redo**: Redo the last undone change.
 - **document_get_selection**: Get the currently selected text in the editor.
+- **document_outline**: List the document's headings (level, text, line) — a cheap way to navigate a long document before reading it all.
+- **tabs_list**: Several documents can be open in editor tabs; this lists them. All document_* tools act on the active tab.
+- **tab_switch**: Make another open tab active (by id or path) before using document_* tools on it.
+
+**Planning tools** (for multi-step work, call plan_set first and keep it updated as you go):
+- **plan_set**: Set the plan as a list of short steps (replaces any earlier plan).
+- **plan_update**: Mark a step pending, active, done or skipped, optionally with a short note.
 
 **Memory tools** (scratchpad for persisting notes across the conversation):
 - **memory_read**: Read the scratchpad contents.
@@ -35,13 +42,18 @@ You have access to the following tools to interact with the editor:
 - **file_read**: Read a file's contents by relative path.
 - **file_write**: Write content to a file by relative path.
 - **file_list**: List directory contents (optionally recursive).
-- **file_stat**: Get file metadata (size, modified date, type).`;
+- **file_stat**: Get file metadata (size, modified date, type).
+- **tab_open**: Open a project file in an editor tab (focuses it if already open) so the user sees it and document_* tools act on it.
+- **project_search**: Search project files for text (case-insensitive substring, or a regex). Returns matching lines with paths and line numbers.`;
   }
 
   prompt += `
 
 When the user asks you to read, edit, modify, or improve the document, use the document tools.
 First call document_read to see the current content, then use document_write or document_replace to make changes.
+Document and file edits may be shown to the user for review before they are applied. If a tool result contains
+"rejected": true, the user declined that change: do not retry it or try a different route to the same edit —
+briefly ask what they would like instead.
 Use markdown formatting in your replies. Sign off briefly as QD when appropriate.`;
 
   return prompt;
@@ -125,6 +137,93 @@ const DOC_TOOLS_OPENAI = [
       name: "document_get_selection",
       description: "Get the currently selected text in the editor",
       parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "document_outline",
+      description:
+        "List the markdown headings of the current document as [{level, text, line}] (1-based lines; headings inside code fences are ignored). Useful to navigate a long document without reading all of it.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+];
+
+// Tab tools (always available; tab_open is project-only, see FILE_TOOLS)
+const TAB_TOOLS_OPENAI = [
+  {
+    type: "function",
+    function: {
+      name: "tabs_list",
+      description:
+        "List the open editor tabs as [{id, title, path, dirty, active}]. document_* tools operate on the active tab; use tab_switch to change it.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "tab_switch",
+      description: "Make an already-open tab active, by id or by path, so that document_* tools act on it.",
+      parameters: {
+        type: "object",
+        properties: {
+          id: { type: "string", description: "Tab id from tabs_list" },
+          path: { type: "string", description: "Tab path from tabs_list (alternative to id)" },
+        },
+        required: [],
+      },
+    },
+  },
+];
+
+const TAB_OPEN_TOOL_OPENAI = {
+  type: "function",
+  function: {
+    name: "tab_open",
+    description:
+      "Open a file from the project in an editor tab (or focus its tab if already open) and make it active. Path is relative to the project root.",
+    parameters: {
+      type: "object",
+      properties: { path: { type: "string", description: "Project-relative file path" } },
+      required: ["path"],
+    },
+  },
+};
+
+// Planning tools (always available)
+const PLAN_TOOLS_OPENAI = [
+  {
+    type: "function",
+    function: {
+      name: "plan_set",
+      description:
+        "Set (or replace) the visible plan for a multi-step task. Shown to the user as a checklist card in the chat. Call this first for any task with more than one step, then keep it updated with plan_update.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Short plan title (optional)" },
+          steps: { type: "array", items: { type: "string" }, description: "Ordered list of short step descriptions" },
+        },
+        required: ["steps"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "plan_update",
+      description: "Update one step of the current plan: mark it pending, active, done or skipped, optionally with a short note.",
+      parameters: {
+        type: "object",
+        properties: {
+          index: { type: "integer", description: "0-based step index" },
+          status: { type: "string", enum: ["pending", "active", "done", "skipped"], description: "New status" },
+          note: { type: "string", description: "Short note shown next to the step (optional)" },
+        },
+        required: ["index", "status"],
+      },
     },
   },
 ];
@@ -292,6 +391,24 @@ const FILE_TOOLS_OPENAI = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "project_search",
+      description:
+        "Search text files under the project root (skipping .git, node_modules, build output and dot-directories). Case-insensitive substring match by default, or a regular expression when regex is true. Returns {matches: [{path, line, text}], truncated, files_scanned}.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Text or regex to search for" },
+          path: { type: "string", description: "Relative directory to search within (default: project root)" },
+          regex: { type: "boolean", description: "Treat query as a regular expression (default: false)" },
+          max_results: { type: "integer", description: "Maximum matches to return (default 200)" },
+        },
+        required: ["query"],
+      },
+    },
+  },
 ];
 
 /** Convert OpenAI tool format to Anthropic tool format */
@@ -306,9 +423,11 @@ export function toAnthropicTool(t: any): any {
 export function getTools(provider: string, isProjectMode: boolean): any[] {
   const tools = [
     ...DOC_TOOLS_OPENAI,
+    ...TAB_TOOLS_OPENAI,
+    ...PLAN_TOOLS_OPENAI,
     ...MEMORY_TOOLS_OPENAI,
     ...KV_TOOLS_OPENAI,
-    ...(isProjectMode ? FILE_TOOLS_OPENAI : []),
+    ...(isProjectMode ? [...FILE_TOOLS_OPENAI, TAB_OPEN_TOOL_OPENAI] : []),
   ];
   return provider === "anthropic" ? tools.map(toAnthropicTool) : tools;
 }

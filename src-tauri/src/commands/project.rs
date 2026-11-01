@@ -88,6 +88,179 @@ pub struct FileStatResponse {
     pub r#type: String,    // "file" or "dir"
 }
 
+#[derive(Serialize, Debug, PartialEq)]
+pub struct SearchMatch {
+    /// Path relative to the project root, with `/` separators.
+    pub path: String,
+    /// 1-based line number.
+    pub line: usize,
+    /// The matching line, trimmed and cut to `SEARCH_TEXT_MAX` chars.
+    pub text: String,
+}
+
+#[derive(Serialize, Debug)]
+pub struct SearchResponse {
+    pub matches: Vec<SearchMatch>,
+    /// True when more matches existed than `max_results` allowed.
+    pub truncated: bool,
+    pub files_scanned: usize,
+}
+
+/// Directories never descended into by `project_search` (plus any dot-directory).
+pub const SEARCH_SKIP_DIRS: &[&str] = &[".git", "node_modules", "target", "dist", ".venv", "__pycache__"];
+/// Files larger than this are not searched.
+pub const SEARCH_MAX_FILE_BYTES: u64 = 2 * 1024 * 1024;
+/// Match text is cut to this many characters.
+pub const SEARCH_TEXT_MAX: usize = 200;
+pub const SEARCH_DEFAULT_MAX_RESULTS: usize = 200;
+
+/// How `project_search` matches a line.
+#[derive(Debug)]
+pub enum SearchPattern {
+    /// Case-insensitive substring (query is stored lower-cased).
+    Substring(String),
+    Regex(regex::Regex),
+}
+
+impl SearchPattern {
+    pub fn new(query: &str, use_regex: bool) -> Result<Self, String> {
+        if query.is_empty() {
+            return Err("query must not be empty".to_string());
+        }
+        if use_regex {
+            regex::RegexBuilder::new(query)
+                .case_insensitive(true)
+                .size_limit(1 << 20)
+                .build()
+                .map(SearchPattern::Regex)
+                .map_err(|e| format!("Invalid regex: {}", e))
+        } else {
+            Ok(SearchPattern::Substring(query.to_lowercase()))
+        }
+    }
+
+    pub fn is_match(&self, line: &str) -> bool {
+        match self {
+            SearchPattern::Substring(q) => line.to_lowercase().contains(q.as_str()),
+            SearchPattern::Regex(re) => re.is_match(line),
+        }
+    }
+}
+
+/// Trim a matching line and cut it to `SEARCH_TEXT_MAX` characters (not bytes).
+fn clip_line(line: &str) -> String {
+    let trimmed = line.trim();
+    if trimmed.chars().count() <= SEARCH_TEXT_MAX {
+        trimmed.to_string()
+    } else {
+        let mut s: String = trimmed.chars().take(SEARCH_TEXT_MAX - 1).collect();
+        s.push('…');
+        s
+    }
+}
+
+/// Search one file's text, appending matches for `rel_path` to `out` until `limit`
+/// is reached. Returns true when the limit stopped the scan early (more matches exist).
+pub fn search_in_text(rel_path: &str, text: &str, pattern: &SearchPattern, limit: usize, out: &mut Vec<SearchMatch>) -> bool {
+    for (i, line) in text.lines().enumerate() {
+        if !pattern.is_match(line) {
+            continue;
+        }
+        if out.len() >= limit {
+            return true;
+        }
+        out.push(SearchMatch { path: rel_path.to_string(), line: i + 1, text: clip_line(line) });
+    }
+    false
+}
+
+/// A directory `project_search` will not descend into.
+pub fn is_skipped_dir(name: &str) -> bool {
+    name.starts_with('.') || SEARCH_SKIP_DIRS.contains(&name)
+}
+
+/// Walk `start` (which must lie under `root`) and search every readable UTF-8 file
+/// up to `SEARCH_MAX_FILE_BYTES`. Paths in the result are relative to `root`.
+pub fn search_tree(root: &Path, start: &Path, pattern: &SearchPattern, max_results: usize) -> Result<SearchResponse, String> {
+    let mut matches = Vec::new();
+    let mut files_scanned = 0usize;
+    let mut truncated = false;
+
+    fn visit(
+        dir: &Path,
+        root: &Path,
+        pattern: &SearchPattern,
+        max_results: usize,
+        matches: &mut Vec<SearchMatch>,
+        files_scanned: &mut usize,
+        truncated: &mut bool,
+    ) -> Result<(), String> {
+        let mut entries: Vec<_> = std::fs::read_dir(dir)
+            .map_err(|e| format!("{}: {}", dir.display(), e))?
+            .filter_map(|e| e.ok())
+            .collect();
+        // Deterministic order: directories and files sorted by name.
+        entries.sort_by_key(|e| e.file_name());
+        for entry in entries {
+            if *truncated {
+                return Ok(());
+            }
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().to_string();
+            let meta = match entry.metadata() {
+                Ok(m) => m,
+                Err(_) => continue,
+            };
+            if meta.is_dir() {
+                if is_skipped_dir(&name) {
+                    continue;
+                }
+                visit(&path, root, pattern, max_results, matches, files_scanned, truncated)?;
+            } else if meta.is_file() {
+                if meta.len() > SEARCH_MAX_FILE_BYTES {
+                    continue;
+                }
+                let bytes = match std::fs::read(&path) {
+                    Ok(b) => b,
+                    Err(_) => continue,
+                };
+                let text = match String::from_utf8(bytes) {
+                    Ok(t) => t,
+                    Err(_) => continue,
+                };
+                *files_scanned += 1;
+                let rel = path
+                    .strip_prefix(root)
+                    .unwrap_or(&path)
+                    .components()
+                    .map(|c| c.as_os_str().to_string_lossy().to_string())
+                    .collect::<Vec<_>>()
+                    .join("/");
+                if search_in_text(&rel, &text, pattern, max_results, matches) {
+                    *truncated = true;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    if start.is_file() {
+        // Searching a single file is allowed too.
+        let meta = std::fs::metadata(start).map_err(|e| e.to_string())?;
+        if meta.len() <= SEARCH_MAX_FILE_BYTES {
+            if let Ok(text) = std::fs::read_to_string(start) {
+                files_scanned = 1;
+                let rel = start.strip_prefix(root).unwrap_or(start).to_string_lossy().replace('\\', "/");
+                truncated = search_in_text(&rel, &text, pattern, max_results, &mut matches);
+            }
+        }
+    } else {
+        visit(start, root, pattern, max_results, &mut matches, &mut files_scanned, &mut truncated)?;
+    }
+
+    Ok(SearchResponse { matches, truncated, files_scanned })
+}
+
 // Helper: Safely resolve relative path within project root
 fn safe_resolve(project_root: &Option<String>, relative_path: &str) -> Result<PathBuf, String> {
     let root_str = match project_root {
@@ -439,6 +612,30 @@ pub async fn file_stat(state: State<'_, ProjectState>, path: String) -> Result<F
     let modified = datetime.to_rfc3339();
 
     Ok(FileStatResponse { size, modified, r#type })
+}
+
+#[tauri::command]
+pub async fn project_search(
+    state: State<'_, ProjectState>,
+    query: String,
+    path: Option<String>,
+    regex: Option<bool>,
+    max_results: Option<usize>,
+) -> Result<SearchResponse, String> {
+    let root_lock = state.project_root.lock().map_err(|e| e.to_string())?;
+    let root_str = match &*root_lock {
+        Some(r) => r.clone(),
+        None => return Err("No active project. File operations are only available in Project Mode.".to_string()),
+    };
+    let start = safe_resolve(&root_lock, &path.unwrap_or_default())?;
+    drop(root_lock);
+    if !start.exists() {
+        return Err("Path does not exist".to_string());
+    }
+    let root = Path::new(&root_str).canonicalize().map_err(|e| e.to_string())?;
+    let pattern = SearchPattern::new(&query, regex.unwrap_or(false))?;
+    let limit = max_results.unwrap_or(SEARCH_DEFAULT_MAX_RESULTS).max(1);
+    search_tree(&root, &start, &pattern, limit)
 }
 
 #[tauri::command]
@@ -886,5 +1083,218 @@ mod tests {
         let state = ProjectState::default();
         let result = file_list_inner(&state, None, None);
         assert!(result.is_err());
+    }
+
+    // --- project_search tests ---
+
+    fn substring(q: &str) -> SearchPattern {
+        SearchPattern::new(q, false).unwrap()
+    }
+
+    #[test]
+    fn search_pattern_rejects_empty_and_bad_regex() {
+        assert!(SearchPattern::new("", false).is_err());
+        assert!(SearchPattern::new("", true).is_err());
+        let err = SearchPattern::new("(unclosed", true).unwrap_err();
+        assert!(err.starts_with("Invalid regex"), "{}", err);
+        assert!(SearchPattern::new("a|b", true).is_ok());
+    }
+
+    #[test]
+    fn search_in_text_is_case_insensitive_and_reports_lines() {
+        let mut out = Vec::new();
+        let more = search_in_text("a.md", "Hello\nworld\n  HELLO again  \n", &substring("hello"), 100, &mut out);
+        assert!(!more);
+        assert_eq!(
+            out,
+            vec![
+                SearchMatch { path: "a.md".into(), line: 1, text: "Hello".into() },
+                SearchMatch { path: "a.md".into(), line: 3, text: "HELLO again".into() },
+            ]
+        );
+    }
+
+    #[test]
+    fn search_in_text_regex_mode() {
+        let mut out = Vec::new();
+        let re = SearchPattern::new(r"^#+\s+\w+", true).unwrap();
+        search_in_text("d.md", "# Title\ntext\n## Sub\n#notaheading", &re, 100, &mut out);
+        assert_eq!(out.iter().map(|m| m.line).collect::<Vec<_>>(), vec![1, 3]);
+        // Regex is case-insensitive too.
+        let mut out2 = Vec::new();
+        search_in_text("x", "FOO\nbar", &SearchPattern::new("foo", true).unwrap(), 100, &mut out2);
+        assert_eq!(out2.len(), 1);
+    }
+
+    #[test]
+    fn search_in_text_stops_at_limit_and_flags_more() {
+        let mut out = Vec::new();
+        let more = search_in_text("f", "x\nx\nx\nx", &substring("x"), 2, &mut out);
+        assert!(more);
+        assert_eq!(out.len(), 2);
+        // Exactly at the limit with no further match is not truncated.
+        let mut out = Vec::new();
+        assert!(!search_in_text("f", "x\nx\ny", &substring("x"), 2, &mut out));
+        assert_eq!(out.len(), 2);
+    }
+
+    #[test]
+    fn search_in_text_clips_long_lines_by_chars() {
+        let long = "é".repeat(300);
+        let mut out = Vec::new();
+        search_in_text("f", &long, &substring("é"), 10, &mut out);
+        assert_eq!(out[0].text.chars().count(), SEARCH_TEXT_MAX);
+        assert!(out[0].text.ends_with('…'));
+        let exact = "a".repeat(SEARCH_TEXT_MAX);
+        let mut out = Vec::new();
+        search_in_text("f", &exact, &substring("a"), 10, &mut out);
+        assert_eq!(out[0].text, exact);
+    }
+
+    #[test]
+    fn is_skipped_dir_covers_list_and_dotdirs() {
+        for d in SEARCH_SKIP_DIRS {
+            assert!(is_skipped_dir(d), "{}", d);
+        }
+        assert!(is_skipped_dir(".cache"));
+        assert!(!is_skipped_dir("src"));
+        assert!(!is_skipped_dir("targets"));
+    }
+
+    fn search_fixture() -> TempDir {
+        let tmp = TempDir::new().unwrap();
+        let p = tmp.path();
+        std::fs::write(p.join("readme.md"), "# Quikleaf\nA Markdown editor.\n").unwrap();
+        std::fs::create_dir_all(p.join("docs/sub")).unwrap();
+        std::fs::write(p.join("docs/guide.md"), "Markdown guide\n\nmore MARKDOWN here\n").unwrap();
+        std::fs::write(p.join("docs/sub/deep.txt"), "deep markdown\n").unwrap();
+        std::fs::create_dir_all(p.join("node_modules/pkg")).unwrap();
+        std::fs::write(p.join("node_modules/pkg/index.js"), "markdown in deps\n").unwrap();
+        std::fs::create_dir_all(p.join(".git")).unwrap();
+        std::fs::write(p.join(".git/HEAD"), "markdown ref\n").unwrap();
+        std::fs::create_dir_all(p.join("target")).unwrap();
+        std::fs::write(p.join("target/out.txt"), "markdown build\n").unwrap();
+        std::fs::write(p.join("binary.bin"), [0xff, 0xfe, b'm', b'a', b'r', b'k', b'd', b'o', b'w', b'n', 0x00]).unwrap();
+        std::fs::write(p.join("plain.txt"), "nothing to see\n").unwrap();
+        tmp
+    }
+
+    #[test]
+    fn search_tree_finds_matches_with_relative_paths_and_skips_dirs() {
+        let tmp = search_fixture();
+        let root = tmp.path().canonicalize().unwrap();
+        let res = search_tree(&root, &root, &substring("markdown"), 100).unwrap();
+        let mut paths: Vec<String> = res.matches.iter().map(|m| m.path.clone()).collect();
+        paths.sort();
+        paths.dedup();
+        assert_eq!(paths, vec!["docs/guide.md", "docs/sub/deep.txt", "readme.md"]);
+        assert!(!res.truncated);
+        // readme, guide, deep, plain scanned; binary (invalid UTF-8) and skipped dirs not.
+        assert_eq!(res.files_scanned, 4);
+        let guide: Vec<_> = res.matches.iter().filter(|m| m.path == "docs/guide.md").collect();
+        assert_eq!(guide.iter().map(|m| m.line).collect::<Vec<_>>(), vec![1, 3]);
+        assert_eq!(guide[1].text, "more MARKDOWN here");
+    }
+
+    #[test]
+    fn search_tree_can_start_in_a_subdirectory_or_file() {
+        let tmp = search_fixture();
+        let root = tmp.path().canonicalize().unwrap();
+        let res = search_tree(&root, &root.join("docs"), &substring("markdown"), 100).unwrap();
+        let paths: Vec<&str> = res.matches.iter().map(|m| m.path.as_str()).collect();
+        assert!(paths.iter().all(|p| p.starts_with("docs/")), "{:?}", paths);
+        assert_eq!(res.files_scanned, 2);
+
+        let single = search_tree(&root, &root.join("readme.md"), &substring("quikleaf"), 100).unwrap();
+        assert_eq!(single.files_scanned, 1);
+        assert_eq!(single.matches, vec![SearchMatch { path: "readme.md".into(), line: 1, text: "# Quikleaf".into() }]);
+    }
+
+    #[test]
+    fn search_tree_truncates_at_max_results() {
+        let tmp = search_fixture();
+        let root = tmp.path().canonicalize().unwrap();
+        let res = search_tree(&root, &root, &substring("markdown"), 2).unwrap();
+        assert_eq!(res.matches.len(), 2);
+        assert!(res.truncated);
+    }
+
+    #[test]
+    fn search_tree_skips_files_over_the_size_limit() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let big = "needle\n".repeat((SEARCH_MAX_FILE_BYTES as usize / 7) + 10);
+        std::fs::write(root.join("big.txt"), &big).unwrap();
+        std::fs::write(root.join("small.txt"), "needle\n").unwrap();
+        let res = search_tree(&root, &root, &substring("needle"), 100).unwrap();
+        assert_eq!(res.files_scanned, 1);
+        assert_eq!(res.matches.len(), 1);
+        assert_eq!(res.matches[0].path, "small.txt");
+    }
+
+    #[test]
+    fn search_tree_no_matches_and_regex() {
+        let tmp = search_fixture();
+        let root = tmp.path().canonicalize().unwrap();
+        let none = search_tree(&root, &root, &substring("zzz-not-here"), 100).unwrap();
+        assert!(none.matches.is_empty());
+        assert!(!none.truncated);
+        let re = SearchPattern::new(r"^#\s", true).unwrap();
+        let heads = search_tree(&root, &root, &re, 100).unwrap();
+        assert_eq!(heads.matches.len(), 1);
+        assert_eq!(heads.matches[0].path, "readme.md");
+    }
+
+    #[test]
+    fn search_tree_errors_on_unreadable_start() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let res = search_tree(&root, &root.join("missing-dir"), &substring("x"), 10);
+        assert!(res.is_err());
+    }
+
+    /// Mirrors the `project_search` command body (the command itself needs Tauri `State`).
+    fn project_search_inner(
+        state: &ProjectState,
+        query: &str,
+        path: Option<String>,
+        regex: Option<bool>,
+        max_results: Option<usize>,
+    ) -> Result<SearchResponse, String> {
+        let root_lock = state.project_root.lock().map_err(|e| e.to_string())?;
+        let root_str = match &*root_lock {
+            Some(r) => r.clone(),
+            None => return Err("No active project. File operations are only available in Project Mode.".to_string()),
+        };
+        let start = safe_resolve(&root_lock, &path.unwrap_or_default())?;
+        drop(root_lock);
+        if !start.exists() {
+            return Err("Path does not exist".to_string());
+        }
+        let root = Path::new(&root_str).canonicalize().map_err(|e| e.to_string())?;
+        let pattern = SearchPattern::new(query, regex.unwrap_or(false))?;
+        let limit = max_results.unwrap_or(SEARCH_DEFAULT_MAX_RESULTS).max(1);
+        search_tree(&root, &start, &pattern, limit)
+    }
+
+    #[test]
+    fn project_search_requires_project_and_stays_inside_root() {
+        let state = ProjectState::default();
+        assert!(project_search_inner(&state, "x", None, None, None).unwrap_err().contains("No active project"));
+
+        let tmp = search_fixture();
+        let state = state_with_root(&tmp.path().to_string_lossy());
+        let outside = TempDir::new().unwrap();
+        std::fs::write(outside.path().join("s.txt"), "markdown").unwrap();
+        let escape = format!("../{}", outside.path().file_name().unwrap().to_string_lossy());
+        let err = project_search_inner(&state, "markdown", Some(escape), None, None).unwrap_err();
+        assert!(err.contains("Access denied"), "{}", err);
+
+        assert!(project_search_inner(&state, "markdown", Some("nope".into()), None, None).unwrap_err().contains("does not exist"));
+        assert!(project_search_inner(&state, "", None, None, None).is_err());
+
+        let ok = project_search_inner(&state, "markdown", Some("docs".into()), None, Some(0)).unwrap();
+        assert_eq!(ok.matches.len(), 1); // max_results clamped to 1
+        assert!(ok.truncated);
     }
 }

@@ -9,7 +9,7 @@ test.describe("Settings modal", () => {
   test("Settings button opens overlay", async ({ page }) => {
     await page.click("#btn-settings");
     const overlay = page.locator("#settings-overlay");
-    await expect(overlay).toHaveClass(/open/);
+    await expect(overlay).toHaveClass(/bw_bccl_modal_show/);
   });
 
   test("form fields populated from saved settings", async ({ page }) => {
@@ -43,7 +43,7 @@ test.describe("Settings modal", () => {
 
     // Overlay should close
     const overlay = page.locator("#settings-overlay");
-    await expect(overlay).not.toHaveClass(/open/);
+    await expect(overlay).not.toHaveClass(/bw_bccl_modal_show/);
 
     // LLM status should update
     const status = page.locator("#llm-status");
@@ -63,7 +63,7 @@ test.describe("Settings modal", () => {
     await page.click("#settings-cancel");
 
     const overlay = page.locator("#settings-overlay");
-    await expect(overlay).not.toHaveClass(/open/);
+    await expect(overlay).not.toHaveClass(/bw_bccl_modal_show/);
 
     // localStorage should not have the value
     const saved = await page.evaluate(() =>
@@ -78,20 +78,20 @@ test.describe("Settings modal", () => {
   test("Escape closes settings", async ({ page }) => {
     await page.click("#btn-settings");
     const overlay = page.locator("#settings-overlay");
-    await expect(overlay).toHaveClass(/open/);
+    await expect(overlay).toHaveClass(/bw_bccl_modal_show/);
 
     await page.keyboard.press("Escape");
-    await expect(overlay).not.toHaveClass(/open/);
+    await expect(overlay).not.toHaveClass(/bw_bccl_modal_show/);
   });
 
   test("Backdrop click closes settings", async ({ page }) => {
     await page.click("#btn-settings");
     const overlay = page.locator("#settings-overlay");
-    await expect(overlay).toHaveClass(/open/);
+    await expect(overlay).toHaveClass(/bw_bccl_modal_show/);
 
     // Click on the overlay backdrop (outside the modal)
     await overlay.click({ position: { x: 10, y: 10 } });
-    await expect(overlay).not.toHaveClass(/open/);
+    await expect(overlay).not.toHaveClass(/bw_bccl_modal_show/);
   });
 
   test("Fetch Models populates model list", async ({ page }) => {

@@ -183,7 +183,15 @@ fn main() {
             commands::project::file_write,
             commands::project::file_list,
             commands::project::file_stat,
+            commands::project::project_search,
             commands::project::screenshot_viewport,
+            commands::diag::log_get_path,
+            commands::diag::log_append,
+            commands::diag::log_tail,
+            commands::diag::log_clear,
+            commands::diag::log_reveal,
+            commands::diag::cli_status,
+            commands::diag::cli_install,
         ])
         .setup(|app| {
             let handle = app.handle();
@@ -206,8 +214,9 @@ fn main() {
                 &PredefinedMenuItem::select_all(handle, None)?,
             ])?;
             let window_menu = Submenu::with_items(handle, "Window", true, &[
+                // No close_window item: its Cmd+W accelerator would race the
+                // webview's Close Tab shortcut. Quit (Cmd+Q) closes the window.
                 &PredefinedMenuItem::minimize(handle, None)?,
-                &PredefinedMenuItem::close_window(handle, None)?,
             ])?;
             let menu = Menu::with_items(handle, &[&app_menu, &edit_menu, &window_menu])?;
             app.set_menu(menu)?;

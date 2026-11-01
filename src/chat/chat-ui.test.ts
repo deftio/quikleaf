@@ -162,13 +162,50 @@ describe("dispatchTool", () => {
     setProjectMode(false);
   });
 
-  it("file_write invokes IPC in project mode", async () => {
+  it("file_write invokes IPC in project mode when approval is off", async () => {
+    localStorage.setItem("quikleaf_llm_settings", JSON.stringify({ editApproval: "never" }));
     setProjectMode(true);
     vi.mocked(invoke).mockResolvedValue(undefined);
     const result = await dispatchTool("file_write", { path: "test.txt", content: "data" });
     expect(invoke).toHaveBeenCalledWith("file_write", { path: "test.txt", content: "data" });
+    expect(invoke).not.toHaveBeenCalledWith("file_read", expect.anything());
     expect(JSON.parse(result)).toEqual({ success: true });
     setProjectMode(false);
+    localStorage.clear();
+  });
+
+  it("project_search is rejected outside project mode and needs a query", async () => {
+    setProjectMode(false);
+    expect(JSON.parse(await dispatchTool("project_search", { query: "x" })).error).toContain("project mode");
+    setProjectMode(true);
+    expect(JSON.parse(await dispatchTool("project_search", {})).error).toContain("non-empty query");
+    expect(invoke).not.toHaveBeenCalledWith("project_search", expect.anything());
+    setProjectMode(false);
+  });
+
+  it("project_search forwards query, path, regex and max_results to the backend", async () => {
+    setProjectMode(true);
+    const resp = { matches: [{ path: "a.md", line: 2, text: "hit" }], truncated: false, files_scanned: 3 };
+    vi.mocked(invoke).mockResolvedValue(resp);
+    const result = await dispatchTool("project_search", { query: "hit", path: "docs", regex: true, max_results: 5 });
+    expect(invoke).toHaveBeenCalledWith("project_search", { query: "hit", path: "docs", regex: true, maxResults: 5 });
+    expect(JSON.parse(result)).toEqual(resp);
+
+    vi.mocked(invoke).mockClear();
+    await dispatchTool("project_search", { query: "hit" });
+    expect(invoke).toHaveBeenCalledWith("project_search", { query: "hit", path: null, regex: false, maxResults: null });
+    setProjectMode(false);
+  });
+
+  it("document_outline lists the headings of the current document", async () => {
+    const result = await dispatchTool("document_outline", {});
+    expect(JSON.parse(result)).toEqual({ headings: [] });
+  });
+
+  it("plan_set and plan_update are dispatched", async () => {
+    expect(JSON.parse(await dispatchTool("plan_set", { steps: ["a", "b"] }))).toMatchObject({ success: true, steps: 2 });
+    expect(JSON.parse(await dispatchTool("plan_update", { index: 1, status: "done" }))).toMatchObject({ success: true, progress: "1/2" });
+    expect(JSON.parse(await dispatchTool("plan_update", undefined)).error).toContain("index");
   });
 
   it("file_list invokes IPC in project mode", async () => {
@@ -203,9 +240,13 @@ describe("handleSlashCommand", () => {
     expect(msgs.children.length).toBeGreaterThan(0);
   });
 
-  it("/clear returns true and clears chat", () => {
+  it("/clear returns true, clears chat and forgets the plan", async () => {
+    await dispatchTool("plan_set", { steps: ["a"] });
+    expect(document.getElementById("plan-card")).not.toBeNull();
     const result = handleSlashCommand("/clear");
     expect(result).toBe(true);
+    expect(document.getElementById("plan-card")).toBeNull();
+    expect(JSON.parse(await dispatchTool("plan_update", { index: 0, status: "done" })).error).toContain("No plan set");
   });
 
   it("/model returns true", () => {
@@ -245,5 +286,55 @@ describe("handleSlashCommand", () => {
   it("handles case-insensitive commands", () => {
     expect(handleSlashCommand("/HELP")).toBe(true);
     expect(handleSlashCommand("/Help")).toBe(true);
+  });
+});
+
+describe("tab tools", () => {
+  it("tabs_list returns the open tabs with an active flag", async () => {
+    const docs = await import("../editor/documents");
+    const { resetTabs } = await import("../editor/tabs");
+    resetTabs();
+    const a = await docs.openDocument("/tmp/a.md", "# A");
+    await docs.openDocument("/tmp/b.md", "# B");
+    const parsed = JSON.parse(await dispatchTool("tabs_list", {}));
+    expect(parsed.tabs).toHaveLength(2);
+    expect(parsed.tabs.map((t: any) => t.path)).toEqual(["/tmp/a.md", "/tmp/b.md"]);
+    expect(parsed.tabs.filter((t: any) => t.active)).toHaveLength(1);
+    expect(parsed.tabs.find((t: any) => t.id === a.id).title).toBe("a.md");
+    resetTabs();
+  });
+
+  it("tab_switch activates by id or path and errors on unknown", async () => {
+    const docs = await import("../editor/documents");
+    const { resetTabs, activeTab } = await import("../editor/tabs");
+    resetTabs();
+    const a = await docs.openDocument("/tmp/a.md", "# A");
+    await docs.openDocument("/tmp/b.md", "# B");
+    expect(JSON.parse(await dispatchTool("tab_switch", { id: a.id })).success).toBe(true);
+    expect(activeTab()?.id).toBe(a.id);
+    expect(JSON.parse(await dispatchTool("tab_switch", { path: "/tmp/b.md" })).path).toBe("/tmp/b.md");
+    expect(activeTab()?.path).toBe("/tmp/b.md");
+    expect(JSON.parse(await dispatchTool("tab_switch", { id: "nope" })).error).toContain("tabs_list");
+    resetTabs();
+  });
+
+  it("tab_open is project-only, validates path, and opens through file_read", async () => {
+    setProjectMode(false);
+    expect(JSON.parse(await dispatchTool("tab_open", { path: "x.md" })).error).toContain("project mode");
+    setProjectMode(true);
+    expect(JSON.parse(await dispatchTool("tab_open", {})).error).toContain("path");
+    vi.mocked(invoke).mockImplementation(async (cmd: string) => (cmd === "file_read" ? "# Hello" : null));
+    const ok = JSON.parse(await dispatchTool("tab_open", { path: "notes/hello.md" }));
+    expect(ok.success).toBe(true);
+    expect(ok.title).toBe("hello.md");
+    expect(invoke).toHaveBeenCalledWith("file_read", { path: "notes/hello.md" });
+    vi.mocked(invoke).mockImplementation(async (cmd: string) => {
+      if (cmd === "file_read") throw new Error("missing");
+      return null;
+    });
+    expect(JSON.parse(await dispatchTool("tab_open", { path: "missing.md" })).error).toContain("Could not open");
+    setProjectMode(false);
+    const { resetTabs } = await import("../editor/tabs");
+    resetTabs();
   });
 });

@@ -13,6 +13,10 @@ describe("buildSystemPrompt", () => {
   it("includes doc/memory/KV tools when not project mode", () => {
     const prompt = buildSystemPrompt(false);
     expect(prompt).toContain("document_read");
+    expect(prompt).toContain("document_outline");
+    expect(prompt).toContain("plan_set");
+    expect(prompt).toContain("plan_update");
+    expect(prompt).not.toContain("project_search");
     expect(prompt).toContain("memory_read");
     expect(prompt).toContain("kv_get");
     expect(prompt).not.toContain("file_read");
@@ -25,7 +29,15 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("file_write");
     expect(prompt).toContain("file_list");
     expect(prompt).toContain("file_stat");
+    expect(prompt).toContain("project_search");
     expect(prompt).toContain("File tools");
+  });
+
+  it("tells the model edits may be reviewed and not to retry a rejected one", () => {
+    const prompt = buildSystemPrompt(false);
+    expect(prompt).toContain("may be shown to the user for review");
+    expect(prompt).toContain('"rejected": true');
+    expect(prompt).toMatch(/do not retry/);
   });
 
   it("always includes the sign-off instruction", () => {
@@ -54,26 +66,35 @@ describe("toAnthropicTool", () => {
 });
 
 describe("getTools", () => {
-  it("returns 15 tools in OpenAI format without project mode", () => {
+  it("returns 18 tools in OpenAI format without project mode", () => {
     const tools = getTools("openai-compatible", false);
-    expect(tools.length).toBe(15);
+    expect(tools.length).toBe(20);
+    const names = tools.map((t: any) => t.function.name);
+    expect(names).toContain("document_outline");
+    expect(names).toContain("plan_set");
+    expect(names).toContain("plan_update");
+    expect(names).not.toContain("project_search");
     expect(tools[0].type).toBe("function");
     expect(tools[0].function.name).toBe("document_read");
   });
 
-  it("returns 19 tools with project mode (adds file tools)", () => {
+  it("returns 23 tools with project mode (adds file tools and project_search)", () => {
     const tools = getTools("openai-compatible", true);
-    expect(tools.length).toBe(19);
+    expect(tools.length).toBe(26);
     const names = tools.map((t: any) => t.function.name);
     expect(names).toContain("file_read");
     expect(names).toContain("file_write");
     expect(names).toContain("file_list");
     expect(names).toContain("file_stat");
+    expect(names).toContain("project_search");
+    const search = tools.find((t: any) => t.function.name === "project_search");
+    expect(search.function.parameters.required).toEqual(["query"]);
+    expect(Object.keys(search.function.parameters.properties)).toEqual(["query", "path", "regex", "max_results"]);
   });
 
   it("returns Anthropic-formatted tools", () => {
     const tools = getTools("anthropic", false);
-    expect(tools.length).toBe(15);
+    expect(tools.length).toBe(20);
     expect(tools[0].name).toBe("document_read");
     expect(tools[0].input_schema).toBeDefined();
     expect(tools[0].function).toBeUndefined();

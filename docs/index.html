@@ -152,30 +152,26 @@
 
         <div class="qd-section-head qd-mt-lg">
           <h3 class="qd-gradient-text">Desktop installers</h3>
-          <p>Native platform installers are on the way.</p>
+          <p>Built for every tagged release from v1.1.0 on. Grab yours from the Releases page.</p>
         </div>
 
         <div class="qd-grid qd-grid-4">
           <div class="qd-platform-card">
-            <span class="qd-badge-soon">Coming soon</span>
             <div class="qd-platform-icon">&#63743;</div>
             <h4>macOS (Apple Silicon)</h4>
             <p>.dmg installer</p>
           </div>
           <div class="qd-platform-card">
-            <span class="qd-badge-soon">Coming soon</span>
             <div class="qd-platform-icon">&#63743;</div>
             <h4>macOS (Intel)</h4>
             <p>.dmg installer</p>
           </div>
           <div class="qd-platform-card">
-            <span class="qd-badge-soon">Coming soon</span>
             <div class="qd-platform-icon">&#8862;</div>
             <h4>Windows</h4>
             <p>.msi / .exe installer</p>
           </div>
           <div class="qd-platform-card">
-            <span class="qd-badge-soon">Coming soon</span>
             <div class="qd-platform-icon">&#9655;</div>
             <h4>Linux</h4>
             <p>.deb / .AppImage</p>
@@ -186,6 +182,11 @@
           <a class="qd-cta-standalone" href="https://github.com/deftio/quikleaf/releases">
             View All Releases &rarr;
           </a>
+        </div>
+
+        <div class="qd-section-head qd-mt-lg">
+          <h3 class="qd-gradient-text">Command line from the app</h3>
+          <p>Installed the macOS app by dragging it to Applications? Use <strong>Help &rarr; Install Command Line Tool</strong> once, then <code>quikleaf notes.md</code> or <code>quikleaf --project ./docs</code> works from any terminal.</p>
         </div>
       </div>
     </section>
@@ -210,7 +211,7 @@
           <div class="qd-feature">
             <div class="qd-feature-icon">AI</div>
             <h4>LLM Chat Integration</h4>
-            <p>Built-in AI assistant (QD) with streaming responses and 20+ tools for reading, writing, and editing your document. Supports OpenAI-compatible APIs and Anthropic Claude.</p>
+            <p>Built-in AI assistant (QD) with streaming responses and 26 tools for reading, editing, planning and searching. Supports OpenAI-compatible APIs and Anthropic Claude.</p>
           </div>
           <div class="qd-feature">
             <div class="qd-feature-icon">&oplus;</div>
@@ -220,17 +221,42 @@
           <div class="qd-feature">
             <div class="qd-feature-icon">&harr;</div>
             <h4>Local LLM Auto-Detect</h4>
-            <p>Automatically finds Ollama and LM Studio running locally. No configuration needed &mdash; just start writing and chatting. Works fully offline.</p>
+            <p>Automatically finds Ollama, LM Studio or Docker Model Runner running locally. No configuration needed &mdash; just start writing and chatting. Works fully offline.</p>
           </div>
           <div class="qd-feature">
             <div class="qd-feature-icon">&lt;/&gt;</div>
             <h4>Tool-Calling Loop</h4>
-            <p>QD can read your document, make edits, manage a scratchpad, and work with project files &mdash; all through a structured tool-calling loop with a stop button.</p>
+            <p>QD can read and edit documents, keep a plan, search the project, open tabs and manage a scratchpad &mdash; 26 tools behind a loop with a stop button.</p>
+          </div>
+          <div class="qd-feature">
+            <div class="qd-feature-icon">&plusmn;</div>
+            <h4>Edits You Can Review</h4>
+            <p>QD's edits show up as diff cards. Review everything, only project file writes, or nothing &mdash; your choice. Reject and it asks instead of retrying.</p>
+          </div>
+          <div class="qd-feature">
+            <div class="qd-feature-icon">&#9636;</div>
+            <h4>Tabs</h4>
+            <p>Several documents at once with dirty indicators, unsaved-changes prompts and Ctrl+Tab cycling. The file tree follows the active tab.</p>
+          </div>
+          <div class="qd-feature">
+            <div class="qd-feature-icon">&#182;</div>
+            <h4>Writing Tools</h4>
+            <p>Outline panel, find &amp; replace with regex, live word count and reading time, focus mode, Export HTML and Print / PDF.</p>
           </div>
           <div class="qd-feature">
             <div class="qd-feature-icon">&#9670;</div>
             <h4>Native Desktop App</h4>
             <p>Fast startup, low memory footprint, native file dialogs, keyboard shortcuts, auto dark mode, and resizable panels. Built with Tauri v2.</p>
+          </div>
+          <div class="qd-feature">
+            <div class="qd-feature-icon">&#8986;</div>
+            <h4>Timing You Can See</h4>
+            <p>Timestamps under every message, time-to-first-token and tokens/s under every reply, tool durations, and an optional JSON-lines performance log for comparing models.</p>
+          </div>
+          <div class="qd-feature">
+            <div class="qd-feature-icon">{ }</div>
+            <h4>UI as Data</h4>
+            <p>The whole interface is built from <a href="https://github.com/deftio/bitwrench">bitwrench.js</a> TACO objects with themes generated from two seed palettes &mdash; no hand-written HTML or CSS.</p>
           </div>
         </div>
       </div>
@@ -292,13 +318,17 @@
         <div class="qd-section-head">
           <span class="qd-section-eyebrow">AI Assistant</span>
           <h2 class="qd-gradient-text">Works with any LLM provider</h2>
-          <p>Connect to local models via Ollama or LM Studio, or use cloud APIs like Anthropic Claude and OpenRouter.</p>
+          <p>Pick a preset in Settings: Ollama, LM Studio, Docker Model Runner, OpenRouter or Anthropic &mdash; or any OpenAI-compatible endpoint.</p>
         </div>
 
         <div class="qd-grid qd-grid-3">
           <div class="qd-feature">
             <h4>Ollama (Local)</h4>
             <p>Auto-detected on <code>localhost:11434</code>. Run <code>ollama serve</code> and quikleaf finds it automatically. Fully offline.</p>
+          </div>
+          <div class="qd-feature">
+            <h4>Docker Model Runner</h4>
+            <p>Run <code>docker desktop enable model-runner --tcp 12434</code> once; quikleaf finds it at <code>localhost:12434/engines/v1</code> and lists your pulled <code>ai/</code> models.</p>
           </div>
           <div class="qd-feature">
             <h4>Anthropic Claude</h4>
@@ -325,8 +355,15 @@
                 <tr><th>Shortcut</th><th>Action</th></tr>
               </thead>
               <tbody>
+                <tr><td><kbd>Cmd/Ctrl</kbd> + <kbd>N</kbd></td><td>New document</td></tr>
                 <tr><td><kbd>Cmd/Ctrl</kbd> + <kbd>O</kbd></td><td>Open file</td></tr>
                 <tr><td><kbd>Cmd/Ctrl</kbd> + <kbd>S</kbd></td><td>Save file</td></tr>
+                <tr><td><kbd>Cmd/Ctrl</kbd> + <kbd>W</kbd></td><td>Close tab</td></tr>
+                <tr><td><kbd>Ctrl</kbd> + <kbd>Tab</kbd></td><td>Next tab</td></tr>
+                <tr><td><kbd>Cmd/Ctrl</kbd> + <kbd>F</kbd></td><td>Find / replace</td></tr>
+                <tr><td><kbd>Cmd/Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>O</kbd></td><td>Outline panel</td></tr>
+                <tr><td><kbd>Cmd/Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>D</kbd></td><td>Focus mode</td></tr>
+                <tr><td><kbd>Cmd/Ctrl</kbd> + <kbd>P</kbd></td><td>Print / PDF</td></tr>
                 <tr><td><kbd>Enter</kbd></td><td>Send chat message</td></tr>
                 <tr><td><kbd>Shift</kbd> + <kbd>Enter</kbd></td><td>New line in chat</td></tr>
               </tbody>
@@ -344,6 +381,7 @@
                 <tr><td><code>/model</code></td><td>Show current LLM model</td></tr>
                 <tr><td><code>/memory</code></td><td>Show scratchpad contents</td></tr>
                 <tr><td><code>/tools</code></td><td>List available tools</td></tr>
+                <tr><td><code>/log</code></td><td>Performance log path and recent timings</td></tr>
               </tbody>
             </table>
           </div>
@@ -359,7 +397,7 @@
         <div class="qd-section-head">
           <span class="qd-section-eyebrow">Build from Source</span>
           <h2 class="qd-gradient-text">For contributors</h2>
-          <p>Requires Node.js 18+ and Rust 1.70+.</p>
+          <p>Requires Node.js 18+ and a current stable Rust toolchain.</p>
         </div>
 
         <div class="qd-grid qd-grid-2">
@@ -417,7 +455,7 @@ npm run tauri:build
         <div class="qd-section-head">
           <span class="qd-section-eyebrow">Architecture</span>
           <h2 class="qd-gradient-text">How it's built</h2>
-          <p>Tauri v2 backend in Rust, TypeScript frontend in a webview, quikdown for rendering.</p>
+          <p>Tauri v2 backend in Rust, a bitwrench.js UI in a webview, quikdown for rendering.</p>
         </div>
 
         <div class="qd-arch">
@@ -426,9 +464,17 @@ npm run tauri:build
     fs.rs                   File I/O commands
     llm.rs                  LLM API proxy with streaming
     project.rs              Project state, memory, KV, file tools
+    diag.rs                 Performance log + CLI shim installer
   src/main.rs               CLI parsing, app setup
 
-src/                        TypeScript frontend (Vite)
+src/                        TypeScript frontend (Vite + bitwrench)
+  ui/theme.ts               Light + dark themes, app CSS via bw.css()
+  ui/shell.ts               Title bar, menus, toggle buttons, status bar
+  ui/about.ts               About / How it works / Diagnostics tabs
+  ui/tabbar.ts, findbar.ts, outline.ts, focus.ts   Tabs, find & replace, outline, focus mode
+  editor/tabs.ts, documents.ts   Tab model and session controller
+  chat/review.ts, plan.ts   Edit review cards, plan card
+  diag/perf.ts              Timing math + performance-log client
   editor/editor.ts          quikdown editor wrapper
   chat/chat-ui.ts           Chat UI, tool dispatch, slash commands
   chat/providers.ts         LLM provider adapters (OpenAI, Anthropic)
@@ -436,7 +482,7 @@ src/                        TypeScript frontend (Vite)
   project/file-tree.ts      Project mode file tree sidebar
   main.ts                   App init, file ops, project mode
 
-index.html                  App shell</pre>
+index.html                  Empty #app — mounted by bitwrench</pre>
         </div>
 
         <div class="qd-grid qd-grid-3 qd-mt-lg">
@@ -484,7 +530,7 @@ index.html                  App shell</pre>
       <div class="qd-footer-cols">
         <div class="qd-footer-col">
           <h5>quikleaf</h5>
-          <p>A standalone, cross-platform markdown editor with rich rendering and LLM chat integration. Built with Tauri v2 and powered by quikdown.</p>
+          <p>A standalone, cross-platform markdown editor with rich rendering and LLM chat integration. Built with Tauri v2, a bitwrench.js UI, and quikdown rendering.</p>
         </div>
         <div class="qd-footer-col">
           <h5>Product</h5>
@@ -509,6 +555,7 @@ index.html                  App shell</pre>
           <h5>Related</h5>
           <ul>
             <li><a href="https://github.com/deftio/quikdown" target="_blank" rel="noopener">quikdown</a></li>
+            <li><a href="https://github.com/deftio/bitwrench" target="_blank" rel="noopener">bitwrench</a></li>
             <li><a href="https://deftio.github.io/quikdown/pages/" target="_blank" rel="noopener">quikdown site</a></li>
             <li><a href="https://deftio.github.io/quikdown/pages/edit/" target="_blank" rel="noopener">quikdown editor</a></li>
             <li><a href="https://github.com/deftio" target="_blank" rel="noopener">deftio</a></li>

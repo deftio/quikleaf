@@ -3,6 +3,7 @@ import path from "path";
 import fs from "fs";
 
 const QUIKDOWN_DIST = path.resolve(__dirname, "node_modules/quikdown/dist");
+const PKG_VERSION: string = JSON.parse(fs.readFileSync(path.resolve(__dirname, "package.json"), "utf8")).version;
 
 // quikdown's standalone bundle lazily fetches its offline Natural Earth basemap
 // from `new URL('./', import.meta.url)` — i.e. the directory the chunk ships in.
@@ -41,6 +42,8 @@ export default defineConfig({
     strictPort: true,
   },
   envPrefix: ["VITE_", "TAURI_"],
+  // Surfaced to the About dialog as __APP_VERSION__ (see src/vite-env.d.ts)
+  define: { __APP_VERSION__: JSON.stringify(PKG_VERSION) },
   resolve: {
     alias: {
       "quikdown-standalone": path.resolve(

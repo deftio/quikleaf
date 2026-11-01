@@ -26,6 +26,13 @@ interface E2EState {
   dialogResult: any;
   saveResult: any;
   shellOpened: string[];
+  perfLog: any[];
+  logRevealed: boolean;
+  cliInstalled: boolean;
+  /** Optional per-URL override for llm_list_models (auto-detect tests). */
+  llmModelsByUrl?: Record<string, any>;
+  /** Optional replacement for the default llm_chat_stream behaviour. */
+  customStreamHandler?: (args: any) => void;
 }
 
 function getE2E(): E2EState {
@@ -44,6 +51,9 @@ function getE2E(): E2EState {
       dialogResult: null,
       saveResult: null,
       shellOpened: [],
+      perfLog: [],
+      logRevealed: false,
+      cliInstalled: false,
     };
     // Merge any pre-configured state set via page.addInitScript()
     const preconfig = w.__E2E_PRECONFIG__;
@@ -118,6 +128,10 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
       } as T;
 
     case "llm_chat_stream": {
+      if (state.customStreamHandler) {
+        state.customStreamHandler(args);
+        return undefined as T;
+      }
       // Fire chunk and done events via the event bus after a small delay
       const bus = (window as any).__E2E_EVENTS__;
       if (bus) {
@@ -136,6 +150,9 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
     }
 
     case "llm_list_models":
+      if (state.llmModelsByUrl && args?.url && args.url in state.llmModelsByUrl) {
+        return state.llmModelsByUrl[args.url] as T;
+      }
       return state.llmModels as T;
 
     // --- File operations (project mode) ---
@@ -170,6 +187,40 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
       }
       throw new Error(`File not found: ${args?.path}`);
 
+    case "project_search": {
+      // Grep the in-memory file store the way commands/project.rs does on disk.
+      const query: string = args?.query ?? "";
+      const useRegex = !!args?.regex;
+      const prefix: string = args?.path ? String(args.path).replace(/\/+$/, "") + "/" : "";
+      const max: number = typeof args?.maxResults === "number" ? Math.max(1, args.maxResults) : 200;
+      let matcher: (line: string) => boolean;
+      if (useRegex) {
+        const re = new RegExp(query, "i");
+        matcher = (line) => re.test(line);
+      } else {
+        const q = query.toLowerCase();
+        matcher = (line) => line.toLowerCase().includes(q);
+      }
+      const matches: { path: string; line: number; text: string }[] = [];
+      let truncated = false;
+      let files_scanned = 0;
+      for (const [path, content] of Object.entries(state.fsStore)) {
+        if (prefix && !path.startsWith(prefix)) continue;
+        files_scanned++;
+        const lines = content.split("\n");
+        for (let i = 0; i < lines.length; i++) {
+          if (!matcher(lines[i])) continue;
+          if (matches.length >= max) {
+            truncated = true;
+            break;
+          }
+          matches.push({ path, line: i + 1, text: lines[i].trim().slice(0, 200) });
+        }
+        if (truncated) break;
+      }
+      return { matches, truncated, files_scanned } as T;
+    }
+
     // --- Project ---
     case "project_init":
       state.projectData = { open_file: null };
@@ -181,6 +232,40 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
     case "set_open_file":
       state.openFile = args?.path ?? null;
       return undefined as T;
+
+    // --- Diagnostics (performance log + CLI shim) ---
+    case "log_get_path":
+      return "/mock/Logs/com.deftio.quikleaf/quikleaf-perf.jsonl" as T;
+    case "log_append":
+      state.perfLog.push(args?.entry);
+      return undefined as T;
+    case "log_tail": {
+      const n = args?.n ?? 10;
+      return state.perfLog.slice(-n) as T;
+    }
+    case "log_clear":
+      state.perfLog = [];
+      return undefined as T;
+    case "log_reveal":
+      state.logRevealed = true;
+      return undefined as T;
+    case "cli_status":
+      return {
+        supported: true,
+        installed: state.cliInstalled,
+        path: state.cliInstalled ? "/usr/local/bin/quikleaf" : null,
+        on_path: state.cliInstalled,
+        note: state.cliInstalled ? "Installed. Run `quikleaf file.md` from a terminal." : "Not installed. Use Help → Install Command Line Tool.",
+      } as T;
+    case "cli_install":
+      state.cliInstalled = true;
+      return {
+        supported: true,
+        installed: true,
+        path: "/usr/local/bin/quikleaf",
+        on_path: true,
+        note: "Installed /usr/local/bin/quikleaf. Open a new terminal and run `quikleaf file.md`.",
+      } as T;
 
     default:
       console.warn(`[e2e-mock] Unhandled invoke: ${cmd}`, args);
