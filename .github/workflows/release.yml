@@ -8,9 +8,10 @@ name: Release
 #      explicitly. With `--ref vX.Y.Z`, github.ref is `refs/tags/vX.Y.Z`
 #      and github.ref_name is `vX.Y.Z`, so everything below works for both.
 #
-# Required repo secret: NPM_TOKEN (npm automation token with publish rights
-# to `quikleaf` and the `@deftio/quikleaf-*` platform packages). It cannot
-# be verified from the CLI without admin access; check Settings > Secrets.
+# npm is not published here. After the build job has attached the portable
+# archives to the release, the `publish` job dispatches publish.yml, which
+# publishes the `quikleaf` launcher with npm trusted publishing (OIDC). No
+# npm token is involved anywhere.
 on:
   push:
     tags:
@@ -27,25 +28,21 @@ jobs:
         include:
           - platform: macos-latest
             target: aarch64-apple-darwin
-            npm-pkg: darwin-arm64
             binary: quikleaf
             binary-path: src-tauri/target/aarch64-apple-darwin/release/quikleaf
             archive-name: quikleaf-darwin-aarch64
           - platform: macos-latest
             target: x86_64-apple-darwin
-            npm-pkg: darwin-x64
             binary: quikleaf
             binary-path: src-tauri/target/x86_64-apple-darwin/release/quikleaf
             archive-name: quikleaf-darwin-x86_64
           - platform: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
-            npm-pkg: linux-x64
             binary: quikleaf
             binary-path: src-tauri/target/x86_64-unknown-linux-gnu/release/quikleaf
             archive-name: quikleaf-linux-x86_64
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
-            npm-pkg: win32-x64
             binary: quikleaf.exe
             binary-path: src-tauri/target/x86_64-pc-windows-msvc/release/quikleaf.exe
             archive-name: quikleaf-windows-x86_64
@@ -112,23 +109,20 @@ jobs:
           prerelease: false
           args: --target ${{ matrix.target }}
 
-      - name: Prepare npm binary package
-        shell: bash
-        run: |
-          mkdir -p npm/${{ matrix.npm-pkg }}/bin
-          cp ${{ matrix.binary-path }} npm/${{ matrix.npm-pkg }}/bin/${{ matrix.binary }}
-          chmod +x npm/${{ matrix.npm-pkg }}/bin/${{ matrix.binary }} 2>/dev/null || true
-
+      # The portable archive of the bare binary. npm/quikleaf/install.js
+      # downloads exactly these names from the release, so keep them stable.
       - name: Create release archive
         shell: bash
         run: |
-          mkdir -p release-archives
+          mkdir -p stage release-archives
+          cp ${{ matrix.binary-path }} stage/${{ matrix.binary }}
+          chmod +x stage/${{ matrix.binary }} 2>/dev/null || true
           if [ "${{ runner.os }}" = "Windows" ]; then
-            cd npm/${{ matrix.npm-pkg }}/bin
-            7z a -tzip ../../../release-archives/${{ matrix.archive-name }}.zip ${{ matrix.binary }}
-            cd ../../..
+            cd stage
+            7z a -tzip ../release-archives/${{ matrix.archive-name }}.zip ${{ matrix.binary }}
+            cd ..
           else
-            tar czf release-archives/${{ matrix.archive-name }}.tar.gz -C npm/${{ matrix.npm-pkg }}/bin ${{ matrix.binary }}
+            tar czf release-archives/${{ matrix.archive-name }}.tar.gz -C stage ${{ matrix.binary }}
           fi
 
       - name: Upload release archive
@@ -139,81 +133,18 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload npm package artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: npm-${{ matrix.npm-pkg }}
-          path: npm/${{ matrix.npm-pkg }}/
-
-  publish-npm:
+  # Dispatch publish.yml for this tag (OIDC trusted publishing of the npm
+  # launcher). A dispatch rather than a job here because npm's trusted
+  # publisher is bound to the workflow filename `publish.yml`; with
+  # `workflow_dispatch` the OIDC claim names that file.
+  publish:
     needs: build
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    # True for both a tag push and a workflow_dispatch run with --ref vX.Y.Z.
     if: startsWith(github.ref, 'refs/tags/v')
-
+    permissions:
+      actions: write   # gh workflow run publish.yml
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          registry-url: https://registry.npmjs.org
-
-      - name: Get version from tag
-        id: version
-        run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
-
-      - name: Download all npm artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts/
-
-      # Publish each platform package
-      - name: Publish @deftio/quikleaf-darwin-arm64
-        working-directory: artifacts/npm-darwin-arm64
-        run: |
-          jq '.version = "${{ steps.version.outputs.version }}"' package.json > tmp.json && mv tmp.json package.json
-          npm publish --access public
+      - name: Dispatch publish.yml for ${{ github.ref_name }}
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish @deftio/quikleaf-darwin-x64
-        working-directory: artifacts/npm-darwin-x64
-        run: |
-          jq '.version = "${{ steps.version.outputs.version }}"' package.json > tmp.json && mv tmp.json package.json
-          npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish @deftio/quikleaf-linux-x64
-        working-directory: artifacts/npm-linux-x64
-        run: |
-          jq '.version = "${{ steps.version.outputs.version }}"' package.json > tmp.json && mv tmp.json package.json
-          npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish @deftio/quikleaf-win32-x64
-        working-directory: artifacts/npm-win32-x64
-        run: |
-          jq '.version = "${{ steps.version.outputs.version }}"' package.json > tmp.json && mv tmp.json package.json
-          npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      # Publish the main wrapper package
-      - name: Publish quikleaf
-        working-directory: npm/quikleaf
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          # Update version in wrapper and all optionalDependencies
-          jq --arg v "$VERSION" '
-            .version = $v |
-            .optionalDependencies = (.optionalDependencies | to_entries | map(.value = $v) | from_entries)
-          ' package.json > tmp.json && mv tmp.json package.json
-          npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run publish.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME"

@@ -18,7 +18,7 @@ quikleaf is a native desktop application built with Tauri v2 (Rust backend + web
 ## Install options
 
 - Pre-built installers (.dmg, .msi/.exe, .deb/.rpm/.AppImage, portable .tar.gz/.zip) from https://github.com/deftio/quikleaf/releases, built automatically for every tagged release from v1.1.0 on.
-- npm: `npm install -g quikleaf` (or `npx quikleaf file.md`) — a launcher that pulls the platform binary from `@deftio/quikleaf-<platform>` or the GitHub release.
+- npm: `npm install -g quikleaf` (or `npx quikleaf file.md`) — a launcher that downloads the platform binary from the GitHub release of the same version at install time (published via npm trusted publishing / OIDC).
 - Build from source: `npm install && npm run setup && npm run tauri:build` (Node 18+, Rust stable, platform webkit deps).
 - From the installed macOS app: Help → Install Command Line Tool writes a `quikleaf` shim so `quikleaf file.md` and `quikleaf --project ./dir` work from a terminal.
 

@@ -1,33 +1,31 @@
 /**
- * install.js — postinstall fallback for when optionalDependencies are disabled.
+ * install.js — postinstall: download the quikleaf binary for this platform.
  *
- * Checks if the platform binary was installed via optionalDependencies.
- * If not, downloads it from the GitHub release.
+ * The npm package is only a launcher. The binaries live on the GitHub release
+ * that matches this package's version (`vX.Y.Z`), as the archives the release
+ * workflow attaches:
+ *
+ *   quikleaf-darwin-aarch64.tar.gz, quikleaf-darwin-x86_64.tar.gz,
+ *   quikleaf-linux-x86_64.tar.gz, quikleaf-windows-x86_64.zip
+ *
+ * The binary is unpacked into bin-fallback/ next to this file; bin/quikleaf
+ * runs it from there. A failed download is a warning, not an install error,
+ * and prints the manual options.
  */
 
 const https = require("https");
 const fs = require("fs");
 const path = require("path");
-const zlib = require("zlib");
 const { execSync } = require("child_process");
 
 const VERSION = require("./package.json").version;
 
-const PLATFORMS = {
-  "darwin-arm64":  { pkg: "@deftio/quikleaf-darwin-arm64", asset: "quikleaf-darwin-aarch64.tar.gz" },
-  "darwin-x64":    { pkg: "@deftio/quikleaf-darwin-x64",   asset: "quikleaf-darwin-x86_64.tar.gz" },
-  "linux-x64":     { pkg: "@deftio/quikleaf-linux-x64",    asset: "quikleaf-linux-x86_64.tar.gz" },
-  "win32-x64":     { pkg: "@deftio/quikleaf-win32-x64",    asset: "quikleaf-windows-x86_64.zip" },
+const ASSETS = {
+  "darwin-arm64": "quikleaf-darwin-aarch64.tar.gz",
+  "darwin-x64": "quikleaf-darwin-x86_64.tar.gz",
+  "linux-x64": "quikleaf-linux-x86_64.tar.gz",
+  "win32-x64": "quikleaf-windows-x86_64.zip",
 };
-
-function alreadyInstalled(pkg, binName) {
-  try {
-    const pkgDir = path.dirname(require.resolve(`${pkg}/package.json`));
-    return fs.existsSync(path.join(pkgDir, "bin", binName));
-  } catch (_e) {
-    return false;
-  }
-}
 
 function download(url) {
   return new Promise((resolve, reject) => {
@@ -48,56 +46,45 @@ function download(url) {
 
 async function main() {
   const platformKey = `${process.platform}-${process.arch}`;
-  const info = PLATFORMS[platformKey];
+  const asset = ASSETS[platformKey];
 
-  if (!info) {
-    // Unsupported platform — skip silently (user will get error at runtime)
+  if (!asset) {
+    // Unsupported platform — skip silently (bin/quikleaf explains at run time).
     return;
   }
 
   const binName = process.platform === "win32" ? "quikleaf.exe" : "quikleaf";
-
-  // Check if optionalDependencies already provided the binary
-  if (alreadyInstalled(info.pkg, binName)) {
-    return;
-  }
-
   const destDir = path.join(__dirname, "bin-fallback");
   const destPath = path.join(destDir, binName);
 
   if (fs.existsSync(destPath)) {
-    return; // Already downloaded
+    return; // Already downloaded for this install
   }
 
-  const url = `https://github.com/deftio/quikleaf/releases/download/v${VERSION}/${info.asset}`;
+  const url = `https://github.com/deftio/quikleaf/releases/download/v${VERSION}/${asset}`;
 
-  console.log(`quikleaf: downloading binary for ${platformKey}...`);
+  console.log(`quikleaf: downloading binary for ${platformKey} (v${VERSION})...`);
 
   try {
     const data = await download(url);
 
     fs.mkdirSync(destDir, { recursive: true });
+    const tmpFile = path.join(destDir, asset);
+    fs.writeFileSync(tmpFile, data);
 
-    if (info.asset.endsWith(".tar.gz")) {
-      // Write tar.gz, extract with tar
-      const tmpFile = path.join(destDir, info.asset);
-      fs.writeFileSync(tmpFile, data);
+    if (asset.endsWith(".tar.gz")) {
       execSync(`tar xzf "${tmpFile}" -C "${destDir}"`, { stdio: "ignore" });
-      fs.unlinkSync(tmpFile);
-    } else if (info.asset.endsWith(".zip")) {
-      // Write zip, extract
-      const tmpFile = path.join(destDir, info.asset);
-      fs.writeFileSync(tmpFile, data);
-      if (process.platform === "win32") {
-        execSync(`powershell -Command "Expand-Archive -Path '${tmpFile}' -DestinationPath '${destDir}'"`, { stdio: "ignore" });
-      } else {
-        execSync(`unzip -o "${tmpFile}" -d "${destDir}"`, { stdio: "ignore" });
-      }
-      fs.unlinkSync(tmpFile);
+    } else if (process.platform === "win32") {
+      execSync(`powershell -Command "Expand-Archive -Path '${tmpFile}' -DestinationPath '${destDir}' -Force"`, { stdio: "ignore" });
+    } else {
+      execSync(`unzip -o "${tmpFile}" -d "${destDir}"`, { stdio: "ignore" });
     }
+    fs.unlinkSync(tmpFile);
 
-    // Set executable permission
-    if (process.platform !== "win32" && fs.existsSync(destPath)) {
+    if (!fs.existsSync(destPath)) {
+      throw new Error(`archive did not contain ${binName}`);
+    }
+    if (process.platform !== "win32") {
       fs.chmodSync(destPath, 0o755);
     }
 
@@ -107,7 +94,7 @@ async function main() {
       `quikleaf: failed to download binary (${e.message})\n` +
       `\n` +
       `Options:\n` +
-      `  1. Download manually from: https://github.com/deftio/quikleaf/releases\n` +
+      `  1. Download manually from: https://github.com/deftio/quikleaf/releases/tag/v${VERSION}\n` +
       `  2. Build from source:\n` +
       `     git clone https://github.com/deftio/quikleaf.git && cd quikleaf\n` +
       `     npm install && npm run setup && npm run tauri:build`

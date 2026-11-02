@@ -47,7 +47,7 @@ Four ways to get quikleaf, pick one:
 ### Pre-built installers (recommended)
 
 Download from the [Releases](https://github.com/deftio/quikleaf/releases) page.
-Installers and npm binaries are published automatically for every tagged
+Installers and portable archives are published automatically for every tagged
 release from v1.1.0 on (earlier tags shipped no assets because of a CI
 trigger bug, see [CHANGELOG](CHANGELOG.md)).
 
@@ -66,9 +66,12 @@ npm install -g quikleaf      # or: npx quikleaf document.md
 quikleaf document.md
 ```
 
-The npm package is a thin launcher: it pulls the platform binary from
-`@deftio/quikleaf-<platform>` (or downloads it from the GitHub release) and
-runs it. Requires Node.js 18+.
+The npm package is a thin launcher with no binaries inside: on install it
+downloads the portable archive for your platform from the GitHub release of
+the same version and runs that. It needs network access to github.com at
+install time and Node.js 18+. The package is published with npm trusted
+publishing (OIDC) from `.github/workflows/publish.yml`, so every version on
+npm carries provenance back to this repository.
 
 ### Build from source
 
@@ -245,7 +248,7 @@ cd src-tauri && cargo test  # Rust tests (~70, run for both the lib and bin targ
 
 ### Releasing
 
-Maintainers only. `npm run feature -- "name" [minor|major]` starts a branch and bumps every version file; `npm run release:dry` runs all gates (types, unit tests with the coverage gate, e2e, cargo check/test, version sync) without pushing; `npm run release` runs them and opens the PR whose merge triggers CI to tag and publish installers and npm packages.
+Maintainers only. `npm run feature -- "name" [minor|major]` starts a branch and bumps every version file; `npm run release:dry` runs all gates (types, unit tests with the coverage gate, e2e, cargo check/test, version sync) without pushing; `npm run release` runs them and opens the PR whose merge triggers CI to tag, build the installers and release, and dispatch `publish.yml`, which publishes the npm launcher via OIDC. To republish the launcher for an existing release: `gh workflow run publish.yml --ref vX.Y.Z`.
 
 ### Build Output
 

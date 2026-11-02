@@ -26,10 +26,7 @@ Thumbs.db
 # Signing credentials (never commit)
 dev/signing/
 
-# npm platform binaries (only package.json is tracked)
-npm/darwin-*/bin/
-npm/linux-*/bin/
-npm/win32-*/bin/
+# npm launcher: the binary install.js downloads (never committed)
 npm/quikleaf/bin-fallback/
 
 # Vite cache
