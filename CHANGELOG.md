@@ -5,6 +5,37 @@ All notable changes to quikleaf are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.3] - 2026-11-02
+
+AI assistance: the chat drawer, the site changes and this entry were drafted
+with Claude Code under the maintainer's direction; reviewed and released by
+the maintainer.
+
+### Changed
+- **The chat is a drawer.** It slides out of the left edge of the tab instead
+  of appearing in place, and while it is closed a small "Chat" pull sits on
+  that edge to open it (the Chat button and Cmd/Ctrl+Shift+C still work).
+  Settings → Chat display → **Chat drawer side** moves it to the right edge;
+  the info pane crosses to the other side and the resize handle follows. The
+  choice previews live in Settings and is remembered. The slide respects
+  `prefers-reduced-motion`.
+- GitHub Pages site: left-justified, more compact layout with the install
+  strip above the fold; the hero shows a real screenshot of the app (document
+  chat proposing a reviewed diff, source, rendered preview) instead of the
+  mock SVG; the platform tiles are now actual download links for the current
+  release (retargeted to the latest tag at runtime); social-card image is the
+  screenshot; `docs/publishing.md` documents the release and npm trust path.
+
+### Fixed
+- `quikleaf notes.md` opened an empty window. The file named on the command
+  line was read through the Tauri fs plugin, whose default scope allows only
+  the app's own directories, so the read was refused ("forbidden path") and
+  the failure was logged to the console only. The path is now added to the
+  fs scope at startup (the same thing the Open dialog does for files picked
+  there), so it opens and saves. A file that still cannot be opened shows a
+  toast, and every failed open is written to the diagnostics log
+  (About → Diagnostics, `/log`) with the reason.
+
 ## [1.2.2] - 2026-11-02
 
 AI assistance: the publishing fix and this entry were drafted with Claude

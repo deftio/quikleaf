@@ -19,6 +19,9 @@ import {
   setInfoPanelVisible,
   isChatPanelVisible,
   isInfoPanelVisible,
+  setChatSide,
+  chatSide,
+  makeChatDrawerPull,
   type ShellHandlers,
 } from "./shell";
 
@@ -324,6 +327,47 @@ describe("setChatPanelVisible / setInfoPanelVisible", () => {
     setInfoPanelVisible(false);
     expect(document.getElementById("info-panel")!.classList.contains("hidden")).toBe(true);
     expect(document.getElementById("btn-toggle-info")!.getAttribute("aria-pressed")).toBe("false");
+  });
+});
+
+describe("chat drawer", () => {
+  it("setChatPanelVisible marks #tab-body chat-closed while the drawer is shut (that shows the pull)", () => {
+    mount({ t: "div", a: { id: "tab-body" }, c: [{ t: "div", a: { id: "chat-panel", class: "hidden" } }] });
+    const body = document.getElementById("tab-body")!;
+    setChatPanelVisible(true);
+    expect(body.classList.contains("chat-closed")).toBe(false);
+    setChatPanelVisible(false);
+    expect(body.classList.contains("chat-closed")).toBe(true);
+  });
+
+  it("setChatSide flips the chat-right class on #tab-body and chatSide reads it back", () => {
+    mount({ t: "div", a: { id: "tab-body" } });
+    expect(chatSide()).toBe("left");
+    setChatSide("right");
+    expect(document.getElementById("tab-body")!.classList.contains("chat-right")).toBe(true);
+    expect(chatSide()).toBe("right");
+    setChatSide("left");
+    expect(document.getElementById("tab-body")!.classList.contains("chat-right")).toBe(false);
+    expect(chatSide()).toBe("left");
+  });
+
+  it("chatSide is left when there is no tab body yet, and setChatSide does not throw", () => {
+    expect(chatSide()).toBe("left");
+    expect(() => setChatSide("right")).not.toThrow();
+  });
+
+  it("makeChatDrawerPull is a labelled button that calls the opener", () => {
+    const onOpen = vi.fn();
+    mount(makeChatDrawerPull(onOpen));
+    const pull = document.getElementById("chat-drawer-pull") as HTMLButtonElement;
+    expect(pull.tagName).toBe("BUTTON");
+    expect(pull.type).toBe("button");
+    expect(pull.classList.contains("chat-drawer-pull")).toBe(true);
+    expect(pull.getAttribute("aria-label")).toBe("Open chat");
+    expect(pull.title).toContain("Shift+C");
+    expect(pull.textContent).toBe("Chat");
+    pull.click();
+    expect(onOpen).toHaveBeenCalledTimes(1);
   });
 });
 

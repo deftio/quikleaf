@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { loadSettings, saveSettings, isConfigured } from "./settings";
+import { chatSideOf, loadSettings, saveSettings, isConfigured } from "./settings";
 import type { LLMSettings } from "./settings";
 
 describe("isConfigured", () => {
@@ -80,5 +80,27 @@ describe("loadSettings / saveSettings", () => {
     const s = loadSettings();
     expect(s.model).toBe("custom");
     expect(s.host).toBe("http://localhost:11434"); // from defaults
+  });
+});
+
+describe("chatSideOf", () => {
+  const base: LLMSettings = { provider: "openai-compatible", host: "http://localhost", apiKey: "", model: "m", showToolCalls: false };
+
+  it("defaults to left, including for unknown stored values", () => {
+    expect(chatSideOf(base)).toBe("left");
+    expect(chatSideOf({ ...base, chatSide: "left" })).toBe("left");
+    expect(chatSideOf({ ...base, chatSide: "top" as any })).toBe("left");
+  });
+
+  it("returns right when chosen", () => {
+    expect(chatSideOf({ ...base, chatSide: "right" })).toBe("right");
+  });
+
+  it("is stored and loaded with the rest of the settings", () => {
+    localStorage.clear();
+    saveSettings({ ...base, chatSide: "right" });
+    expect(loadSettings().chatSide).toBe("right");
+    localStorage.clear();
+    expect(loadSettings().chatSide).toBe("left");
   });
 });

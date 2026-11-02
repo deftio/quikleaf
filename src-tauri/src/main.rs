@@ -6,6 +6,7 @@ mod commands;
 use commands::project::{ProjectState, LaunchMode};
 use std::path::{Path, PathBuf};
 use tauri::Manager;
+use tauri_plugin_fs::FsExt;
 use tauri::menu::{Menu, Submenu, PredefinedMenuItem};
 
 pub struct LaunchInfo(pub LaunchMode);
@@ -194,6 +195,13 @@ fn main() {
             commands::diag::cli_install,
         ])
         .setup(|app| {
+            // The file named on the command line is read and saved through
+            // the fs plugin, whose default scope covers only the app's own
+            // directories (the Open dialog widens it for files picked there).
+            // Allow this one path, or `quikleaf notes.md` opens nothing.
+            if let LaunchMode::Simple { file_path: Some(path) } = &app.state::<LaunchInfo>().0 {
+                app.fs_scope().allow_file(path)?;
+            }
             let handle = app.handle();
             let app_menu = Submenu::with_items(handle, "quikleaf", true, &[
                 &PredefinedMenuItem::about(handle, Some("About quikleaf"), None)?,

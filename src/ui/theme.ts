@@ -221,12 +221,65 @@ const shell: CssRules = {
   "#main": { display: "flex", flex: "1", overflow: "hidden", background: "var(--bg-primary)" },
   "#editor-column": { flex: "1", "min-width": "0", display: "flex", "flex-direction": "column", overflow: "hidden" },
   /* The active tab's panes: [chat | quikdown view | info] */
-  "#tab-body": { flex: "1", "min-height": "0", display: "flex", overflow: "hidden" },
-  "#editor-container": { flex: "1", "min-width": "0", "min-height": "0", overflow: "hidden", background: "var(--bg-primary)" },
+  "#tab-body": { position: "relative", flex: "1", "min-height": "0", display: "flex", overflow: "hidden" },
+  "#editor-container": { order: "2", flex: "1", "min-width": "0", "min-height": "0", overflow: "hidden", background: "var(--bg-primary)" },
   /* The project tab has no document: the chat takes the whole body. */
   "#editor-column.project-tab #editor-container": { display: "none" },
-  "#editor-column.project-tab #chat-panel": { flex: "1", width: "auto", "max-width": "none", "border-right": "none" },
-  "#editor-column.project-tab .chat-resize-handle": { display: "none" },
+  "#editor-column.project-tab #chat-panel": { flex: "1", width: "auto", "max-width": "none", border: "none", animation: "none" },
+  "#editor-column.project-tab .chat-resize-handle, #editor-column.project-tab .chat-drawer-pull": { display: "none" },
+
+  /*
+   * The chat is a drawer. It slides out of one edge of the tab body (left by
+   * default; Settings → Chat display → Chat drawer side), pushing the editor
+   * rather than covering it. `#tab-body.chat-right` moves it to the other
+   * edge with flex `order` and swaps the info pane across. While the drawer
+   * is closed (`#tab-body.chat-closed`) a small pull sits on that edge.
+   */
+  "#tab-body.chat-right #chat-panel": {
+    order: "3",
+    "border-right": "none",
+    "border-left": "1px solid var(--border-primary)",
+    animation: "chat-slide-in-right 0.2s ease-out",
+  },
+  "#tab-body.chat-right #info-panel": { order: "1", "border-left": "none", "border-right": "1px solid var(--border-primary)" },
+  "@keyframes chat-slide-in": { from: { transform: "translateX(-100%)" }, to: { transform: "none" } },
+  "@keyframes chat-slide-in-right": { from: { transform: "translateX(100%)" }, to: { transform: "none" } },
+  "@media (prefers-reduced-motion: reduce)": {
+    "#chat-panel, #tab-body.chat-right #chat-panel": { animation: "none" },
+  },
+  ".chat-drawer-pull": {
+    display: "none",
+    position: "absolute",
+    left: "0",
+    top: "50%",
+    "z-index": "5",
+    transform: "translateY(-50%) rotate(180deg)",
+    "writing-mode": "vertical-rl",
+    padding: "10px 4px",
+    border: "1px solid var(--border-primary)",
+    "border-left": "none",
+    "border-radius": "0 var(--radius-sm) var(--radius-sm) 0",
+    background: "var(--bg-secondary)",
+    color: "var(--text-secondary)",
+    "font-size": "11px",
+    "font-weight": "600",
+    "font-family": "inherit",
+    "letter-spacing": "0.04em",
+    "text-transform": "uppercase",
+    cursor: "pointer",
+    "box-shadow": "var(--shadow-sm)",
+    transition: "background 0.1s ease, color 0.1s ease",
+  },
+  ".chat-drawer-pull:hover": { background: "var(--bg-tertiary)", color: "var(--text-primary)" },
+  "#tab-body.chat-closed .chat-drawer-pull": { display: "flex" },
+  "#tab-body.chat-right .chat-drawer-pull": {
+    left: "auto",
+    right: "0",
+    transform: "translateY(-50%)",
+    border: "1px solid var(--border-primary)",
+    "border-right": "none",
+    "border-radius": "var(--radius-sm) 0 0 var(--radius-sm)",
+  },
 
   /* ── Editor tabs ─────────────────────────────────────────── */
   "#tab-bar": {
@@ -324,13 +377,16 @@ const shell: CssRules = {
   /* ── Chat panel ──────────────────────────────────────────── */
   "#chat-panel": {
     position: "relative",
+    order: "1",
     width: "400px",
     "min-width": "300px",
     "max-width": "600px",
+    "flex-shrink": "0",
     display: "flex",
     "flex-direction": "column",
     "border-right": "1px solid var(--border-primary)",
     background: "var(--bg-secondary)",
+    animation: "chat-slide-in 0.2s ease-out",
   },
   "#chat-header": {
     display: "flex",
@@ -357,7 +413,9 @@ const shell: CssRules = {
   ".chat-target": { "font-weight": "600", color: "var(--text-primary)", overflow: "hidden", "text-overflow": "ellipsis", "min-width": "0" },
   ".chat-model": { "margin-left": "auto", color: "var(--text-tertiary)", "font-variant-numeric": "tabular-nums", "flex-shrink": "0" },
   ".chat-model.override": { color: "var(--accent-primary)", "font-weight": "600" },
-  ".chat-resize-handle": { transition: "background 0.15s ease" },
+  /* Drag handle on the drawer's inner edge (the side facing the editor). */
+  ".chat-resize-handle": { position: "absolute", top: "0", bottom: "0", right: "-4px", width: "8px", "z-index": "10", transition: "background 0.15s ease" },
+  "#tab-body.chat-right .chat-resize-handle": { right: "auto", left: "-4px" },
   ".chat-resize-handle:hover, .chat-resize-handle.dragging": { background: "var(--accent-primary)" },
   "#chat-messages": {
     flex: "1",
@@ -371,6 +429,7 @@ const shell: CssRules = {
 
   /* ── Info pane ───────────────────────────────────────────── */
   "#info-panel": {
+    order: "3",
     width: "280px",
     "min-width": "240px",
     display: "flex",
@@ -921,7 +980,7 @@ const writing: CssRules = {
   "#find-close": { "margin-left": "auto" },
 
   /* Focus mode */
-  "#app.focus #titlebar, #app.focus #statusbar, #app.focus #file-tree, #app.focus #outline, #app.focus #chat-panel, #app.focus #info-panel, #app.focus #tab-bar": {
+  "#app.focus #titlebar, #app.focus #statusbar, #app.focus #file-tree, #app.focus #outline, #app.focus #chat-panel, #app.focus #chat-drawer-pull, #app.focus #info-panel, #app.focus #tab-bar": {
     display: "none !important",
   },
   "#app.focus #editor-container .qde-container": { border: "none", "border-radius": "0" },
@@ -957,7 +1016,7 @@ const writing: CssRules = {
 
   /* Print: only the rendered preview pane (`#editor-container .qde-preview`). */
   "@media print": {
-    "#titlebar, #statusbar, #file-tree, #outline, #chat-panel, #info-panel, #tab-bar, #find-bar, #focus-exit, #editor-container .qde-toolbar, #editor-container .qde-source": {
+    "#titlebar, #statusbar, #file-tree, #outline, #chat-panel, #chat-drawer-pull, #info-panel, #tab-bar, #find-bar, #focus-exit, #editor-container .qde-toolbar, #editor-container .qde-source": {
       display: "none !important",
     },
     "html, body, #app, #main, #editor-column, #tab-body, #editor-container, #editor-container .qde-container, #editor-container .qde-editor": {

@@ -19,6 +19,7 @@ import * as tabs from "./tabs";
 import type { Tab } from "./tabs";
 import { setStatusFile } from "../ui/shell";
 import { highlightFile } from "../project/file-tree";
+import { logEvent } from "../diag/perf";
 
 const FILE_FILTERS = [
   { name: "Markdown", extensions: ["md", "markdown", "txt"] },
@@ -124,6 +125,8 @@ export async function openPath(path: string, projectRelative = false): Promise<T
     return await openDocument(path, content, projectRelative);
   } catch (e) {
     console.error("Failed to open file:", e);
+    // Into the diagnostics log too: About → Diagnostics and `/log` show it.
+    logEvent({ kind: "app", event: "open-failed", path, error: String((e as any)?.message ?? e) });
     return null;
   }
 }

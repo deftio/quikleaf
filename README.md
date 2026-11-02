@@ -9,7 +9,7 @@ A standalone, cross-platform **local** markdown editor with rich rendering and L
 
 Built with [Tauri v2](https://tauri.app), rendered by [quikdown](https://github.com/deftio/quikdown), with a UI built from [bitwrench.js](https://github.com/deftio/bitwrench) TACO objects.
 
-![quikleaf editor with rich fence rendering](docs/assets/quikleaf-demo.svg)
+![quikleaf: a document chat proposing a reviewable diff, the markdown source, and the rendered preview with a Mermaid diagram and tables](docs/assets/quikleaf-app.png)
 
 ## Features
 
@@ -17,7 +17,7 @@ Built with [Tauri v2](https://tauri.app), rendered by [quikdown](https://github.
 
 - **A chat per tab** — Every document tab has its own QD chat, sealed to that document: the model is shown that file and the conversation, nothing else, and its tools can change only that file. The chat header names the document it acts on, each chat can run a different model (`/model` or the info pane), and a project's chats are saved with the project. Cross-file work lives in a separate **project chat** (View → Project Chat) that works on files under the project root by path. Streaming responses, slash commands, a tool-calling loop with a Stop button; OpenAI-compatible APIs (Ollama, LM Studio, Docker Model Runner, OpenRouter, Groq) and Anthropic Claude, with local servers auto-detected.
 
-- **Three panes per tab** — `[chat | quikdown view | info]`. Each tab remembers which panes it shows and whether the editor is in Source, Split or Preview (View menu, or quikdown's toolbar). The info pane shows the document's facts (location, words, characters, lines, reading time, headings) and the chat's (scope, turns, tool calls, provider, model, Clear).
+- **Three panes per tab** — `[chat | quikdown view | info]`. The chat is a drawer: it slides out of the left edge of the tab (or the right, Settings → Chat display → Chat drawer side), and while it is closed a small pull on that edge opens it. Each tab remembers which panes it shows and whether the editor is in Source, Split or Preview (View menu, or quikdown's toolbar). The info pane shows the document's facts (location, words, characters, lines, reading time, headings) and the chat's (scope, turns, tool calls, provider, model, Clear).
 
 - **Edits you can review** — QD's document and file edits show up as diff cards in the chat. Choose in Settings → Agent whether to review every edit, only project file writes (default), or none; reviewed edits wait for Accept or Reject, the rest apply and show the diff. For multi-step work QD keeps a plan card up to date.
 
@@ -133,7 +133,7 @@ The seal is enforced where tools are dispatched, not by the prompt: a document c
 | `Ctrl + Tab` / `Ctrl + Shift + Tab` | Next / previous tab (`Cmd + Shift + ]` / `[` on macOS) |
 | `Cmd/Ctrl + F` | Find (Enter next, Shift+Enter previous, Esc close) |
 | `Cmd/Ctrl + H` | Find and replace (use View → Find & Replace on macOS, where Cmd+H hides the app) |
-| `Cmd/Ctrl + Shift + C` | Toggle the active tab's chat pane |
+| `Cmd/Ctrl + Shift + C` | Open or close the active tab's chat drawer (the pull on the edge and the Chat button do the same) |
 | `Cmd/Ctrl + Shift + I` | Toggle the active tab's info pane |
 | `Cmd/Ctrl + Shift + O` | Toggle outline panel |
 | `Cmd/Ctrl + Shift + D` | Focus mode (Esc exits) |
@@ -194,7 +194,7 @@ Model: meta-llama/llama-3.1-70b-instruct
 
 ## Timestamps and the performance log
 
-Settings → **Chat display** toggles timestamps/timings and tool-call entries; both apply to messages already on screen. Settings → **Diagnostics** toggles the performance log. When on, quikleaf appends one JSON object per LLM request (`kind: "llm"`: `ttft_ms`, `total_ms`, `est_tokens`, `tok_per_s`, model, host), per tool call (`kind: "tool"`: name, `ms`) and per chat turn to:
+Settings → **Chat display** toggles timestamps/timings and tool-call entries, and picks which edge the chat drawer slides out of; all three apply on the spot. Settings → **Diagnostics** toggles the performance log. When on, quikleaf appends one JSON object per LLM request (`kind: "llm"`: `ttft_ms`, `total_ms`, `est_tokens`, `tok_per_s`, model, host), per tool call (`kind: "tool"`: name, `ms`) and per chat turn to:
 
 | Platform | File |
 |----------|------|
@@ -253,7 +253,7 @@ cd src-tauri && cargo test  # Rust tests (~70, run for both the lib and bin targ
 
 ### Releasing
 
-Maintainers only. `npm run feature -- "name" [minor|major]` starts a branch and bumps every version file; `npm run release:dry` runs all gates (types, unit tests with the coverage gate, e2e, cargo check/test, version sync) without pushing; `npm run release` runs them and opens the PR whose merge triggers CI to tag, build the installers and release, and dispatch `publish.yml`, which publishes the npm launcher via OIDC trusted publishing. To publish the launcher again for an existing release: `gh workflow run publish.yml --ref main -f tag=vX.Y.Z`.
+Maintainers only. `npm run feature -- "name" [minor|major]` starts a branch and bumps every version file; `npm run release:dry` runs all gates (types, unit tests with the coverage gate, e2e, cargo check/test, version sync) without pushing; `npm run release` runs them and opens the PR whose merge triggers CI to tag, build the installers and release, and dispatch `publish.yml`, which publishes the npm launcher via OIDC trusted publishing. To publish the launcher again for an existing release: `gh workflow run publish.yml --ref main -f tag=vX.Y.Z`. The trust path, npm-side setup and what each npm error means are in [docs/publishing.md](docs/publishing.md).
 
 ### Build Output
 

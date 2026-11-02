@@ -236,6 +236,9 @@ describe("openPath", () => {
     expect(await openPath("/gone.md")).toBeNull();
     expect(listTabs()).toHaveLength(1);
     expect(err).toHaveBeenCalled();
+    // The reason reaches the diagnostics log (perf log is on by default).
+    const logged = mockInvoke.mock.calls.find((c) => c[0] === "log_append");
+    expect(logged?.[1]).toMatchObject({ entry: { kind: "app", event: "open-failed", path: "/gone.md", error: "missing" } });
     err.mockRestore();
   });
 });

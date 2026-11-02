@@ -12,6 +12,8 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   EDIT_APPROVAL_OPTIONS,
   HOST_PRESETS,
+  CHAT_SIDE_OPTIONS,
+  applyChatSettings,
   chatDisplayOf,
   editApprovalOf,
   closeSettings,
@@ -85,6 +87,7 @@ beforeEach(() => {
   localStorage.clear();
   mockInvoke.mockReset();
   mockInvoke.mockImplementation(async () => null);
+  addDiv("tab-body");
   addDiv("chat-panel");
   addDiv("llm-status");
   addDiv("status-provider");
@@ -94,7 +97,7 @@ afterEach(async () => {
   await flush();
   // bw.clear deregisters ids from bitwrench's lookup cache; innerHTML = "" would not.
   bw.clear(byId("app"));
-  for (const id of ["chat-panel", "llm-status", "status-provider"]) document.getElementById(id)?.remove();
+  for (const id of ["tab-body", "chat-panel", "llm-status", "status-provider"]) document.getElementById(id)?.remove();
   document.body.style.overflow = "";
 });
 
@@ -174,6 +177,7 @@ describe("makeSettingsModal", () => {
       "set-show-tools",
       "set-perf-log",
       "set-edit-approval",
+      "set-chat-side",
       "settings-open-log",
       "settings-clear-log",
       "settings-cancel",
@@ -211,6 +215,17 @@ describe("makeSettingsModal", () => {
     const sel = byId<HTMLSelectElement>("set-edit-approval");
     expect(Array.from(sel.options).map((o) => o.value)).toEqual(EDIT_APPROVAL_OPTIONS.map((o) => o.value));
     expect(sel.value).toBe("files");
+  });
+
+  it("offers the drawer side under Chat display, defaulting to left", () => {
+    const node = bw.append(byId("app"), makeSettingsModal());
+    const sel = byId<HTMLSelectElement>("set-chat-side");
+    expect(Array.from(sel.options).map((o) => o.value)).toEqual(CHAT_SIDE_OPTIONS.map((o) => o.value));
+    expect(sel.value).toBe("left");
+    const section = Array.from(node.querySelectorAll(".settings-section-title")).find((h) => h.textContent === "Chat display")!;
+    // The picker's form group comes after the Chat display title and before the Agent title.
+    const order = Array.from(node.querySelectorAll(".settings-section-title, #set-chat-side"));
+    expect(order.indexOf(sel) - order.indexOf(section)).toBe(1);
   });
 });
 
@@ -298,6 +313,7 @@ describe("open / close and the form round-trip", () => {
     expect(byId<HTMLInputElement>("set-show-timestamps").checked).toBe(false);
     expect(byId<HTMLInputElement>("set-perf-log").checked).toBe(false);
     expect(byId<HTMLSelectElement>("set-edit-approval").value).toBe("never");
+    expect(byId<HTMLSelectElement>("set-chat-side").value).toBe("left");
 
     closeSettings();
     expect(overlay.classList.contains(SHOW)).toBe(false);
@@ -328,6 +344,7 @@ describe("open / close and the form round-trip", () => {
     setChecked("set-show-timestamps", true);
     setChecked("set-perf-log", true);
     byId<HTMLSelectElement>("set-edit-approval").value = "always";
+    byId<HTMLSelectElement>("set-chat-side").value = "right";
 
     byId("settings-save").click();
 
@@ -340,10 +357,12 @@ describe("open / close and the form round-trip", () => {
       showTimestamps: true,
       perfLog: true,
       editApproval: "always",
+      chatSide: "right",
     });
     const panel = byId("chat-panel");
     expect(panel.classList.contains("show-timestamps")).toBe(true);
     expect(panel.classList.contains("show-tools")).toBe(false);
+    expect(byId("tab-body").classList.contains("chat-right")).toBe(true);
     expect(text("llm-status")).toBe("claude-x @ api.anthropic.com");
     expect(text("status-provider")).toBe("LLM: Anthropic · claude-x");
     expect(byId("settings-overlay").classList.contains(SHOW)).toBe(false);
@@ -357,13 +376,19 @@ describe("open / close and the form round-trip", () => {
     setChecked("set-show-timestamps", true, true);
     expect(panel.classList.contains("show-tools")).toBe(false);
     expect(panel.classList.contains("show-timestamps")).toBe(true);
+    const side = byId<HTMLSelectElement>("set-chat-side");
+    side.value = "right";
+    side.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(byId("tab-body").classList.contains("chat-right")).toBe(true);
     setValue("set-model", "unsaved-model");
 
     byId("settings-cancel").click();
 
     expect(panel.classList.contains("show-tools")).toBe(true);
     expect(panel.classList.contains("show-timestamps")).toBe(false);
+    expect(byId("tab-body").classList.contains("chat-right")).toBe(false);
     expect(loadSettings().model).toBe("llama3");
+    expect(loadSettings().chatSide).toBe("left"); // the saved default, not the previewed "right"
     expect(byId("settings-overlay").classList.contains(SHOW)).toBe(false);
   });
 
@@ -615,5 +640,18 @@ describe("autoDetect on first launch", () => {
     await flush();
     expect(listCalls()).toEqual([]);
     expect(loadSettings()).toMatchObject(saved);
+  });
+});
+
+describe("applyChatSettings", () => {
+  it("restyles the chat on the spot: display classes on #chat-panel, side on #tab-body", () => {
+    applyChatSettings({ ...saved, showToolCalls: true, showTimestamps: false, chatSide: "right" });
+    expect(byId("chat-panel").classList.contains("show-tools")).toBe(true);
+    expect(byId("chat-panel").classList.contains("show-timestamps")).toBe(false);
+    expect(byId("tab-body").classList.contains("chat-right")).toBe(true);
+    applyChatSettings(saved);
+    expect(byId("chat-panel").classList.contains("show-tools")).toBe(false);
+    expect(byId("chat-panel").classList.contains("show-timestamps")).toBe(true);
+    expect(byId("tab-body").classList.contains("chat-right")).toBe(false);
   });
 });

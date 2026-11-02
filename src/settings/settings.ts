@@ -3,7 +3,7 @@ import type { Taco } from "bitwrench";
 import { invoke } from "@tauri-apps/api/core";
 import { buildModelsUrl, listModels } from "../chat/providers";
 import { control, el, makeModal, modalHandle, withAttrs } from "../ui/taco";
-import { setChatDisplay, setStatusProvider } from "../ui/shell";
+import { setChatDisplay, setChatSide, setStatusProvider, type ChatSide } from "../ui/shell";
 import { notify } from "../ui/toast";
 
 export interface LLMSettings {
@@ -23,9 +23,16 @@ export interface LLMSettings {
    * only (default); "never" — apply directly and just show the diff.
    */
   editApproval?: EditApproval;
+  /** Which edge of the tab the chat drawer slides out of. Default left. */
+  chatSide?: ChatSide;
 }
 
 export type EditApproval = "always" | "files" | "never";
+
+export const CHAT_SIDE_OPTIONS: { value: ChatSide; text: string }[] = [
+  { value: "left", text: "Left — chat slides out beside the file tree" },
+  { value: "right", text: "Right — chat slides out from the right edge" },
+];
 
 export const EDIT_APPROVAL_OPTIONS: { value: EditApproval; text: string }[] = [
   { value: "always", text: "Always — review every document and file edit" },
@@ -44,6 +51,7 @@ const defaults: LLMSettings = {
   showTimestamps: true,
   perfLog: true,
   editApproval: "files",
+  chatSide: "left",
 };
 
 export function loadSettings(): LLMSettings {
@@ -70,6 +78,17 @@ export function chatDisplayOf(s: LLMSettings) {
 /** The edit-approval policy with the default applied (and bad stored values ignored). */
 export function editApprovalOf(s: LLMSettings): EditApproval {
   return s.editApproval === "always" || s.editApproval === "never" ? s.editApproval : "files";
+}
+
+/** The chat drawer's side with the default applied (and bad stored values ignored). */
+export function chatSideOf(s: LLMSettings): ChatSide {
+  return s.chatSide === "right" ? "right" : "left";
+}
+
+/** Everything in Settings that restyles the chat on the spot: display flags and drawer side. */
+export function applyChatSettings(s: LLMSettings): void {
+  setChatDisplay(chatDisplayOf(s));
+  setChatSide(chatSideOf(s));
 }
 
 // --- Presets ----------------------------------------------------------------
@@ -156,6 +175,7 @@ function readForm(): LLMSettings {
     showTimestamps: field<HTMLInputElement>("set-show-timestamps").checked,
     perfLog: field<HTMLInputElement>("set-perf-log").checked,
     editApproval: field<HTMLSelectElement>("set-edit-approval").value as EditApproval,
+    chatSide: field<HTMLSelectElement>("set-chat-side").value as ChatSide,
   };
 }
 
@@ -171,6 +191,7 @@ function writeForm(s: LLMSettings): void {
   field<HTMLInputElement>("set-show-timestamps").checked = s.showTimestamps !== false;
   field<HTMLInputElement>("set-perf-log").checked = s.perfLog !== false;
   field<HTMLSelectElement>("set-edit-approval").value = editApprovalOf(s);
+  field<HTMLSelectElement>("set-chat-side").value = chatSideOf(s);
   bw.clear("models-list");
 }
 
@@ -200,9 +221,9 @@ export function closeSettings(): void {
   modalHandle(modalEl)?.close();
 }
 
-/** Display toggles preview live; Cancel/close puts them back the way they were saved. */
+/** Display toggles and the drawer side preview live; Cancel/close puts them back the way they were saved. */
 function revertDisplay(): void {
-  setChatDisplay(chatDisplayOf(loadSettings()));
+  applyChatSettings(loadSettings());
 }
 
 function onCancel(): void {
@@ -213,14 +234,14 @@ function onCancel(): void {
 function onSave(): void {
   const s = readForm();
   saveSettings(s);
-  setChatDisplay(chatDisplayOf(s));
+  applyChatSettings(s);
   updateStatus();
   closeSettings();
 }
 
-/** Switches apply immediately so the chat updates while the dialog is open. */
+/** Switches and the side picker apply immediately so the chat updates while the dialog is open. */
 function onDisplayToggle(): void {
-  setChatDisplay(chatDisplayOf(readForm()));
+  applyChatSettings(readForm());
 }
 
 function onPresetChange(e: Event): void {
@@ -344,6 +365,12 @@ export function makeSettingsModal(): Taco {
       sectionTitle("Chat display"),
       bw.makeSwitch({ id: "set-show-timestamps", label: "Show timestamps and timing under messages", onchange: onDisplayToggle }),
       bw.makeSwitch({ id: "set-show-tools", label: "Show tool calls in chat", onchange: onDisplayToggle }),
+      bw.makeFormGroup({
+        id: "set-chat-side",
+        label: "Chat drawer side",
+        input: bw.makeSelect({ id: "set-chat-side", options: CHAT_SIDE_OPTIONS, value: defaults.chatSide, onchange: onDisplayToggle }),
+        help: "The chat slides out of this edge of the tab. Open it with the pull on that edge, the Chat button, or Cmd/Ctrl+Shift+C.",
+      }),
 
       sectionTitle("Agent"),
       bw.makeFormGroup({

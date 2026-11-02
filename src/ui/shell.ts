@@ -251,10 +251,12 @@ export function makeStatusbar(): Taco {
 /**
  * The main row: window-wide panels (file tree, outline), then the editor
  * column — anything in `aboveEditor` (the tab bar, find bar) stacked over
- * `#tab-body`, the active tab's panes: `beside.left` (the chat), then
- * `#editor-container` (quikdown mounts into it), then `beside.right` (the
- * info pane). Putting the chat and info panes under the tab bar is what
- * makes the tab, not the window, the unit a chat belongs to.
+ * `#tab-body`, the active tab's panes: `beside.left` (the chat drawer and
+ * its pull), then `#editor-container` (quikdown mounts into it), then
+ * `beside.right` (the info pane). Putting the chat and info panes under the
+ * tab bar is what makes the tab, not the window, the unit a chat belongs to.
+ * The DOM order is the left-side layout; `setChatSide("right")` reorders the
+ * panes with CSS `order`, so the markup never changes.
  */
 export function makeMain(
   panels: TacoContent[],
@@ -298,10 +300,50 @@ export function setStatusStats(text: string): void {
   bw.patch("status-stats", text);
 }
 
-/** Show or hide the chat pane and keep the toolbar button's pressed state in step. */
+/**
+ * Show or hide the chat drawer and keep the toolbar button's pressed state in
+ * step. `chat-closed` on `#tab-body` is what shows the drawer pull at the edge.
+ */
 export function setChatPanelVisible(on: boolean): void {
   bw.toggleClass("chat-panel", "hidden", !on);
+  bw.toggleClass("tab-body", "chat-closed", !on);
   setToggleState("btn-toggle-chat", on);
+}
+
+export type ChatSide = "left" | "right";
+
+/**
+ * Which edge of the tab body the chat drawer slides out of (Settings → Chat
+ * display → Chat drawer side). One class on `#tab-body` reorders its flex
+ * children, `[chat | editor | info]` or `[info | editor | chat]`, and flips
+ * the drawer pull and the resize handle with it.
+ */
+export function setChatSide(side: ChatSide): void {
+  bw.toggleClass("tab-body", "chat-right", side === "right");
+}
+
+export function chatSide(): ChatSide {
+  return bw.hasClass("tab-body", "chat-right") ? "right" : "left";
+}
+
+/**
+ * The drawer pull: a small tab on the edge of `#tab-body`, shown only while
+ * the chat is closed (`#tab-body.chat-closed`), that opens the active tab's
+ * chat. It sits over the editor's edge and takes no layout space.
+ */
+export function makeChatDrawerPull(onOpen: () => void): Taco {
+  return {
+    t: "button",
+    a: {
+      id: "chat-drawer-pull",
+      class: "chat-drawer-pull",
+      type: "button",
+      title: "Open chat (Cmd/Ctrl+Shift+C)",
+      "aria-label": "Open chat",
+      onclick: onOpen,
+    },
+    c: "Chat",
+  };
 }
 
 /** Show or hide the info pane and keep the toolbar button's pressed state in step. */

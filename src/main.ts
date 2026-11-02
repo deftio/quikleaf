@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import "./ui/theme"; // generates and injects all CSS at import
 import { setDarkMode } from "./ui/theme";
 import { el } from "./ui/taco";
-import { initMenus, makeMain, makeStatusbar, makeTitlebar, setChatDisplay, setStatusFile, setToggleState } from "./ui/shell";
+import { initMenus, makeChatDrawerPull, makeMain, makeStatusbar, makeTitlebar, setStatusFile, setToggleState } from "./ui/shell";
 import { initTabBar, makeTabBar } from "./ui/tabbar";
 import { activeEditorMode, handlePanesKeydown, initPanes, isChatPaneOpen, isInfoPaneOpen, setActiveEditorMode, toggleChatPane, toggleInfoPane } from "./ui/panes";
 import { initInfoPane, makeInfoPanel, setInfoProjectRoot } from "./ui/infopane";
@@ -26,8 +26,9 @@ import { listTabs,
   setDocumentsProjectMode,
   showTab,
 } from "./editor/documents";
-import { chatDisplayOf, initSettingsUI, loadSettings, openSettings } from "./settings/settings";
+import { applyChatSettings, initSettingsUI, loadSettings, openSettings } from "./settings/settings";
 import { logEvent } from "./diag/perf";
+import { notify } from "./ui/toast";
 import { initChat, makeChatPanel } from "./chat/chat-ui";
 import { exportChatHistory, importChatHistory } from "./chat/session";
 import {
@@ -93,6 +94,8 @@ bw.mount("#app", [
   }),
   // Window-wide panels on the left; the chat and info panes live inside the
   // tab column, because they belong to the tab: [chat | quikdown view | info].
+  // The chat is a drawer: Settings → Chat drawer side moves it to the right
+  // edge (CSS order), and a pull on that edge opens it while it is closed.
   makeMain(
     [makeFileTreePanel(), makeOutlinePanel()],
     [
@@ -103,7 +106,7 @@ bw.mount("#app", [
       }),
       makeFindBar(),
     ],
-    { left: [makeChatPanel()], right: [makeInfoPanel()] },
+    { left: [makeChatPanel(), makeChatDrawerPull(() => toggleChatPane())], right: [makeInfoPanel()] },
   ),
   makeStatusbar(),
   makeFocusExitPill(),
@@ -119,7 +122,7 @@ initSettingsUI();
 initChat();
 initInfoPane();
 initPanes();
-setChatDisplay(chatDisplayOf(loadSettings()));
+applyChatSettings(loadSettings());
 openAbout = initAbout();
 setOnFileClick((path) => loadFileIntoEditor(path));
 logEvent({ kind: "app", event: "start", version: __APP_VERSION__ });
@@ -175,7 +178,11 @@ async function init() {
     const launchMode = await invoke<LaunchMode>("get_launch_info");
 
     if (launchMode.type === "Simple") {
-      if (launchMode.file_path) await openPath(launchMode.file_path);
+      if (launchMode.file_path) {
+        const tab = await openPath(launchMode.file_path);
+        // openPath logged the reason; the user gets told instead of an empty window.
+        if (!tab) notify("Could not open file", launchMode.file_path, "danger", 10000);
+      }
     } else if (launchMode.type === "Project") {
       setDocumentsProjectMode(true, launchMode.project_root);
       setInfoProjectRoot(launchMode.project_root);

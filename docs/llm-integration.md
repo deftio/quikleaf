@@ -35,6 +35,7 @@ Click **Settings** in the title bar to configure:
 | Host | API endpoint URL |
 | API Key | Authentication key (blank for local models) |
 | Model | Model name (use "Fetch Models" to list available) |
+| Chat drawer side | Which edge of the tab the chat slides out of: left (default) or right. Applies immediately. |
 
 ## Auto-Detection
 
@@ -48,7 +49,7 @@ If models are found, the first one is auto-configured.
 
 ## Chats and scope
 
-Every editor tab has its own chat, and the chat is sealed to a scope. The header of the chat pane says which:
+Every editor tab has its own chat, and the chat is sealed to a scope. The chat is a drawer on one edge of the tab (left by default; Settings → Chat drawer side): open it with the pull on that edge, the Chat button, or Cmd/Ctrl+Shift+C. The header of the chat pane says which scope it has:
 
 | Header | Belongs to | The model sees | Tools may change |
 |--------|-----------|----------------|------------------|

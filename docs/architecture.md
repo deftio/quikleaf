@@ -92,7 +92,7 @@ Located in `src/`. Built with Vite, runs in Tauri's webview. `index.html` is an 
 - Updates use bitwrench verbs (`bw.patch`, `bw.toggleClass`, `bw.clear`, `bw.remove`), never `innerHTML`.
 - Dark mode is a one-class toggle (`.dark` on `#app`); both themes derive from the same seed accent.
 - Chat display toggles are classes on `#chat-panel` (`show-timestamps`, `show-tools`): bubbles always render their meta line and tool entries, so flipping a setting restyles history instantly.
-- The chat and info panes live inside `#editor-column > #tab-body`, under the tab bar, not beside the window: the tab is the unit a chat belongs to. Each session owns a `.chat-log` element; `chat-ui.ts` re-parents the active one into `#chat-messages` on tab switches (bitwrench's `append` takes TACO, not elements), so a background chat keeps its streaming bubble, review cards and plan card.
+- The chat and info panes live inside `#editor-column > #tab-body`, under the tab bar, not beside the window: the tab is the unit a chat belongs to. The chat is a drawer: the DOM order is always `[chat | editor | info]`, and `setChatSide("right")` (Settings → Chat drawer side) puts `chat-right` on `#tab-body`, which reorders the panes with flex `order`, flips the resize handle and moves the pull (`#chat-drawer-pull`, shown while `#tab-body.chat-closed`) to the other edge. Opening slides it in with a short keyframe animation; `prefers-reduced-motion` turns that off. Each session owns a `.chat-log` element; `chat-ui.ts` re-parents the active one into `#chat-messages` on tab switches (bitwrench's `append` takes TACO, not elements), so a background chat keeps its streaming bubble, review cards and plan card.
 
 ### Chat scope
 
