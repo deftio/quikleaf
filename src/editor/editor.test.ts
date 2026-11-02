@@ -174,3 +174,42 @@ describe("change listeners", () => {
     expect(editor.getEditor().setMarkdown).toHaveBeenCalledWith("b");
   });
 });
+
+describe("editor mode", () => {
+  let editor: typeof import("./editor");
+
+  beforeEach(async () => {
+    vi.resetModules();
+    editor = await import("./editor");
+  });
+
+  it("defaults to split without an instance and ignores setEditorMode", () => {
+    expect(editor.getEditorMode()).toBe("split");
+    expect(() => editor.setEditorMode("preview")).not.toThrow();
+    expect(editor.EDITOR_MODES).toEqual(["source", "split", "preview"]);
+  });
+
+  it("reads and sets the instance mode, skipping no-op sets, and fans out onModeChange", () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const inst = editor.initEditor(host);
+    const seen: string[] = [];
+    const off = editor.onEditorModeChange((m) => seen.push(m));
+    expect(editor.getEditorMode()).toBe("split");
+    editor.setEditorMode("split");
+    expect(inst.setMode).not.toHaveBeenCalled();
+    editor.setEditorMode("preview");
+    expect(inst.setMode).toHaveBeenCalledWith("preview");
+    expect(editor.getEditorMode()).toBe("preview");
+    // The mock editor forwards setMode to the onModeChange option, as quikdown does.
+    expect(seen).toEqual(["preview"]);
+    editor.notifyEditorModeChange("nonsense");
+    expect(seen).toEqual(["preview"]);
+    inst.mode = "weird";
+    expect(editor.getEditorMode()).toBe("split");
+    off();
+    editor.notifyEditorModeChange("source");
+    expect(seen).toEqual(["preview"]);
+    host.remove();
+  });
+});

@@ -4,11 +4,27 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import bw from "bitwrench";
-import { STEP_GLYPH, STEP_STATUSES, getPlan, planSet, planUpdate, resetPlan } from "./plan";
+import {
+  STEP_GLYPH,
+  STEP_STATUSES,
+  getPlan as getPlanOf,
+  makePlanHost,
+  planSet as planSetOn,
+  planUpdate as planUpdateOn,
+  resetPlan as resetPlanOf,
+  type PlanHost,
+} from "./plan";
 
 function log(): HTMLElement {
   return document.getElementById("chat-messages")!;
 }
+
+// Plans belong to a chat (its session is the host); these tests use one host over the shared log.
+let host: PlanHost = makePlanHost(document.getElementById("chat-messages")!);
+const planSet = (args: any) => planSetOn(args, host);
+const planUpdate = (args: any) => planUpdateOn(args, host);
+const getPlan = () => getPlanOf(host);
+const resetPlan = () => resetPlanOf(host);
 function card(): HTMLElement | null {
   return document.getElementById("plan-card");
 }
@@ -22,6 +38,7 @@ function glyphs(): string[] {
 beforeEach(() => {
   resetPlan();
   bw.clear(log());
+  host = makePlanHost(log());
 });
 
 afterEach(() => {
@@ -83,20 +100,36 @@ describe("planSet", () => {
     expect(getPlan()!.steps.length).toBe(50);
   });
 
-  it("keeps state but renders nothing when the chat log is absent", () => {
+  it("renders into a detached log (a background chat) and shows up once the log is mounted", () => {
     const l = log();
     l.remove();
     try {
       expect(JSON.parse(planSet({ steps: ["a"] })).success).toBe(true);
       expect(getPlan()!.steps.length).toBe(1);
-      expect(card()).toBeNull();
+      expect(card()).toBeNull(); // not in the document yet
+      expect(host.planCard).not.toBeNull();
+      expect(l.contains(host.planCard)).toBe(true);
     } finally {
       document.body.appendChild(l);
     }
-    // Next update re-creates the card.
+    // The card is still the same element; updates patch it in place.
     planUpdate({ index: 0, status: "done" });
-    expect(card()).not.toBeNull();
+    expect(card()).toBe(host.planCard);
     expect(glyphs()).toEqual([STEP_GLYPH.done]);
+  });
+
+  it("two hosts keep separate plans and cards", () => {
+    const other = makePlanHost(bw.append(document.body, { t: "div", a: { id: "other-log" } }));
+    planSet({ steps: ["mine"] });
+    planSetOn({ steps: ["theirs", "too"] }, other);
+    expect(getPlan()!.steps.map((s) => s.text)).toEqual(["mine"]);
+    expect(getPlanOf(other)!.steps.map((s) => s.text)).toEqual(["theirs", "too"]);
+    expect(log().querySelectorAll("#plan-card").length).toBe(1);
+    expect(other.log.querySelectorAll("#plan-card").length).toBe(1);
+    resetPlanOf(other);
+    expect(other.log.children.length).toBe(0);
+    expect(card()).not.toBeNull();
+    other.log.remove();
   });
 
   it("re-creates the card after the log was cleared", () => {

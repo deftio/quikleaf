@@ -116,7 +116,9 @@ A purpose-built chat UI — not quikchat. Minimal: message list, text input, sen
 
 ### Layout
 
-Two-column layout: editor (right, ~65%) and chat panel (left, ~35%). The chat panel is collapsible/hideable. In simple mode without LLM usage, the editor fills the full width.
+Two-column layout: editor (right, ~65%) and chat panel (left, ~35%). The chat panel is collapsible/hideable.
+
+> **Implemented differently (v1.1.1).** The chat is not a window-wide panel: every tab is the unit `[chat | quikdown view | info]`, with its own chat sealed to its document, its own pane layout and editor mode, and an optional info pane. Cross-file work lives in a separate project chat tab. See `docs/llm-integration.md` → "Chats and scope" and `docs/architecture.md` → "Chat scope". In simple mode without LLM usage, the editor fills the full width.
 
 ### Tool-Calling Loop
 

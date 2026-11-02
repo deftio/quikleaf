@@ -40,7 +40,15 @@ vi.mock("quikdown-standalone", () => {
     undo = vi.fn();
     redo = vi.fn();
     sourceTextarea: HTMLTextAreaElement;
-    constructor(container: any, _options: any) {
+    mode = "split";
+    options: any;
+    setMode = vi.fn((mode: string) => {
+      this.mode = mode;
+      this.options?.onModeChange?.(mode);
+    });
+    constructor(container: any, options: any) {
+      this.options = options ?? {};
+      this.mode = this.options.mode ?? "split";
       this.sourceTextarea = document.createElement("textarea");
       this.sourceTextarea.className = "qde-textarea";
       (container ?? document.body).appendChild(this.sourceTextarea);

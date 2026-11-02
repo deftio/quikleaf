@@ -63,9 +63,12 @@ test.describe("Chat slash commands", () => {
 
     const messages = page.locator(".chat-msg.assistant");
     const lastMsg = messages.last();
-    await expect(lastMsg).toContainText("Document");
-    await expect(lastMsg).toContainText("Memory");
-    await expect(lastMsg).toContainText("Key-Value");
+    // Simple mode: a document chat with document and plan tools; memory/KV are project state.
+    await expect(lastMsg).toContainText("document chat");
+    await expect(lastMsg).toContainText("Document:");
+    await expect(lastMsg).toContainText("Plan:");
+    await expect(lastMsg).toContainText("Memory and key-value tools are project state");
+    await expect(lastMsg).not.toContainText("File:");
   });
 
   test("unknown command shows error", async ({ page }) => {

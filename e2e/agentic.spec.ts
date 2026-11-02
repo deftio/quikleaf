@@ -2,8 +2,9 @@ import { test, expect, type Page } from "@playwright/test";
 
 /**
  * Agentic chat features driven through the mock LLM stream:
- *   - proposed-edit review cards (Accept / Reject) around file_write
- *   - the plan card (plan_set / plan_update)
+ *   - proposed-edit review cards (Accept / Reject) around file_write, in the
+ *     project chat (View → Project Chat), the only chat with file tools
+ *   - the plan card (plan_set / plan_update) in a document chat
  *   - project_search against the in-memory file store
  *
  * Each test installs a `customStreamHandler` that answers the Nth LLM turn
@@ -81,8 +82,25 @@ test.describe("Proposed-edit review (project mode)", () => {
     await page.waitForSelector("#editor-container", { state: "visible" });
     await expect(page.locator("#file-tree")).toBeVisible({ timeout: 5000 });
     await configureLLM(page);
-    await page.click("#btn-toggle-chat");
+    // File tools live in the project chat only.
+    await page.click("#btn-view-menu");
+    await page.click("#btn-project-chat");
     await expect(page.locator("#chat-panel")).toBeVisible();
+    await expect(page.locator("#chat-scope")).toHaveText("Project chat");
+  });
+
+  test("a document chat has no file tools: file_write is refused and nothing is written", async ({ page }) => {
+    await page.locator("#file-tree").getByText("readme.md").click();
+    await expect(page.locator("#chat-scope")).toHaveText("Document chat");
+    await expect(page.locator("#chat-target")).toHaveText("readme.md");
+    await scriptTurns(page, [{ toolCalls: [{ id: "c1", name: "file_write", args: { path: "notes.txt", content: "x" } }] }, { text: "understood" }]);
+    await send(page, "overwrite notes.txt");
+    await idle(page);
+    const tool = page.locator(".chat-msg.tool").first();
+    await expect(tool).toContainText("not available in a document chat");
+    await expect(tool).toContainText("readme.md");
+    expect(await invokeLog(page, "file_write")).toHaveLength(0);
+    await expect(page.locator(".chat-msg.review")).toHaveCount(0);
   });
 
   test("file_write shows a diff card; Reject returns a rejected tool result and writes nothing", async ({ page }) => {
@@ -221,7 +239,7 @@ test.describe("Plan card and document tools (simple mode)", () => {
     await expect(card.locator(".plan-step").nth(2)).toHaveClass(/pending/);
     await expect(card.locator(".plan-progress")).toHaveText("1/3");
     // The card sits where plan_set first ran: right after the user's message.
-    const order = await page.locator("#chat-messages > .chat-msg").evaluateAll((els) => els.map((e) => e.className));
+    const order = await page.locator("#chat-messages .chat-log > .chat-msg").evaluateAll((els) => els.map((e) => e.className));
     expect(order.indexOf("chat-msg plan")).toBeLessThan(order.findIndex((c) => c.includes("tool")));
   });
 

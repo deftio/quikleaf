@@ -8,7 +8,10 @@
  * edits that were applied directly; `cancelPendingReviews()` rejects every
  * open card (the Stop button).
  *
- * Everything here is bitwrench TACO appended to `#chat-messages`.
+ * Everything here is bitwrench TACO appended to a chat's log: the element
+ * passed as `log`, or `#chat-messages` when none is given. Chats keep their
+ * own logs (see `session.ts`), so a card always lands in the chat whose tool
+ * call asked for it, even if the user has switched tabs meanwhile.
  */
 import bw from "bitwrench";
 import type { Taco } from "bitwrench";
@@ -32,16 +35,17 @@ export const DIFF_CONTEXT = 3;
 
 interface Pending {
   root: HTMLElement;
+  log: HTMLElement;
   resolve: (ok: boolean) => void;
 }
 
 let counter = 0;
 const pending = new Map<number, Pending>();
 
-function logEl(): HTMLElement {
-  const log = el("chat-messages");
-  if (!log) throw new Error("quikleaf: #chat-messages is not mounted");
-  return log;
+function logEl(log?: HTMLElement | null): HTMLElement {
+  const target = log ?? el("chat-messages");
+  if (!target) throw new Error("quikleaf: #chat-messages is not mounted");
+  return target;
 }
 
 function scrollToBottom(log: HTMLElement) {
@@ -124,7 +128,9 @@ function settle(n: number, outcome: ReviewOutcome) {
   bw.removeClass(p.root, "pending");
   bw.addClass(p.root, outcome === "accepted" ? "accepted" : "rejected");
   const status = outcome === "accepted" ? "Accepted — change applied" : outcome === "rejected" ? "Rejected — nothing changed" : "Cancelled — nothing changed";
-  bw.patch(`review-status-${n}`, status);
+  // Query within the card: a background chat's log is not in the document, so an id lookup would miss it.
+  const statusEl = p.root.querySelector(".review-status") as HTMLElement | null;
+  if (statusEl) bw.patch(statusEl, status);
   p.resolve(outcome === "accepted");
 }
 
@@ -132,8 +138,8 @@ function settle(n: number, outcome: ReviewOutcome) {
  * Show a review card and wait for Accept or Reject. Resolves `true` when the
  * user accepts; `false` on Reject or when `cancelPendingReviews()` runs.
  */
-export function requestApproval(req: ReviewRequest): Promise<boolean> {
-  const log = logEl();
+export function requestApproval(req: ReviewRequest, into?: HTMLElement | null): Promise<boolean> {
+  const log = logEl(into);
   const n = ++counter;
   const actions: Taco = {
     t: "div",
@@ -149,23 +155,28 @@ export function requestApproval(req: ReviewRequest): Promise<boolean> {
   };
   return new Promise<boolean>((resolve) => {
     const root = bw.append(log, cardTaco(req, "proposed", n, [actions]));
-    pending.set(n, { root, resolve });
+    pending.set(n, { root, log, resolve });
     scrollToBottom(log);
   });
 }
 
 /** Show what an already-applied edit changed (no buttons). */
-export function showAppliedDiff(req: ReviewRequest): HTMLElement {
-  const log = logEl();
+export function showAppliedDiff(req: ReviewRequest, into?: HTMLElement | null): HTMLElement {
+  const log = logEl(into);
   const n = ++counter;
   const root = bw.append(log, cardTaco(req, "applied", n, []));
   scrollToBottom(log);
   return root;
 }
 
-/** Reject every open review (user pressed Stop). Returns how many were cancelled. */
-export function cancelPendingReviews(): number {
-  const ids = Array.from(pending.keys());
+/**
+ * Reject every open review (user pressed Stop) — all of them, or only those
+ * in one chat's `log`. Returns how many were cancelled.
+ */
+export function cancelPendingReviews(log?: HTMLElement | null): number {
+  const ids = Array.from(pending.entries())
+    .filter(([, p]) => !log || p.log === log)
+    .map(([n]) => n);
   for (const n of ids) settle(n, "cancelled");
   return ids.length;
 }

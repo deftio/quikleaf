@@ -9,7 +9,8 @@
  *   - fsStore: in-memory file map (shared with tauri-fs mock)
  *   - llmChatResponse: configurable mock for llm_chat
  *   - llmModels: configurable mock for llm_list_models
- *   - projectData: in-memory project state
+ *   - projectData: in-memory project state (camelCase, like the Rust ProjectData)
+ *   - projectSaves: every project_save payload, in order
  *   - openFile: last set_open_file path
  */
 
@@ -22,6 +23,7 @@ interface E2EState {
   llmChatResponse: any;
   llmModels: any;
   projectData: any;
+  projectSaves: any[];
   openFile: string | null;
   dialogResult: any;
   saveResult: any;
@@ -46,7 +48,8 @@ function getE2E(): E2EState {
       fsStore: {},
       llmChatResponse: null,
       llmModels: { data: [] },
-      projectData: { open_file: null },
+      projectData: { openFile: null },
+      projectSaves: [],
       openFile: null,
       dialogResult: null,
       saveResult: null,
@@ -223,11 +226,18 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
 
     // --- Project ---
     case "project_init":
-      state.projectData = { open_file: null };
+      state.projectData = { openFile: null };
       return undefined as T;
     case "project_load":
       return state.projectData as T;
     case "project_save":
+      state.projectSaves.push(args);
+      state.projectData = {
+        ...state.projectData,
+        openFile: args?.openFile ?? null,
+        openTabs: args?.openTabs ?? [],
+        chatHistory: args?.chatHistory ?? {},
+      };
       return undefined as T;
     case "set_open_file":
       state.openFile = args?.path ?? null;

@@ -15,6 +15,10 @@ import {
   setStatusTiming,
   toggleChatPanel,
   setChatDisplay,
+  setChatPanelVisible,
+  setInfoPanelVisible,
+  isChatPanelVisible,
+  isInfoPanelVisible,
   type ShellHandlers,
 } from "./shell";
 
@@ -168,6 +172,9 @@ describe("makeTitlebar", () => {
       onToggleChat: vi.fn(),
       onToggleFiles: vi.fn(),
       onToggleOutline: vi.fn(),
+      onToggleInfo: vi.fn(),
+      onProjectChat: vi.fn(),
+      onEditorMode: vi.fn(),
       onFocusMode: vi.fn(),
       onFind: vi.fn(),
       onExportHtml: vi.fn(),
@@ -185,7 +192,22 @@ describe("makeTitlebar", () => {
     const fileItems = Array.from(document.querySelectorAll("#file-menu-dropdown .dropdown-item")).map((i) => i.id);
     expect(fileItems).toEqual(["btn-new", "btn-open", "btn-save", "btn-close-tab", "btn-export-html", "btn-print"]);
     const viewItems = Array.from(document.querySelectorAll("#view-menu-dropdown .dropdown-item")).map((i) => i.id);
-    expect(viewItems).toEqual(["btn-focus-mode", "btn-toggle-outline-menu", "btn-find"]);
+    expect(viewItems).toEqual([
+      "btn-toggle-chat-menu",
+      "btn-toggle-info-menu",
+      "btn-toggle-files-menu",
+      "btn-toggle-outline-menu",
+      "btn-project-chat",
+      "btn-mode-source",
+      "btn-mode-split",
+      "btn-mode-preview",
+      "btn-focus-mode",
+      "btn-find",
+    ]);
+    expect(document.querySelectorAll("#view-menu-dropdown .dropdown-separator").length).toBe(3);
+    // Project-only entries start hidden; main.ts reveals them in project mode.
+    expect(document.getElementById("btn-toggle-files-menu")!.classList.contains("hidden")).toBe(true);
+    expect(document.getElementById("btn-project-chat")!.classList.contains("hidden")).toBe(true);
     expect(document.getElementById("btn-view-menu")!.textContent).toBe("View");
 
     click("btn-new");
@@ -197,12 +219,16 @@ describe("makeTitlebar", () => {
     click("btn-focus-mode");
     click("btn-find");
     click("btn-toggle-chat");
+    click("btn-toggle-info");
     click("btn-toggle-files");
     click("btn-toggle-outline");
+    click("btn-project-chat");
+    click("btn-mode-preview");
     click("btn-settings");
     click("btn-about");
     click("btn-install-cli");
     for (const fn of Object.values(h)) expect(fn).toHaveBeenCalledTimes(1);
+    expect(h.onEditorMode).toHaveBeenCalledWith("preview");
     // The View menu item is a second way to toggle the outline.
     click("btn-toggle-outline-menu");
     expect(h.onToggleOutline).toHaveBeenCalledTimes(2);
@@ -229,19 +255,75 @@ describe("statusbar and main", () => {
     expect(document.getElementById("status-timing")!.textContent).toBe("last: 1.2s");
   });
 
-  it("makeMain puts the panels before the editor column, which holds the editor container", () => {
+  it("makeMain puts the panels before the editor column, whose tab body holds the editor container", () => {
     mount(makeMain([{ t: "div", a: { id: "p1" } }, { t: "div", a: { id: "p2" } }]));
     const main = document.getElementById("main")!;
     const ids = Array.from(main.children).map((c) => c.id);
     expect(ids).toEqual(["p1", "p2", "editor-column"]);
     const column = document.getElementById("editor-column")!;
-    expect(Array.from(column.children).map((c) => c.id)).toEqual(["editor-container"]);
+    expect(Array.from(column.children).map((c) => c.id)).toEqual(["tab-body"]);
+    expect(Array.from(document.getElementById("tab-body")!.children).map((c) => c.id)).toEqual(["editor-container"]);
   });
 
-  it("makeMain stacks the given chrome above the editor container", () => {
-    mount(makeMain([], [{ t: "div", a: { id: "tab-bar" } }]));
+  it("makeMain stacks the given chrome above the tab body and puts side panes around the editor", () => {
+    mount(makeMain([], [{ t: "div", a: { id: "tab-bar" } }], { left: [{ t: "div", a: { id: "chat-panel" } }], right: [{ t: "div", a: { id: "info-panel" } }] }));
     const column = document.getElementById("editor-column")!;
-    expect(Array.from(column.children).map((c) => c.id)).toEqual(["tab-bar", "editor-container"]);
+    expect(Array.from(column.children).map((c) => c.id)).toEqual(["tab-bar", "tab-body"]);
+    expect(Array.from(document.getElementById("tab-body")!.children).map((c) => c.id)).toEqual(["chat-panel", "editor-container", "info-panel"]);
+  });
+});
+
+describe("checkable menu items", () => {
+  it("tick their state when the menu opens and render separators", () => {
+    let on = false;
+    mount(
+      makeMenu("btn-m", "m-dropdown", "M", [
+        { id: "m-check", label: "Thing", onclick: vi.fn(), checked: () => on },
+        { separator: true },
+        { id: "m-plain", label: "Plain", onclick: vi.fn() },
+      ]),
+    );
+    const item = document.getElementById("m-check")!;
+    expect(item.getAttribute("role")).toBe("menuitemcheckbox");
+    expect(item.getAttribute("aria-checked")).toBe("false");
+    expect(item.querySelector(".dropdown-check")!.textContent).toBe("✓");
+    expect(document.getElementById("m-plain")!.getAttribute("role")).toBe("menuitem");
+    // Plain items in a menu with checkable ones get the (blank) check column so labels line up.
+    expect(document.getElementById("m-plain")!.classList.contains("checkable")).toBe(false);
+    expect(document.getElementById("m-plain")!.querySelector(".dropdown-check")).not.toBeNull();
+    mount(makeMenu("btn-m2", "m2-dropdown", "M2", [{ id: "m2-plain", label: "Only", onclick: vi.fn() }]));
+    expect(document.getElementById("m2-plain")!.querySelector(".dropdown-check")).toBeNull();
+    expect(document.querySelector("#m-dropdown .dropdown-separator")!.getAttribute("role")).toBe("separator");
+
+    on = true;
+    click("btn-m");
+    expect(item.classList.contains("checked")).toBe(true);
+    expect(item.getAttribute("aria-checked")).toBe("true");
+    click("btn-m"); // close: state is not re-read
+    on = false;
+    click("btn-m"); // open again: re-evaluated
+    expect(item.classList.contains("checked")).toBe(false);
+    expect(item.getAttribute("aria-checked")).toBe("false");
+  });
+});
+
+describe("setChatPanelVisible / setInfoPanelVisible", () => {
+  it("flip the panes and their toggle buttons", () => {
+    mount({ t: "div", a: { id: "chat-panel", class: "hidden" } });
+    mount({ t: "div", a: { id: "info-panel", class: "hidden" } });
+    mount(makeToggleButton("btn-toggle-chat", "Chat", vi.fn()));
+    mount(makeToggleButton("btn-toggle-info", "Info", vi.fn()));
+    expect(isChatPanelVisible()).toBe(false);
+    expect(isInfoPanelVisible()).toBe(false);
+    setChatPanelVisible(true);
+    setInfoPanelVisible(true);
+    expect(isChatPanelVisible()).toBe(true);
+    expect(isInfoPanelVisible()).toBe(true);
+    expect(document.getElementById("btn-toggle-chat")!.getAttribute("aria-pressed")).toBe("true");
+    expect(document.getElementById("btn-toggle-info")!.getAttribute("aria-pressed")).toBe("true");
+    setInfoPanelVisible(false);
+    expect(document.getElementById("info-panel")!.classList.contains("hidden")).toBe(true);
+    expect(document.getElementById("btn-toggle-info")!.getAttribute("aria-pressed")).toBe("false");
   });
 });
 

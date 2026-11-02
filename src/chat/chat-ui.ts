@@ -1,7 +1,21 @@
+/**
+ * The chat pane and the tool-calling loop.
+ *
+ * Every tab has its own chat (`session.ts`). The pane shows the active tab's
+ * session: its message log is swapped in on tab switches, the header names
+ * the document (or "Project") the chat acts on, and the Send/Stop button
+ * reflects that session's state. A turn that is still streaming when the
+ * user switches tabs keeps running against its own session and document.
+ *
+ * Tool dispatch is scoped: a document chat's tools read and write only its
+ * own tab's document (on screen or parked), the project chat's tools work on
+ * files under the project root by path, and neither can reach the other's
+ * territory. See `dispatchTool`.
+ */
 import bw from "bitwrench";
 import type { Taco, TacoContent } from "bitwrench";
 import { invoke } from "@tauri-apps/api/core";
-import { loadSettings, isConfigured, editApprovalOf } from "../settings/settings";
+import { loadSettings, isConfigured, editApprovalOf, type LLMSettings } from "../settings/settings";
 import { sendChatStream, type ChatMessage } from "./providers";
 import { getMarkdown, setMarkdown, undo, redo, insertAtCursor, getSelection } from "../editor/editor";
 import {
@@ -11,28 +25,43 @@ import {
   extractToolCallInfo,
   buildToolResultMessages,
   buildAssistantToolCallMessage,
+  type PromptContext,
+  type ToolScope,
 } from "./chat-utils";
-import { el, withAttrs } from "../ui/taco";
+import { el, patchAttrs, withAttrs } from "../ui/taco";
 import { REJECTED_RESULT, cancelPendingReviews, requestApproval, showAppliedDiff, type ReviewRequest } from "./review";
 import { planSet, planUpdate, resetPlan } from "./plan";
 import { outlineOf } from "./outline";
-import { activeTab, listTabs, openPath, showTab } from "../editor/documents";
+import { isProjectMode, listTabs, openPath } from "../editor/documents";
+import { subscribe as subscribeTabs, updateContent } from "../editor/tabs";
+import {
+  CHAT_CHANGED,
+  CHAT_CLEAR,
+  activeSession,
+  clearSession,
+  isSessionActive,
+  notifyChatChanged,
+  peekSession,
+  pruneSessions,
+  sessionFor,
+  sessionHasMemory,
+  sessionLabel,
+  sessionTab,
+  setSessionModel,
+  type ChatSession,
+} from "./session";
+import { scheduleProjectSave } from "../project/persist";
 import { setStatusTiming } from "../ui/shell";
 import { Stopwatch, computeTiming, describeEntry, formatClock, formatMs, getLogPath, isPerfLogEnabled, logEvent, summarizeTiming, tailLog } from "../diag/perf";
 // @ts-ignore — core parser, direct ESM import
 import quikdown from "quikdown";
 
-// --- State ---
-let messages: ChatMessage[] = [];
-let sending = false;
-let abortRequested = false;
-let projectMode = false;
-
 const MIN_WIDTH = 300;
 const MAX_WIDTH = 600;
 
-/** Per-send accounting for the `turn` log entry. */
-let turnStats = { sw: new Stopwatch(), llmCalls: 0, toolCalls: 0 };
+/** The session whose log is currently inside `#chat-messages`. */
+let mounted: ChatSession | null = null;
+let unsubscribers: Array<() => void> = [];
 
 // --- Inject quikdown styles once ---
 let stylesInjected = false;
@@ -40,6 +69,29 @@ function ensureQuikdownStyles() {
   if (stylesInjected) return;
   stylesInjected = true;
   bw.injectCSS(quikdown.emitStyles("", "light"), { id: "quikdown_css" });
+}
+
+// --- Settings per chat ------------------------------------------------------
+
+/** Settings for one chat: the global Settings with this chat's model override applied. */
+export function effectiveSettings(session: ChatSession): LLMSettings {
+  const s = loadSettings();
+  return session.model ? { ...s, model: session.model } : s;
+}
+
+function toolScope(session: ChatSession): ToolScope {
+  return { scope: session.scope, memory: sessionHasMemory(session) };
+}
+
+function promptContext(session: ChatSession): PromptContext {
+  const tab = sessionTab(session);
+  return {
+    scope: session.scope,
+    title: tab?.title ?? "this document",
+    path: tab?.path ?? null,
+    projectRelative: !!tab?.projectRelative,
+    memory: sessionHasMemory(session),
+  };
 }
 
 /**
@@ -55,145 +107,221 @@ function approvalRequired(kind: ReviewRequest["kind"]): boolean {
 }
 
 /**
- * Gate a proposed edit: show a review card and wait when the policy says so,
- * otherwise show the diff as already applied. Resolves `false` when the user
- * rejected (or Stop cancelled) the change.
+ * Gate a proposed edit: show a review card in this chat's log and wait when
+ * the policy says so, otherwise show the diff as already applied. Resolves
+ * `false` when the user rejected (or Stop cancelled) the change.
  */
-async function reviewEdit(req: ReviewRequest): Promise<boolean> {
-  if (approvalRequired(req.kind)) return requestApproval(req);
-  showAppliedDiff(req);
+async function reviewEdit(session: ChatSession, req: ReviewRequest): Promise<boolean> {
+  if (approvalRequired(req.kind)) return requestApproval(req, session.log);
+  showAppliedDiff(req, session.log);
   return true;
 }
 
+// --- Document access for a session ----------------------------------------
+
+function err(message: string): string {
+  return JSON.stringify({ error: message });
+}
+
+/** The session's document text: the editor's when its tab is on screen, the parked text otherwise. */
+function readDoc(session: ChatSession): string {
+  if (isSessionActive(session)) return getMarkdown();
+  return sessionTab(session)?.content ?? "";
+}
+
+/** Replace the session's document, on screen or in the background. */
+async function writeDoc(session: ChatSession, md: string): Promise<void> {
+  if (isSessionActive(session)) {
+    await setMarkdown(md);
+    return;
+  }
+  updateContent(session.tabId, md);
+}
+
+/** Cursor tools need the document in the editor; a background tab has no cursor. */
+function notOnScreen(session: ChatSession, tool: string): string {
+  return err(`${tool} needs ${sessionLabel(session)} on screen; it is open in a background tab. Use document_read / document_write instead.`);
+}
+
+function sealed(session: ChatSession, tool: string): string {
+  if (session.scope === "document") {
+    return err(`${tool} is not available in a document chat: this chat sees only ${sessionLabel(session)}. Cross-file work belongs in the project chat.`);
+  }
+  return err(`${tool} is not available in the project chat: there is no current document here. Read and write files by path.`);
+}
+
+// --- Tools -----------------------------------------------------------------
+
 /**
- * Dispatch a tool call and return the result string.
+ * Dispatch a tool call for a chat and return the result string. Defaults to
+ * the active tab's session (tests and slash commands); the tool loop passes
+ * the session it is running for, which may be in the background.
  */
-export async function dispatchTool(name: string, args: any): Promise<string> {
+export async function dispatchTool(name: string, args: any, session: ChatSession | null = activeSession()): Promise<string> {
+  if (!session) return err("No chat is open");
+  const isDoc = session.scope === "document";
+  const label = sessionLabel(session);
+
   switch (name) {
-    // --- Document tools ---
+    // --- Document tools (document chats; always the session's own tab) ---
     case "document_read": {
-      const md = getMarkdown();
-      return JSON.stringify({ content: md });
+      if (!isDoc) return sealed(session, name);
+      return JSON.stringify({ document: label, content: readDoc(session) });
     }
     case "document_write": {
-      const after = typeof args.content === "string" ? args.content : String(args.content ?? "");
-      if (!(await reviewEdit({ kind: "document", before: getMarkdown(), after }))) return REJECTED_RESULT;
-      setMarkdown(after);
-      return JSON.stringify({ success: true });
+      if (!isDoc) return sealed(session, name);
+      const after = typeof args?.content === "string" ? args.content : String(args?.content ?? "");
+      if (!(await reviewEdit(session, { kind: "document", before: readDoc(session), after }))) return REJECTED_RESULT;
+      await writeDoc(session, after);
+      return JSON.stringify({ success: true, document: label });
     }
     case "document_replace": {
-      const before = getMarkdown();
+      if (!isDoc) return sealed(session, name);
+      const before = readDoc(session);
+      const search = String(args?.search ?? "");
+      const replace = String(args?.replace ?? "");
       let md = before;
       let count = 0;
-      if (args.all) {
-        const parts = md.split(args.search);
-        count = parts.length - 1;
-        md = parts.join(args.replace);
-      } else {
-        const idx = md.indexOf(args.search);
-        if (idx !== -1) {
-          md = md.substring(0, idx) + args.replace + md.substring(idx + args.search.length);
-          count = 1;
+      if (search) {
+        if (args?.all) {
+          const parts = md.split(search);
+          count = parts.length - 1;
+          md = parts.join(replace);
+        } else {
+          const idx = md.indexOf(search);
+          if (idx !== -1) {
+            md = md.substring(0, idx) + replace + md.substring(idx + search.length);
+            count = 1;
+          }
         }
       }
       if (count > 0) {
-        if (!(await reviewEdit({ kind: "document", before, after: md }))) return REJECTED_RESULT;
-        setMarkdown(md);
+        if (!(await reviewEdit(session, { kind: "document", before, after: md }))) return REJECTED_RESULT;
+        await writeDoc(session, md);
       }
-      return JSON.stringify({ count });
+      return JSON.stringify({ count, document: label });
     }
     case "document_outline": {
-      return JSON.stringify({ headings: outlineOf(getMarkdown()) });
+      if (!isDoc) return sealed(session, name);
+      return JSON.stringify({ document: label, headings: outlineOf(readDoc(session)) });
     }
-
-    // --- Tab tools ---
-    case "tabs_list": {
-      const current = activeTab();
-      return JSON.stringify({
-        tabs: listTabs().map((t) => ({ id: t.id, title: t.title, path: t.path, dirty: t.dirty, active: current?.id === t.id })),
-      });
-    }
-    case "tab_switch": {
-      const tabs = listTabs();
-      const target = tabs.find((t) => args?.id && t.id === args.id) ?? tabs.find((t) => args?.path && t.path === args.path);
-      if (!target) return JSON.stringify({ error: "No open tab matches that id or path; call tabs_list first" });
-      const shown = await showTab(target.id);
-      return JSON.stringify({ success: !!shown, id: target.id, title: target.title, path: target.path });
-    }
-    case "tab_open": {
-      if (!projectMode) return JSON.stringify({ error: "tab_open is only available in project mode" });
-      if (typeof args?.path !== "string" || !args.path) return JSON.stringify({ error: "tab_open needs a path" });
-      const tab = await openPath(args.path, true);
-      if (!tab) return JSON.stringify({ error: `Could not open ${args.path}` });
-      return JSON.stringify({ success: true, id: tab.id, title: tab.title, path: tab.path });
-    }
-
-    // --- Planning tools ---
-    case "plan_set":
-      return planSet(args ?? {});
-    case "plan_update":
-      return planUpdate(args ?? {});
     case "document_insert": {
-      insertAtCursor(args.text);
-      return JSON.stringify({ success: true });
+      if (!isDoc) return sealed(session, name);
+      if (!isSessionActive(session)) return notOnScreen(session, name);
+      insertAtCursor(String(args?.text ?? ""));
+      return JSON.stringify({ success: true, document: label });
     }
     case "document_undo": {
+      if (!isDoc) return sealed(session, name);
+      if (!isSessionActive(session)) return notOnScreen(session, name);
       undo();
-      return JSON.stringify({ success: true });
+      return JSON.stringify({ success: true, document: label });
     }
     case "document_redo": {
+      if (!isDoc) return sealed(session, name);
+      if (!isSessionActive(session)) return notOnScreen(session, name);
       redo();
-      return JSON.stringify({ success: true });
+      return JSON.stringify({ success: true, document: label });
     }
     case "document_get_selection": {
-      const sel = getSelection();
-      return JSON.stringify({ selection: sel });
+      if (!isDoc) return sealed(session, name);
+      if (!isSessionActive(session)) return notOnScreen(session, name);
+      return JSON.stringify({ document: label, selection: getSelection() });
     }
 
-    // --- Memory tools ---
+    // --- Planning tools (every chat; the plan belongs to the chat) ---
+    case "plan_set":
+      return planSet(args ?? {}, session);
+    case "plan_update":
+      return planUpdate(args ?? {}, session);
+
+    // --- Memory and KV tools (project state: project files and the project chat) ---
+    case "memory_read":
+    case "memory_write":
+    case "memory_append":
+    case "memory_clear":
+    case "kv_get":
+    case "kv_set":
+    case "kv_delete":
+    case "kv_list": {
+      if (!sessionHasMemory(session)) {
+        return err(
+          isProjectMode()
+            ? `${name} is not available here: the scratchpad and key-value store belong to the project, and ${label} is not a project file.`
+            : `${name} needs a project: the scratchpad and key-value store live in quikleaf.prj. Open a folder with --project.`,
+        );
+      }
+      return dispatchMemoryTool(name, args);
+    }
+
+    // --- File and tab tools (project chat only) ---
+    case "file_read":
+    case "file_write":
+    case "file_list":
+    case "file_stat":
+    case "project_search":
+    case "tabs_list":
+    case "tab_open": {
+      if (session.scope !== "project") return sealed(session, name);
+      if (!isProjectMode()) return err("File tools are only available in project mode");
+      return dispatchProjectTool(session, name, args);
+    }
+
+    default:
+      return err(`Unknown tool: ${name}`);
+  }
+}
+
+async function dispatchMemoryTool(name: string, args: any): Promise<string> {
+  switch (name) {
     case "memory_read": {
       const content = await invoke<string>("memory_read");
       return JSON.stringify({ content });
     }
     case "memory_write": {
       await invoke("memory_write", { content: args.content });
+      scheduleProjectSave();
       return JSON.stringify({ success: true });
     }
     case "memory_append": {
       await invoke("memory_append", { content: args.content });
+      scheduleProjectSave();
       return JSON.stringify({ success: true });
     }
     case "memory_clear": {
       await invoke("memory_clear");
+      scheduleProjectSave();
       return JSON.stringify({ success: true });
     }
-
-    // --- KV tools ---
     case "kv_get": {
       const entry = await invoke<any>("kv_get", { key: args.key });
       return JSON.stringify(entry ?? { error: "Key not found" });
     }
     case "kv_set": {
       const result = await invoke<any>("kv_set", { key: args.key, value: args.value });
+      scheduleProjectSave();
       return JSON.stringify(result);
     }
     case "kv_delete": {
       const deleted = await invoke<boolean>("kv_delete", { key: args.key });
+      scheduleProjectSave();
       return JSON.stringify({ deleted });
     }
-    case "kv_list": {
+    default: {
       const list = await invoke<any>("kv_list");
       return JSON.stringify(list);
     }
+  }
+}
 
-    // --- File tools (project mode) ---
+async function dispatchProjectTool(session: ChatSession, name: string, args: any): Promise<string> {
+  switch (name) {
     case "file_read": {
-      if (!projectMode) return JSON.stringify({ error: "File tools are only available in project mode" });
       const content = await invoke<string>("file_read", { path: args.path });
-      return JSON.stringify({ content });
+      return JSON.stringify({ path: args.path, content });
     }
     case "file_write": {
-      if (!projectMode) return JSON.stringify({ error: "File tools are only available in project mode" });
+      if (typeof args?.path !== "string" || !args.path) return err("file_write needs a path: every edit in the project chat names its target file");
       const after = typeof args.content === "string" ? args.content : String(args.content ?? "");
       if (approvalRequired("file")) {
         // Current contents for the diff; a missing file diffs against "".
@@ -201,28 +329,23 @@ export async function dispatchTool(name: string, args: any): Promise<string> {
         try {
           before = await invoke<string>("file_read", { path: args.path });
         } catch {}
-        if (!(await requestApproval({ kind: "file", path: args.path, before, after }))) return REJECTED_RESULT;
+        if (!(await requestApproval({ kind: "file", path: args.path, before, after }, session.log))) return REJECTED_RESULT;
       }
       await invoke("file_write", { path: args.path, content: after });
-      return JSON.stringify({ success: true });
+      // If that file is open in a clean tab, the tab model refreshes it on next open; a dirty tab keeps the user's edits.
+      return JSON.stringify({ success: true, path: args.path });
     }
     case "file_list": {
-      if (!projectMode) return JSON.stringify({ error: "File tools are only available in project mode" });
-      const result = await invoke<any>("file_list", {
-        path: args.path || null,
-        recursive: args.recursive || false,
-      });
+      const result = await invoke<any>("file_list", { path: args.path || null, recursive: args.recursive || false });
       return JSON.stringify(result);
     }
     case "file_stat": {
-      if (!projectMode) return JSON.stringify({ error: "File tools are only available in project mode" });
       const stat = await invoke<any>("file_stat", { path: args.path });
       return JSON.stringify(stat);
     }
     case "project_search": {
-      if (!projectMode) return JSON.stringify({ error: "File tools are only available in project mode" });
       const query = typeof args.query === "string" ? args.query : "";
-      if (!query) return JSON.stringify({ error: "project_search needs a non-empty query" });
+      if (!query) return err("project_search needs a non-empty query");
       const result = await invoke<any>("project_search", {
         query,
         path: args.path || null,
@@ -231,28 +354,40 @@ export async function dispatchTool(name: string, args: any): Promise<string> {
       });
       return JSON.stringify(result);
     }
-
-    default:
-      return JSON.stringify({ error: `Unknown tool: ${name}` });
+    case "tabs_list": {
+      // Only project files: a tab from outside the root is not the project's business.
+      const tabs = listTabs()
+        .filter((t) => t.kind === "document" && t.projectRelative && t.path)
+        .map((t) => ({ title: t.title, path: t.path, dirty: t.dirty, active: isSessionActive(sessionFor(t.id)) }));
+      return JSON.stringify({ tabs });
+    }
+    default: {
+      if (typeof args?.path !== "string" || !args.path) return err("tab_open needs a path");
+      const tab = await openPath(args.path, true);
+      if (!tab) return err(`Could not open ${args.path}`);
+      return JSON.stringify({ success: true, title: tab.title, path: tab.path });
+    }
   }
-}
-
-/**
- * Set whether the chat is in project mode (enables file tools).
- */
-export function setProjectMode(enabled: boolean) {
-  projectMode = enabled;
 }
 
 // --- View -------------------------------------------------------------------
 
-/** The chat side panel as TACO. Hidden until the user opens it. */
+/** The chat pane as TACO. Hidden until a tab shows it. */
 export function makeChatPanel(): Taco {
   return {
     t: "div",
-    a: { id: "chat-panel", class: "hidden" },
+    a: { id: "chat-panel", class: "hidden", "aria-label": "Chat" },
     c: [
-      { t: "div", a: { id: "chat-messages", role: "log", "aria-live": "polite" } },
+      {
+        t: "div",
+        a: { id: "chat-header" },
+        c: [
+          { t: "span", a: { id: "chat-scope", class: "chat-scope" }, c: "Document chat" },
+          { t: "span", a: { id: "chat-target", class: "chat-target" }, c: "" },
+          { t: "span", a: { id: "chat-model", class: "chat-model" }, c: "" },
+        ],
+      },
+      { t: "div", a: { id: "chat-messages" } },
       {
         t: "div",
         a: { id: "chat-input-area" },
@@ -267,7 +402,7 @@ export function makeChatPanel(): Taco {
 }
 
 /**
- * Drag handle on the panel's right edge. The mousedown lives in `a:`; the
+ * Drag handle on the pane's right edge. The mousedown lives in `a:`; the
  * document-level move/up listeners are installed once by `initChat()`.
  * Inline `cursor: ew-resize` is what the e2e suite looks for.
  */
@@ -315,17 +450,86 @@ function sendButton(): HTMLButtonElement | null {
   return el<HTMLButtonElement>("chat-send");
 }
 
-function scrollToBottom() {
+function scrollToBottom(session: ChatSession) {
+  if (mounted !== session) return;
   const log = el("chat-messages");
   if (log) log.scrollTop = log.scrollHeight;
 }
 
-/**
- * Render markdown to HTML for assistant messages.
- */
+/** Render markdown to HTML for assistant messages. */
 function renderMarkdown(text: string): string {
   ensureQuikdownStyles();
   return quikdown(text);
+}
+
+// --- Session ↔ pane -----------------------------------------------------------
+
+/** The short model name shown in the header: this chat's override or the Settings model. */
+function modelLabel(session: ChatSession): string {
+  const s = effectiveSettings(session);
+  if (!isConfigured(s)) return "no model";
+  return s.model;
+}
+
+function renderHeader(session: ChatSession) {
+  const tab = sessionTab(session);
+  const project = session.scope === "project";
+  bw.patch("chat-scope", project ? "Project chat" : "Document chat");
+  bw.patch("chat-target", project ? "all files under the project root" : (tab?.title ?? ""));
+  bw.patch("chat-model", modelLabel(session));
+  bw.toggleClass("chat-model", "override", !!session.model);
+  bw.toggleClass("chat-panel", "project-scope", project);
+  patchAttrs("chat-header", {
+    title: project ? "This chat works on files under the project root, by path." : `This chat sees only ${tab?.title ?? "this document"}.`,
+  });
+  const input = inputEl();
+  if (input) patchAttrs(input, { placeholder: project ? "Ask about the project…" : `Ask about ${tab?.title ?? "this document"}…` });
+}
+
+/** Add bubbles for transcript entries that were restored from the project file. */
+function hydrate(session: ChatSession) {
+  while (session.rendered < session.transcript.length) {
+    const entry = session.transcript[session.rendered++];
+    appendBubble(session, entry.role, entry.text, undefined, false);
+  }
+}
+
+/**
+ * Put a session's log into the pane. The log is an existing element kept by
+ * the session, so it is re-parented directly: bitwrench's `append` takes
+ * TACO, not elements.
+ */
+function mountSession(session: ChatSession) {
+  const container = el("chat-messages");
+  if (!container) return;
+  // The tab model notifies on every edit (dirty flag, parked text), so this
+  // runs often for the session already on screen. Only a real switch may
+  // touch the input box: otherwise typing in the editor would wipe a chat draft.
+  const switching = mounted !== session;
+  if (switching) {
+    const input = inputEl();
+    if (mounted) {
+      if (input) mounted.draft = input.value;
+      if (mounted.log.parentNode === container) container.removeChild(mounted.log);
+    }
+    if (session.log.parentNode !== container) container.appendChild(session.log);
+    mounted = session;
+    if (input) input.value = session.draft;
+  }
+  if (!session.greeted) showWelcome(session);
+  hydrate(session);
+  renderHeader(session);
+  if (switching) {
+    setSendState(session, session.sending ? "sending" : "idle");
+    scrollToBottom(session);
+  }
+}
+
+/** Show the active tab's chat and forget chats whose tabs are gone. */
+function syncActiveSession() {
+  pruneSessions();
+  const session = activeSession();
+  if (session) mountSession(session);
 }
 
 /**
@@ -346,33 +550,33 @@ function metaParts(stamp: string, detail?: string): TacoContent {
 }
 
 /**
- * Add a message bubble to the chat log. Assistant messages are rendered
+ * Add a message bubble to a chat's log. Assistant messages are rendered
  * markdown; user and tool messages are plain text. Every bubble carries a
- * meta line with its timestamp; the panel's `show-timestamps` class decides
+ * meta line with its timestamp; the pane's `show-timestamps` class decides
  * whether it is visible, so toggling the setting updates old messages too.
+ * `record` adds user/assistant text to the transcript (off for restored or
+ * informational bubbles).
  */
-function appendBubble(role: "user" | "assistant" | "tool", text: string, detail?: string): Bubble {
-  // bitwrench 2.1.11 resolves string targets for append() as selectors only,
-  // so pass the element (the bare-id form is fixed in 2.1.12).
-  const log = el("chat-messages");
-  if (!log) throw new Error("quikleaf: #chat-messages is not mounted");
-  const root = bw.append(log, { t: "div", a: { class: `chat-msg ${role}` } });
+function appendBubble(session: ChatSession, role: "user" | "assistant" | "tool", text: string, detail?: string, record = false): Bubble {
+  const root = bw.append(session.log, { t: "div", a: { class: `chat-msg ${role}` } });
   const body = bw.append(root, {
     t: "div",
     a: { class: "chat-body" },
     c: role === "assistant" ? bw.raw(renderMarkdown(text)) : text,
   });
   const meta = bw.append(root, { t: "div", a: { class: "chat-meta" }, c: metaParts(formatClock(), detail) });
-  scrollToBottom();
+  if (record && role !== "tool") {
+    session.transcript.push({ role, text });
+    session.rendered = session.transcript.length;
+  }
+  scrollToBottom(session);
   return { root, body, meta };
 }
 
-/**
- * Update an existing assistant bubble with new markdown content.
- */
-function updateBubble(bubble: Bubble, text: string) {
+/** Update an existing assistant bubble with new markdown content. */
+function updateBubble(session: ChatSession, bubble: Bubble, text: string) {
   bw.patch(bubble.body, bw.raw(renderMarkdown(text)));
-  scrollToBottom();
+  scrollToBottom(session);
 }
 
 /** Replace a bubble's meta line (timestamp stays, detail changes). */
@@ -383,32 +587,35 @@ function setBubbleDetail(bubble: Bubble, detail: string) {
 
 /**
  * Show a tool call in the chat as a compact entry. Always appended; the
- * panel's `show-tools` class decides visibility.
+ * pane's `show-tools` class decides visibility.
  */
-function appendToolBubble(name: string, result: string, ms: number) {
+function appendToolBubble(session: ChatSession, name: string, result: string, ms: number) {
   const shortResult = result.length > 200 ? result.substring(0, 200) + "..." : result;
-  appendBubble("tool", `${name}() → ${shortResult}`, formatMs(ms));
+  appendBubble(session, "tool", `${name}() → ${shortResult}`, formatMs(ms));
 }
 
-/** Run one tool, time it, show it, log it. */
-async function runTool(name: string, args: any): Promise<string> {
+/** Run one tool for a session, time it, show it, log it. */
+async function runTool(session: ChatSession, name: string, args: any): Promise<string> {
   const sw = new Stopwatch();
   let result: string;
   let ok = true;
   try {
-    result = await dispatchTool(name, args);
+    result = await dispatchTool(name, args, session);
     ok = !result.includes('"error"');
   } catch (e: any) {
     ok = false;
     result = JSON.stringify({ error: e?.message || String(e) });
   }
   const ms = sw.elapsed();
-  appendToolBubble(name, result, ms);
+  session.stats.toolCalls++;
+  appendToolBubble(session, name, result, ms);
   logEvent({ kind: "tool", name, ms: Math.round(ms), ok });
   return result;
 }
 
-function setSendState(state: "idle" | "sending" | "stopping") {
+/** Reflect a session's send state on the button — only while that session is the one on screen. */
+function setSendState(session: ChatSession, state: "idle" | "sending" | "stopping") {
+  if (mounted !== session) return;
   const btn = sendButton();
   if (!btn) return;
   bw.patch(btn, state === "idle" ? "Send" : state === "sending" ? "Stop" : "Stopping...");
@@ -420,7 +627,7 @@ function setSendState(state: "idle" | "sending" | "stopping") {
  * Stream one assistant turn into a live bubble. Resolves with the provider
  * result and the bubble (if any text arrived).
  */
-async function streamTurn(settings: ReturnType<typeof loadSettings>, toSend: ChatMessage[], tools: any[]) {
+async function streamTurn(session: ChatSession, settings: LLMSettings, toSend: ChatMessage[], tools: any[]) {
   let accumulated = "";
   let bubble: Bubble | null = null;
   let renderTimer: ReturnType<typeof setTimeout> | null = null;
@@ -431,18 +638,19 @@ async function streamTurn(settings: ReturnType<typeof loadSettings>, toSend: Cha
     if (firstTokenAt === null) firstTokenAt = sw.elapsed();
     accumulated += token;
     if (!bubble) {
-      bubble = appendBubble("assistant", accumulated);
+      bubble = appendBubble(session, "assistant", accumulated);
       bw.addClass(bubble.root, "streaming");
     }
     if (!renderTimer) {
       renderTimer = setTimeout(() => {
         renderTimer = null;
-        if (bubble) updateBubble(bubble, accumulated);
+        if (bubble) updateBubble(session, bubble, accumulated);
       }, 50);
     }
   });
 
   const result = await stream.done;
+  session.stats.llmCalls++;
 
   if (renderTimer) {
     clearTimeout(renderTimer);
@@ -455,7 +663,7 @@ async function streamTurn(settings: ReturnType<typeof loadSettings>, toSend: Cha
   const timing = computeTiming(sw.elapsed(), firstTokenAt, result.fullText || accumulated);
   const summary = summarizeTiming(timing);
   if (live) setBubbleDetail(live, summary);
-  setStatusTiming(`last: ${summary}`);
+  if (mounted === session) setStatusTiming(`last: ${summary}`);
   logEvent({
     kind: "llm",
     provider: settings.provider,
@@ -472,226 +680,264 @@ async function streamTurn(settings: ReturnType<typeof loadSettings>, toSend: Cha
   return { result, bubble: live, timing };
 }
 
-/** Show `text` in the streaming bubble if there is one, else as a new bubble. */
-function finishBubble(bubble: Bubble | null, text: string) {
+/** Show `text` in the streaming bubble if there is one, else as a new bubble, and record it. */
+function finishBubble(session: ChatSession, bubble: Bubble | null, text: string) {
   if (bubble) {
-    updateBubble(bubble, text);
+    updateBubble(session, bubble, text);
+    session.transcript.push({ role: "assistant", text });
+    session.rendered = session.transcript.length;
   } else {
-    appendBubble("assistant", text || "(empty response)");
+    appendBubble(session, "assistant", text || "(empty response)", undefined, true);
   }
 }
 
-/**
- * Send user message and run the tool-calling loop with streaming.
- */
+/** Send the input as a user message for the active chat and run the tool loop. */
 async function send() {
+  const session = activeSession();
   const input = inputEl();
   const text = input?.value.trim() ?? "";
-  if (!text || sending) return;
+  if (!session || !text || session.sending) return;
 
-  const settings = loadSettings();
+  const settings = effectiveSettings(session);
   if (!isConfigured(settings)) {
-    appendBubble("assistant", "No LLM configured. Click Settings to set up a provider.");
+    appendBubble(session, "assistant", "No LLM configured. Click Settings to set up a provider.");
     return;
   }
 
-  sending = true;
-  abortRequested = false;
-  setSendState("sending");
+  session.sending = true;
+  session.abortRequested = false;
+  setSendState(session, "sending");
   if (input) input.value = "";
-  turnStats = { sw: new Stopwatch(), llmCalls: 0, toolCalls: 0 };
+  session.draft = "";
+  const turn = { sw: new Stopwatch(), llmCalls: session.stats.llmCalls, toolCalls: session.stats.toolCalls };
 
-  messages.push({ role: "user", content: text });
-  appendBubble("user", text);
+  session.messages.push({ role: "user", content: text });
+  session.stats.turns++;
+  appendBubble(session, "user", text, undefined, true);
 
-  const tools = getTools(settings.provider, projectMode);
-  const systemPrompt = buildSystemPrompt(projectMode);
-
-  const toSend: ChatMessage[] = [{ role: "system", content: systemPrompt }, ...messages];
+  const tools = getTools(settings.provider, toolScope(session));
+  const systemPrompt = buildSystemPrompt(promptContext(session));
+  const toSend: ChatMessage[] = [{ role: "system", content: systemPrompt }, ...session.messages];
 
   try {
-    const { result, bubble } = await streamTurn(settings, toSend, tools);
-    turnStats.llmCalls++;
+    const { result, bubble } = await streamTurn(session, settings, toSend, tools);
 
     if (result.error) {
-      finishBubble(bubble, `Error: ${result.error}`);
-      messages.push({ role: "assistant", content: `Error: ${result.error}` });
+      finishBubble(session, bubble, `Error: ${result.error}`);
+      session.messages.push({ role: "assistant", content: `Error: ${result.error}` });
     } else {
       const toolCalls = normalizeToolCalls(result.toolCalls, settings.provider);
 
       if (toolCalls.length === 0) {
-        finishBubble(bubble, result.fullText);
-        messages.push({ role: "assistant", content: result.fullText });
+        finishBubble(session, bubble, result.fullText);
+        session.messages.push({ role: "assistant", content: result.fullText });
       } else {
         if (result.fullText && bubble) {
-          updateBubble(bubble, result.fullText);
-          messages.push({ role: "assistant", content: result.fullText });
+          updateBubble(session, bubble, result.fullText);
+          session.transcript.push({ role: "assistant", text: result.fullText });
+          session.rendered = session.transcript.length;
+          session.messages.push({ role: "assistant", content: result.fullText });
         } else if (bubble) {
           bw.remove(bubble.root);
         }
 
         const assistantMsg = buildAssistantToolCallMessage(toolCalls, result.fullText, settings.provider);
-        messages.push(assistantMsg);
+        session.messages.push(assistantMsg);
         toSend.push(assistantMsg);
 
         const toolResults: { id: string; content: string }[] = [];
         for (const tc of toolCalls) {
           const { id, name, args } = extractToolCallInfo(tc, settings.provider);
-          const toolResult = await runTool(name, args);
-          turnStats.toolCalls++;
+          const toolResult = await runTool(session, name, args);
           toolResults.push({ id, content: toolResult });
         }
 
         const toolMsgs = buildToolResultMessages(toolResults, settings.provider);
         for (const tm of toolMsgs) {
-          messages.push(tm);
+          session.messages.push(tm);
           toSend.push(tm);
         }
 
-        await runToolLoop(settings, toSend, tools);
+        await runToolLoop(session, settings, toSend, tools);
       }
     }
   } catch (e: any) {
-    appendBubble("assistant", `Error: ${e.message || e}`);
+    appendBubble(session, "assistant", `Error: ${e.message || e}`);
   }
 
   logEvent({
     kind: "turn",
-    total_ms: Math.round(turnStats.sw.elapsed()),
-    llm_calls: turnStats.llmCalls,
-    tool_calls: turnStats.toolCalls,
-    aborted: abortRequested,
+    total_ms: Math.round(turn.sw.elapsed()),
+    llm_calls: session.stats.llmCalls - turn.llmCalls,
+    tool_calls: session.stats.toolCalls - turn.toolCalls,
+    aborted: session.abortRequested,
   });
-  sending = false;
-  abortRequested = false;
-  setSendState("idle");
-  inputEl()?.focus();
+  session.sending = false;
+  session.abortRequested = false;
+  setSendState(session, "idle");
+  if (mounted === session) inputEl()?.focus();
+  notifyChatChanged(session);
+  scheduleProjectSave();
 }
 
 /** Keep calling the model while it keeps asking for tools (bounded). */
-async function runToolLoop(settings: ReturnType<typeof loadSettings>, toSend: ChatMessage[], tools: any[]) {
+async function runToolLoop(session: ChatSession, settings: LLMSettings, toSend: ChatMessage[], tools: any[]) {
   let iterations = 0;
   while (iterations < 10) {
-    if (abortRequested) {
-      appendBubble("assistant", "(Stopped by user)");
+    if (session.abortRequested) {
+      appendBubble(session, "assistant", "(Stopped by user)");
       return;
     }
     iterations++;
 
     try {
-      const { result, bubble } = await streamTurn(settings, toSend, tools);
-      turnStats.llmCalls++;
+      const { result, bubble } = await streamTurn(session, settings, toSend, tools);
 
       if (result.error) {
-        finishBubble(bubble, `Error: ${result.error}`);
+        finishBubble(session, bubble, `Error: ${result.error}`);
         return;
       }
 
       const moreCalls = normalizeToolCalls(result.toolCalls, settings.provider);
       if (moreCalls.length > 0) {
         if (result.fullText && bubble) {
-          updateBubble(bubble, result.fullText);
-          messages.push({ role: "assistant", content: result.fullText });
+          updateBubble(session, bubble, result.fullText);
+          session.transcript.push({ role: "assistant", text: result.fullText });
+          session.rendered = session.transcript.length;
+          session.messages.push({ role: "assistant", content: result.fullText });
         } else if (bubble) {
           bw.remove(bubble.root);
         }
 
         const asstMsg = buildAssistantToolCallMessage(moreCalls, result.fullText, settings.provider);
-        messages.push(asstMsg);
+        session.messages.push(asstMsg);
         toSend.push(asstMsg);
 
         const moreResults: { id: string; content: string }[] = [];
         for (const tc of moreCalls) {
-          if (abortRequested) break;
+          if (session.abortRequested) break;
           const { id, name, args } = extractToolCallInfo(tc, settings.provider);
-          const toolResult = await runTool(name, args);
-          turnStats.toolCalls++;
+          const toolResult = await runTool(session, name, args);
           moreResults.push({ id, content: toolResult });
         }
 
-        if (abortRequested) {
-          appendBubble("assistant", "(Stopped by user)");
+        if (session.abortRequested) {
+          appendBubble(session, "assistant", "(Stopped by user)");
           return;
         }
 
         const moreToolMsgs = buildToolResultMessages(moreResults, settings.provider);
         for (const tm of moreToolMsgs) {
-          messages.push(tm);
+          session.messages.push(tm);
           toSend.push(tm);
         }
         continue;
       }
 
       const content = result.fullText || "";
-      finishBubble(bubble, content);
-      messages.push({ role: "assistant", content });
+      finishBubble(session, bubble, content);
+      session.messages.push({ role: "assistant", content });
       return;
     } catch (e: any) {
-      appendBubble("assistant", `Error: ${e.message || e}`);
+      appendBubble(session, "assistant", `Error: ${e.message || e}`);
       return;
     }
   }
 
-  if (!abortRequested) {
-    appendBubble("assistant", "(Tool loop reached maximum iterations)");
+  if (!session.abortRequested) {
+    appendBubble(session, "assistant", "(Tool loop reached maximum iterations)");
   }
 }
 
+// --- Slash commands -----------------------------------------------------------
+
+/** `/tools` text for a chat's scope. */
+function toolsText(session: ChatSession): string {
+  const memory = sessionHasMemory(session)
+    ? `\n**Memory (project scratchpad):** read, write, append, clear\n**Key-Value (project):** get, set, delete, list`
+    : `\n*Memory and key-value tools are project state and are not offered here${isProjectMode() ? " (this document is outside the project)" : " (no project open)"}.*`;
+  if (session.scope === "project") {
+    return `**Available tools — project chat** (files under the project root, by path):
+
+**File:** read, write, list, stat, search
+**Tabs:** list open project files, open a file in a tab
+**Plan:** set, update${memory}`;
+  }
+  return `**Available tools — document chat** (acting on **${sessionLabel(session)}** only):
+
+**Document:** read, write, replace, insert, undo, redo, get selection, outline
+**Plan:** set, update${memory}`;
+}
+
+/** Empty a chat and show the welcome bubble again. */
+export function clearChat(session: ChatSession) {
+  resetPlan(session);
+  clearSession(session);
+  if (mounted === session) showWelcome(session);
+  notifyChatChanged(session);
+  scheduleProjectSave();
+}
+
 /**
- * Handle slash commands. Returns true if the input was a command.
+ * Handle slash commands for a chat (the active one by default). Returns true
+ * if the input was a command.
  */
-export function handleSlashCommand(text: string): boolean {
-  const cmd = text.trim().toLowerCase();
+export function handleSlashCommand(text: string, session: ChatSession | null = activeSession()): boolean {
+  if (!session) return false;
+  const raw = text.trim();
+  const cmd = raw.toLowerCase();
+  const say = (md: string) => appendBubble(session, "assistant", md);
 
   if (cmd === "/help") {
-    appendBubble(
-      "assistant",
-      `**QD Slash Commands**
+    say(`**QD Slash Commands**
 
 | Command | Description |
 |---------|-------------|
 | \`/help\` | Show this help |
-| \`/clear\` | Clear chat history |
-| \`/model\` | Show current LLM model |
-| \`/memory\` | Show scratchpad contents |
-| \`/tools\` | List available tools |
+| \`/clear\` | Clear this chat |
+| \`/model\` | Show the model this chat uses |
+| \`/model <name>\` | Use a different model for this chat only (\`/model default\` to go back) |
+| \`/memory\` | Show the project scratchpad |
+| \`/tools\` | List the tools this chat has |
 | \`/log\` | Show performance log location and recent timings |
 
-You can also just type naturally — I can read, edit, and improve your document.`,
-    );
+Each tab has its own chat. This one acts on **${sessionLabel(session)}** and sees nothing else.`);
     return true;
   }
 
   if (cmd === "/clear") {
-    messages.length = 0;
-    resetPlan();
-    bw.clear("chat-messages");
-    showWelcome();
+    clearChat(session);
     return true;
   }
 
-  if (cmd === "/model") {
-    const s = loadSettings();
+  if (cmd === "/model" || cmd.startsWith("/model ")) {
+    const arg = raw.slice("/model".length).trim();
+    const global = loadSettings();
+    if (arg) {
+      setSessionModel(session, arg.toLowerCase() === "default" ? null : arg);
+      renderHeader(session);
+      scheduleProjectSave();
+      const s = effectiveSettings(session);
+      say(session.model ? `This chat now uses **${s.model}** via ${s.host} (Settings keeps **${global.model || "none"}** for other chats).` : `This chat is back to the Settings model, **${global.model || "none"}**.`);
+      return true;
+    }
+    const s = effectiveSettings(session);
     if (isConfigured(s)) {
-      appendBubble("assistant", `Currently using **${s.model}** via ${s.host}`);
+      say(session.model ? `This chat uses **${s.model}** via ${s.host} (override; Settings model is **${global.model}**).` : `Currently using **${s.model}** via ${s.host}.`);
     } else {
-      appendBubble("assistant", "No LLM configured. Click **Settings** in the titlebar to set one up.");
+      say("No LLM configured. Click **Settings** in the titlebar to set one up.");
     }
     return true;
   }
 
   if (cmd === "/memory") {
+    if (!sessionHasMemory(session)) {
+      say(isProjectMode() ? `The scratchpad is project state; **${sessionLabel(session)}** is not a project file, so this chat does not use it.` : "The scratchpad lives in a project (quikleaf.prj). Open a folder with `--project` to use it.");
+      return true;
+    }
     invoke<string>("memory_read")
-      .then((content) => {
-        if (content) {
-          appendBubble("assistant", `**Scratchpad contents:**\n\n${content}`);
-        } else {
-          appendBubble("assistant", "Scratchpad is empty.");
-        }
-      })
-      .catch(() => {
-        appendBubble("assistant", "Failed to read scratchpad.");
-      });
+      .then((content) => say(content ? `**Scratchpad contents:**\n\n${content}` : "Scratchpad is empty."))
+      .catch(() => say("Failed to read scratchpad."));
     return true;
   }
 
@@ -700,36 +946,23 @@ You can also just type naturally — I can read, edit, and improve your document
       const path = await getLogPath();
       const rows = await tailLog(10);
       const lines = rows.length ? rows.map(describeEntry).map((l) => `    ${l}`).join("\n") : "    (no entries yet)";
-      appendBubble(
-        "assistant",
-        `**Performance log** is **${isPerfLogEnabled() ? "on" : "off"}** (Settings → Diagnostics).\n\nFile: \`${path || "unavailable"}\`\n\nRecent:\n\n${lines}`,
-      );
+      say(`**Performance log** is **${isPerfLogEnabled() ? "on" : "off"}** (Settings → Diagnostics).\n\nFile: \`${path || "unavailable"}\`\n\nRecent:\n\n${lines}`);
     })();
     return true;
   }
 
   if (cmd === "/tools") {
-    let toolList = `**Available tools:**
-
-**Document:** read, write, replace, insert, undo, redo, get selection, outline
-**Plan:** set, update
-**Memory:** read, write, append, clear
-**Key-Value:** get, set, delete, list`;
-    if (projectMode) {
-      toolList += `\n**File:** read, write, list, stat, search`;
-    }
-    appendBubble("assistant", toolList);
+    say(toolsText(session));
     return true;
   }
 
   return false;
 }
 
-function showWelcome() {
-  appendBubble(
-    "assistant",
-    `Hi, I'm **QD** — your document assistant. I can help you write, edit, and improve your markdown. Type \`/help\` for commands.`,
-  );
+function showWelcome(session: ChatSession) {
+  session.greeted = true;
+  const what = session.scope === "project" ? "the files in this project, by path" : `**${sessionLabel(session)}** — this chat sees only this document`;
+  appendBubble(session, "assistant", `Hi, I'm **QD**. I can help you write, edit, and improve ${what}. Type \`/help\` for commands.`);
 }
 
 /** Submit whatever is in the input: a slash command or a chat message. */
@@ -738,8 +971,9 @@ function submit() {
   const text = input?.value.trim() ?? "";
   if (text.startsWith("/")) {
     if (input) input.value = "";
-    if (!handleSlashCommand(text)) {
-      appendBubble("assistant", `Unknown command: \`${text}\`. Type \`/help\` for available commands.`);
+    const session = activeSession();
+    if (session && !handleSlashCommand(text, session)) {
+      appendBubble(session, "assistant", `Unknown command: \`${text}\`. Type \`/help\` for available commands.`);
     }
   } else {
     send();
@@ -747,10 +981,11 @@ function submit() {
 }
 
 function onSendClick() {
-  if (sending) {
-    abortRequested = true;
-    cancelPendingReviews();
-    setSendState("stopping");
+  const session = activeSession();
+  if (session?.sending) {
+    session.abortRequested = true;
+    cancelPendingReviews(session.log);
+    setSendState(session, "stopping");
   } else {
     submit();
   }
@@ -759,14 +994,32 @@ function onSendClick() {
 function onInputKeydown(e: KeyboardEvent) {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
-    if (!sending) submit();
+    if (!activeSession()?.sending) submit();
   }
 }
 
-/** Call once after the shell (including `makeChatPanel()`) is mounted. */
+/** Call once after the shell (including `makeChatPanel()`) is mounted. Idempotent. */
 export function initChat() {
   ensureQuikdownStyles();
-  showWelcome();
+  for (const off of unsubscribers) off();
+  unsubscribers = [
+    subscribeTabs(syncActiveSession),
+    bw.sub(CHAT_CHANGED, (d: { tabId?: string }) => {
+      const s = d?.tabId ? peekSession(d.tabId) : null;
+      if (s && mounted === s) {
+        hydrate(s);
+        renderHeader(s);
+      }
+    }),
+    bw.sub(CHAT_CLEAR, (d: { tabId?: string }) => {
+      const s = d?.tabId ? peekSession(d.tabId) : null;
+      if (s) clearChat(s);
+    }),
+  ];
+  document.removeEventListener("mousemove", onDocumentMouseMove);
+  document.removeEventListener("mouseup", onDocumentMouseUp);
   document.addEventListener("mousemove", onDocumentMouseMove);
   document.addEventListener("mouseup", onDocumentMouseUp);
+  mounted = null;
+  syncActiveSession();
 }

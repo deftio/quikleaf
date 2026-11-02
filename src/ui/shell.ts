@@ -14,7 +14,20 @@ export interface MenuItem {
   label: string;
   shortcut?: string;
   onclick: () => void;
+  /** A checkable item (`role="menuitemcheckbox"`): called when the menu opens to show the current state. */
+  checked?: () => boolean;
+  /** Start hidden (`.hidden`); e.g. project-only items that `main.ts` reveals in project mode. */
+  hidden?: boolean;
 }
+
+/** A thin rule between groups of items. */
+export interface MenuSeparator {
+  separator: true;
+}
+
+export type MenuEntry = MenuItem | MenuSeparator;
+
+export type EditorModeName = "source" | "split" | "preview";
 
 export interface ShellHandlers {
   onNew: () => void;
@@ -22,8 +35,11 @@ export interface ShellHandlers {
   onSave: () => void;
   onCloseTab: () => void;
   onToggleChat: () => void;
+  onToggleInfo: () => void;
   onToggleFiles: () => void;
   onToggleOutline: () => void;
+  onProjectChat: () => void;
+  onEditorMode: (mode: EditorModeName) => void;
   onFocusMode: () => void;
   onFind: () => void;
   onExportHtml: () => void;
@@ -31,9 +47,31 @@ export interface ShellHandlers {
   onSettings: () => void;
   onAbout: () => void;
   onInstallCli: () => void;
+  /** Current pane states, read when the View menu opens to tick its items. */
+  state?: {
+    chat: () => boolean;
+    info: () => boolean;
+    files: () => boolean;
+    outline: () => boolean;
+    editorMode: () => EditorModeName;
+  };
 }
 
 const MENU_CLASS = "titlebar-dropdown";
+
+function isSeparator(e: MenuEntry): e is MenuSeparator {
+  return (e as MenuSeparator).separator === true;
+}
+
+/** Re-evaluate every checkable item of a menu (called when it opens). */
+export function refreshMenuChecks(menuId: string, entries: MenuEntry[]): void {
+  for (const e of entries) {
+    if (isSeparator(e) || !e.checked) continue;
+    const on = e.checked();
+    bw.toggleClass(e.id, "checked", on);
+    bw.patch(e.id, { "aria-checked": on ? "true" : "false" } as unknown as TacoContent);
+  }
+}
 
 /** Close every open title bar menu. */
 export function closeMenus(): void {
@@ -47,7 +85,7 @@ export function closeMenus(): void {
  * anchors without shortcut hints and its menu element cannot carry an id,
  * which the keyboard-shortcut tests rely on, so this is hand-rolled TACO.
  */
-export function makeMenu(buttonId: string, menuId: string, label: string, items: MenuItem[]): Taco {
+export function makeMenu(buttonId: string, menuId: string, label: string, items: MenuEntry[]): Taco {
   return {
     t: "div",
     a: { class: "titlebar-menu" },
@@ -63,6 +101,7 @@ export function makeMenu(buttonId: string, menuId: string, label: string, items:
             e.stopPropagation();
             const wasOpen = bw.hasClass(menuId, "open");
             closeMenus();
+            if (!wasOpen) refreshMenuChecks(menuId, items);
             bw.toggleClass(menuId, "open", !wasOpen);
           },
         },
@@ -71,23 +110,33 @@ export function makeMenu(buttonId: string, menuId: string, label: string, items:
       {
         t: "div",
         a: { id: menuId, class: MENU_CLASS, role: "menu" },
-        c: items.map((item): Taco => ({
-          t: "button",
-          a: {
-            id: item.id,
-            class: "dropdown-item",
-            type: "button",
-            role: "menuitem",
-            onclick: () => {
-              closeMenus();
-              item.onclick();
+        c: items.map((item): Taco => {
+          if (isSeparator(item)) return { t: "div", a: { class: "dropdown-separator", role: "separator" } };
+          const classes = ["dropdown-item"];
+          if (item.checked) classes.push("checkable");
+          if (item.hidden) classes.push("hidden");
+          // In a menu with any checkable item every item gets the check column, so labels line up.
+          const hasChecks = items.some((i) => !isSeparator(i) && !!i.checked);
+          return {
+            t: "button",
+            a: {
+              id: item.id,
+              class: classes,
+              type: "button",
+              role: item.checked ? "menuitemcheckbox" : "menuitem",
+              ...(item.checked ? { "aria-checked": "false" } : {}),
+              onclick: () => {
+                closeMenus();
+                item.onclick();
+              },
             },
-          },
-          c: [
-            { t: "span", a: { class: "dropdown-label" }, c: item.label },
-            ...(item.shortcut ? [{ t: "span", a: { class: "dropdown-shortcut" }, c: item.shortcut }] : []),
-          ],
-        })),
+            c: [
+              ...(hasChecks ? [{ t: "span", a: { class: "dropdown-check", "aria-hidden": "true" }, c: "✓" }] : []),
+              { t: "span", a: { class: "dropdown-label" }, c: item.label },
+              ...(item.shortcut ? [{ t: "span", a: { class: "dropdown-shortcut" }, c: item.shortcut }] : []),
+            ],
+          };
+        }),
       },
     ],
   };
@@ -147,11 +196,25 @@ export function makeTitlebar(h: ShellHandlers): Taco {
             { id: "btn-print", label: "Print / PDF…", shortcut: "Cmd+P", onclick: h.onPrint },
           ]),
           makeMenu("btn-view-menu", "view-menu-dropdown", "View", [
+            // Panes of the active tab: [chat | quikdown view | info]
+            { id: "btn-toggle-chat-menu", label: "Chat", shortcut: "Cmd+Shift+C", onclick: h.onToggleChat, checked: h.state?.chat },
+            { id: "btn-toggle-info-menu", label: "Info", shortcut: "Cmd+Shift+I", onclick: h.onToggleInfo, checked: h.state?.info },
+            { separator: true },
+            // Window-wide panels
+            { id: "btn-toggle-files-menu", label: "Files", onclick: h.onToggleFiles, checked: h.state?.files, hidden: true },
+            { id: "btn-toggle-outline-menu", label: "Outline", shortcut: "Cmd+Shift+O", onclick: h.onToggleOutline, checked: h.state?.outline },
+            { id: "btn-project-chat", label: "Project Chat", onclick: h.onProjectChat, hidden: true },
+            { separator: true },
+            // The quikdown view of the active tab
+            { id: "btn-mode-source", label: "Source", onclick: () => h.onEditorMode("source"), checked: () => h.state?.editorMode() === "source" },
+            { id: "btn-mode-split", label: "Split", onclick: () => h.onEditorMode("split"), checked: () => h.state?.editorMode() === "split" },
+            { id: "btn-mode-preview", label: "Preview", onclick: () => h.onEditorMode("preview"), checked: () => h.state?.editorMode() === "preview" },
+            { separator: true },
             { id: "btn-focus-mode", label: "Focus Mode", shortcut: "Cmd+Shift+D", onclick: h.onFocusMode },
-            { id: "btn-toggle-outline-menu", label: "Outline", shortcut: "Cmd+Shift+O", onclick: h.onToggleOutline },
             { id: "btn-find", label: "Find & Replace…", shortcut: "Cmd+F", onclick: h.onFind },
           ]),
           makeToggleButton("btn-toggle-chat", "Chat", h.onToggleChat),
+          makeToggleButton("btn-toggle-info", "Info", h.onToggleInfo),
           makeToggleButton("btn-toggle-files", "Files", h.onToggleFiles, "hidden"),
           makeToggleButton("btn-toggle-outline", "Outline", h.onToggleOutline),
         ],
@@ -186,17 +249,31 @@ export function makeStatusbar(): Taco {
 }
 
 /**
- * The main row: optional file tree, optional chat panel, then the editor
- * column — anything in `aboveEditor` (the tab bar) stacked over
- * `#editor-container`, which quikdown mounts into.
+ * The main row: window-wide panels (file tree, outline), then the editor
+ * column — anything in `aboveEditor` (the tab bar, find bar) stacked over
+ * `#tab-body`, the active tab's panes: `beside.left` (the chat), then
+ * `#editor-container` (quikdown mounts into it), then `beside.right` (the
+ * info pane). Putting the chat and info panes under the tab bar is what
+ * makes the tab, not the window, the unit a chat belongs to.
  */
-export function makeMain(panels: TacoContent[], aboveEditor: TacoContent[] = []): Taco {
+export function makeMain(
+  panels: TacoContent[],
+  aboveEditor: TacoContent[] = [],
+  beside: { left?: TacoContent[]; right?: TacoContent[] } = {},
+): Taco {
   return {
     t: "div",
     a: { id: "main" },
     c: [
       ...panels,
-      { t: "div", a: { id: "editor-column" }, c: [...aboveEditor, { t: "div", a: { id: "editor-container" } }] },
+      {
+        t: "div",
+        a: { id: "editor-column" },
+        c: [
+          ...aboveEditor,
+          { t: "div", a: { id: "tab-body" }, c: [...(beside.left ?? []), { t: "div", a: { id: "editor-container" } }, ...(beside.right ?? [])] },
+        ],
+      },
     ],
   };
 }
@@ -221,11 +298,33 @@ export function setStatusStats(text: string): void {
   bw.patch("status-stats", text);
 }
 
-/** Toggle the chat panel and keep the toolbar button's pressed state in step. */
+/** Show or hide the chat pane and keep the toolbar button's pressed state in step. */
+export function setChatPanelVisible(on: boolean): void {
+  bw.toggleClass("chat-panel", "hidden", !on);
+  setToggleState("btn-toggle-chat", on);
+}
+
+/** Show or hide the info pane and keep the toolbar button's pressed state in step. */
+export function setInfoPanelVisible(on: boolean): void {
+  bw.toggleClass("info-panel", "hidden", !on);
+  setToggleState("btn-toggle-info", on);
+}
+
+export function isChatPanelVisible(): boolean {
+  return !!bw.el("chat-panel") && !bw.hasClass("chat-panel", "hidden");
+}
+
+export function isInfoPanelVisible(): boolean {
+  return !!bw.el("info-panel") && !bw.hasClass("info-panel", "hidden");
+}
+
+/**
+ * Flip the chat pane's DOM visibility. `ui/panes.ts` is the normal caller:
+ * it records the choice on the active tab and calls `setChatPanelVisible`.
+ */
 export function toggleChatPanel(): boolean {
-  const open = !bw.hasClass("chat-panel", "hidden");
-  bw.toggleClass("chat-panel", "hidden", open);
-  setToggleState("btn-toggle-chat", !open);
+  const open = isChatPanelVisible();
+  setChatPanelVisible(!open);
   return !open;
 }
 

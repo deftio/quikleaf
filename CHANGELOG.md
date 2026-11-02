@@ -5,7 +5,100 @@ All notable changes to quikleaf are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-11-01
+
+AI assistance: the per-tab chat and pane model, the project-persistence fix,
+the bitwrench site rebuild, the documentation audit and corrections, the
+markdown-rt design documents and this entry were drafted with Claude Code under
+the maintainer's direction; reviewed, tested and released by the maintainer.
+
+### Changed — the tab is the unit
+- **A chat per tab, sealed to its document.** Each document tab now has its own
+  QD chat. The model is shown that document and the conversation and nothing
+  else: no other tab's name or content, no file reads, no project search. Its
+  tools can change only that document, and keep doing so if you switch tabs
+  mid-reply. The chat header names the document (`Document chat · notes.md`),
+  the welcome and `/help` say so, and tool results carry the document name.
+  This is a trust boundary enforced in the dispatcher, not a prompt hint: files
+  from unrelated projects open side by side can no longer leak into each
+  other's model calls.
+- **Project chat.** Cross-file work moved to one explicit scope: View → Project
+  Chat opens a "Project" tab whose chat has the file tools (`file_read`,
+  `file_write`, `file_list`, `file_stat`, `project_search`), `tabs_list`
+  (project files only) and `tab_open`, and no `document_*` tools. Every edit it
+  makes names its path. It survives its tab being closed.
+- **Memory and KV are project state.** The scratchpad and key-value tools are
+  offered to the project chat and to chats of files under the project root
+  only; an untitled document, a file from outside the root, or any document in
+  simple mode does not get them.
+- **Three panes per tab: `[chat | quikdown view | info]`.** The chat and the
+  new info pane live under the tab bar, inside the tab column, and each tab
+  remembers which panes it shows and whether the editor is in Source, Split or
+  Preview (View menu, quikdown's toolbar, Cmd/Ctrl+Shift+C / I). A new tab
+  inherits the layout of the tab it was opened from.
+- **Info pane.** Document facts (name, location, saved state, words,
+  characters, lines, reading time, headings) and chat facts (scope, turns, tool
+  calls, memory availability, provider and host, a per-chat Model picker,
+  Clear chat). On the project tab it describes the project.
+- **A model per chat.** `/model <name>` or the info pane picker switches the
+  model for that chat only, on the Settings host and provider; `/model
+  default` goes back. The chat header shows the model in use.
+- **Chats are saved with the project.** `quikleaf.prj`'s `chatHistory` now
+  holds each open project file's transcript, model override and pane layout
+  (by path) plus the project chat, and restores them when the files are
+  reopened. Tool traffic is not persisted; untitled and outside-project tabs
+  are never written.
+- **View menu** reorganised: Chat, Info, Files, Outline and Project Chat as
+  checkable items, Source / Split / Preview, then Focus Mode and Find. Toggle
+  buttons: Chat, Info, Files, Outline.
+- Removed `tab_switch` (a document chat has no business switching tabs; the
+  project chat's `tab_open` focuses an open file). Tool counts are now per
+  scope: document chat 10 (18 for a project file), project chat 17.
+
+### Fixed
+- Project mode never wrote `quikleaf.prj`: `project_save` existed in Rust but was
+  never called, so the scratchpad, key-value store and open file were lost on
+  quit. A debounced writer (`src/project/persist.ts`) now saves after every
+  change, creates the file on first launch and flushes on window close. Open
+  project tabs are saved too (`openTabs`) and reopened on the next launch.
+- Restoring the remembered open file read `open_file` while the file is written
+  camelCase (`openFile`), so it never restored. Fixed, with e2e coverage.
+- `/tools` omitted the tab tools.
+
+### Added
+- GitHub Pages site rebuilt as a bitwrench.js page (`docs/scripts/site.js`):
+  palette from `bw.loadStyles()`, light/dark/auto via `bw.setThemeMode()`,
+  GoatCounter analytics, version badge that follows the latest GitHub release.
+  The hand-written CSS file is gone. `npm run feature` now bumps the site
+  version too.
+- `dev/markdown-rt-spec.md`: draft 0.1 of markdown-rt, a profile of Markdown
+  whose fences carry pragmas (`#id`, `run`, `in`, `out`, `hidden`, …) and can
+  execute in a sandboxed browser realm; includes the race-free incremental
+  rendering design for quikdown. Design only, no code.
+- `dev/markdown-rt-comparison.md`: markdown-rt against executable-Markdown
+  grammars and notebook systems (Jupyter, Wolfram, Observable, Pluto, Marimo,
+  Livebook, …), with the lessons taken and avoided.
+
+### Changed
+- Documentation audit against the code: removed the "60-second timeout per
+  call" claim (there is none; the loop is capped at 10 rounds with Stop), fixed
+  `document_replace` / `file_list` / `kv_list` signatures in `agents.md`, the
+  real camelCase `quikleaf.prj` schema, tool counts (26, 20 outside project
+  mode), test counts, `.rpm` and portable archives in the install tables, the
+  `--project path/to/quikleaf.prj` form, Docker Model Runner in auto-detect
+  lists, and `llm_chat_stream` as the chat command.
+- `CLAUDE.md`: new "Authorship and AI disclosure" and "GitHub Pages site"
+  sections; release steps no longer tell you to tag by hand (CI tags and
+  dispatches the release).
+- `CHANGELOG.md` 1.1.0 entry gained its AI-assistance disclosure.
+
 ## [1.1.0] - 2026-10-31
+
+AI assistance: the bitwrench UI rebuild, the release-pipeline fix, the
+timing/performance log, tabs, the agentic tools (review cards, plan, search),
+the writing tools, the unit/e2e test suites and the documentation refresh were
+drafted with Claude Code under the maintainer's direction, then reviewed,
+tested and released by the maintainer, who is accountable for the result.
 
 ### Added
 - Editor tabs: several documents open at once, dirty indicators, unsaved-changes

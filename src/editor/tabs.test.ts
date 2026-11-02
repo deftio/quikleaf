@@ -16,6 +16,10 @@ import {
   snapshot,
   subscribe,
   updateContent,
+  openProjectTab,
+  setView,
+  PROJECT_TAB_ID,
+  type TabsSnapshot,
 } from "./tabs";
 
 beforeEach(() => resetTabs());
@@ -50,11 +54,13 @@ describe("openTab", () => {
     const t = openTab("/docs/notes.md", "# Notes");
     expect(t).toEqual({
       id: "tab-1",
+      kind: "document",
       path: "/docs/notes.md",
       title: "notes.md",
       content: "# Notes",
       dirty: false,
       projectRelative: false,
+      view: { chat: false, info: false, mode: "split" },
     });
     expect(activeTab()).toEqual(t);
     expect(listTabs()).toHaveLength(1);
@@ -113,7 +119,16 @@ describe("openTab", () => {
 describe("newUntitledTab", () => {
   it("creates an active, clean, pathless tab", () => {
     const t = newUntitledTab();
-    expect(t).toEqual({ id: "tab-1", path: null, title: "Untitled", content: "", dirty: false, projectRelative: false });
+    expect(t).toEqual({
+      id: "tab-1",
+      kind: "document",
+      path: null,
+      title: "Untitled",
+      content: "",
+      dirty: false,
+      projectRelative: false,
+      view: { chat: false, info: false, mode: "split" },
+    });
     expect(activeTab()?.id).toBe(t.id);
   });
 
@@ -285,5 +300,47 @@ describe("subscribe", () => {
     closeTab(a.id);
     expect(fn).toHaveBeenCalledTimes(1);
     off();
+  });
+});
+
+describe("views and the project tab", () => {
+  beforeEach(() => resetTabs());
+
+  it("new tabs inherit the active tab's layout; setView patches and notifies only on change", () => {
+    const a = openTab("/a.md", "");
+    expect(a.view).toEqual({ chat: false, info: false, mode: "split" });
+    expect(setView(a.id, { chat: true, mode: "preview" })!.view).toEqual({ chat: true, info: false, mode: "preview" });
+    const b = newUntitledTab();
+    expect(b.view).toEqual({ chat: true, info: false, mode: "preview" });
+    const c = openTab("/c.md", "");
+    expect(c.view).toEqual({ chat: true, info: false, mode: "preview" });
+    expect(setView("tab-99", { chat: true })).toBeNull();
+
+    const seen: TabsSnapshot[] = [];
+    const off = subscribe((s) => seen.push(s));
+    setView(c.id, { chat: true }); // no change
+    expect(seen.length).toBe(0);
+    setView(c.id, { info: true });
+    expect(seen.length).toBe(1);
+    off();
+    // The published tab is a copy: mutating it does not reach the model.
+    const pub = getTab(c.id)!;
+    pub.view.chat = false;
+    expect(getTab(c.id)!.view.chat).toBe(true);
+  });
+
+  it("openProjectTab creates one project tab, focuses it on repeat calls and keeps its chat open", () => {
+    openTab("/a.md", "");
+    const p = openProjectTab();
+    expect(p).toMatchObject({ id: PROJECT_TAB_ID, kind: "project", path: null, title: "Project", projectRelative: false, dirty: false });
+    expect(p.view.chat).toBe(true);
+    expect(activeTab()!.id).toBe(PROJECT_TAB_ID);
+    openTab("/b.md", "");
+    expect(openProjectTab().id).toBe(PROJECT_TAB_ID);
+    expect(listTabs().filter((t) => t.kind === "project")).toHaveLength(1);
+    expect(setView(PROJECT_TAB_ID, { chat: false, info: true })!.view).toEqual({ chat: true, info: true, mode: "split" });
+    closeTab(PROJECT_TAB_ID);
+    expect(getTab(PROJECT_TAB_ID)).toBeNull();
+    expect(listTabs().every((t) => t.kind === "document")).toBe(true);
   });
 });

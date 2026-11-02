@@ -11,6 +11,7 @@
  * `openDocument`, so each path gets exactly one tab.
  */
 import { invoke } from "@tauri-apps/api/core";
+import { scheduleProjectSave } from "../project/persist";
 import { ask, open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { getMarkdown, onEditorChange, setMarkdown } from "./editor";
@@ -40,7 +41,8 @@ export async function initDocuments(): Promise<void> {
     onEditorChange((md) => {
       if (loading) return;
       const active = tabs.activeTab();
-      if (active) tabs.updateContent(active.id, md);
+      // The project tab has no document; its (hidden) editor is empty and not anyone's text.
+      if (active && active.kind === "document") tabs.updateContent(active.id, md);
     }),
     tabs.subscribe(refreshChrome),
   ];
@@ -66,9 +68,14 @@ function statusLabel(tab: Tab | null): string {
   return tab.projectRelative ? `[Project] ${tab.path}` : tab.path;
 }
 
+/** The project chat tab's status line: the root, since there is no file. */
+function projectTabStatus(): string {
+  return projectRoot ? `[Project] ${projectRoot} — project chat` : "Project chat";
+}
+
 function refreshChrome(): void {
   const active = tabs.activeTab();
-  setStatusFile(statusLabel(active));
+  setStatusFile(active?.kind === "project" ? projectTabStatus() : statusLabel(active));
   const title = active?.title ?? "Untitled";
   document.title = `${active?.dirty ? "• " : ""}quikleaf — ${title}`;
   highlightFile(active?.projectRelative ? active.path : null);
@@ -84,18 +91,21 @@ export async function showTab(id: string): Promise<Tab | null> {
   const outgoing = tabs.activeTab();
   const incoming = tabs.getTab(id);
   if (!incoming) return null;
-  if (outgoing && outgoing.id !== incoming.id && !loading) {
+  if (outgoing && outgoing.kind === "document" && outgoing.id !== incoming.id && !loading) {
     tabs.updateContent(outgoing.id, getMarkdown());
   }
   tabs.setActive(incoming.id);
   loading = true;
   try {
-    await setMarkdown(tabs.getTab(incoming.id)!.content);
+    // The project tab shows no document: the editor is hidden and emptied so
+    // the outline and stats do not keep describing the previous tab.
+    await setMarkdown(incoming.kind === "project" ? "" : tabs.getTab(incoming.id)!.content);
   } finally {
     loading = false;
   }
   if (incoming.projectRelative && incoming.path) {
     invoke("set_open_file", { path: incoming.path }).catch(() => {});
+    scheduleProjectSave();
   }
   return tabs.activeTab();
 }
@@ -138,6 +148,17 @@ export async function newDocument(): Promise<Tab> {
   return tab;
 }
 
+/**
+ * View → Project Chat: open (or focus) the project tab, whose chat works on
+ * files under the project root. Only in project mode; returns null otherwise.
+ */
+export async function openProjectChat(): Promise<Tab | null> {
+  if (!projectMode) return null;
+  const tab = tabs.openProjectTab();
+  await showTab(tab.id);
+  return tabs.getTab(tab.id);
+}
+
 // --- Saving ---
 
 async function writeTab(tab: Tab, path: string, projectRelative: boolean, md: string): Promise<void> {
@@ -152,7 +173,7 @@ async function writeTab(tab: Tab, path: string, projectRelative: boolean, md: st
  */
 export async function saveActiveDocument(): Promise<boolean> {
   const tab = tabs.activeTab();
-  if (!tab) return false;
+  if (!tab || tab.kind !== "document") return false;
   const md = getMarkdown();
   tabs.updateContent(tab.id, md);
   try {
@@ -197,6 +218,7 @@ export async function closeDocument(id?: string): Promise<boolean> {
     if (!ok) return false;
   }
   const next = tabs.closeTab(tab.id);
+  if (tab.projectRelative) scheduleProjectSave();
   if (isActive && next) {
     loading = true; // the outgoing tab is gone; do not park the editor text anywhere
     try {

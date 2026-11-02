@@ -211,13 +211,22 @@ const shell: CssRules = {
     transition: "background 0.1s ease",
   },
   ".dropdown-item:hover": { background: "var(--bg-tertiary)" },
-  ".dropdown-label": { "font-weight": "500" },
+  ".dropdown-label": { "font-weight": "500", flex: "1", "text-align": "left", "white-space": "nowrap" },
   ".dropdown-shortcut": { "font-size": "11px", color: "var(--text-tertiary)", "margin-left": "24px" },
+  ".dropdown-check": { width: "16px", "flex-shrink": "0", color: "var(--accent-primary)", visibility: "hidden", "font-size": "11px", "text-align": "left" },
+  ".dropdown-item.checked .dropdown-check": { visibility: "visible" },
+  ".dropdown-separator": { height: "1px", margin: "4px 8px", background: "var(--border-secondary)" },
 
   /* ── Main area ───────────────────────────────────────────── */
   "#main": { display: "flex", flex: "1", overflow: "hidden", background: "var(--bg-primary)" },
   "#editor-column": { flex: "1", "min-width": "0", display: "flex", "flex-direction": "column", overflow: "hidden" },
-  "#editor-container": { flex: "1", "min-height": "0", overflow: "hidden", background: "var(--bg-primary)" },
+  /* The active tab's panes: [chat | quikdown view | info] */
+  "#tab-body": { flex: "1", "min-height": "0", display: "flex", overflow: "hidden" },
+  "#editor-container": { flex: "1", "min-width": "0", "min-height": "0", overflow: "hidden", background: "var(--bg-primary)" },
+  /* The project tab has no document: the chat takes the whole body. */
+  "#editor-column.project-tab #editor-container": { display: "none" },
+  "#editor-column.project-tab #chat-panel": { flex: "1", width: "auto", "max-width": "none", "border-right": "none" },
+  "#editor-column.project-tab .chat-resize-handle": { display: "none" },
 
   /* ── Editor tabs ─────────────────────────────────────────── */
   "#tab-bar": {
@@ -323,6 +332,31 @@ const shell: CssRules = {
     "border-right": "1px solid var(--border-primary)",
     background: "var(--bg-secondary)",
   },
+  "#chat-header": {
+    display: "flex",
+    "align-items": "center",
+    gap: "8px",
+    padding: "8px 14px",
+    "border-bottom": "1px solid var(--border-primary)",
+    "font-size": "12px",
+    color: "var(--text-secondary)",
+    "min-height": "36px",
+    "white-space": "nowrap",
+  },
+  ".chat-scope": {
+    padding: "2px 8px",
+    "border-radius": "999px",
+    background: "var(--bg-tertiary)",
+    color: "var(--text-secondary)",
+    "font-size": "11px",
+    "font-weight": "600",
+    "letter-spacing": "0.02em",
+    "flex-shrink": "0",
+  },
+  "#chat-panel.project-scope .chat-scope": { background: "var(--accent-primary)", color: "var(--accent-text)" },
+  ".chat-target": { "font-weight": "600", color: "var(--text-primary)", overflow: "hidden", "text-overflow": "ellipsis", "min-width": "0" },
+  ".chat-model": { "margin-left": "auto", color: "var(--text-tertiary)", "font-variant-numeric": "tabular-nums", "flex-shrink": "0" },
+  ".chat-model.override": { color: "var(--accent-primary)", "font-weight": "600" },
   ".chat-resize-handle": { transition: "background 0.15s ease" },
   ".chat-resize-handle:hover, .chat-resize-handle.dragging": { background: "var(--accent-primary)" },
   "#chat-messages": {
@@ -331,8 +365,48 @@ const shell: CssRules = {
     padding: "20px",
     display: "flex",
     "flex-direction": "column",
-    gap: "12px",
   },
+  /* Each chat keeps its own log; the active one is mounted here. */
+  ".chat-log": { display: "flex", "flex-direction": "column", gap: "12px", "min-height": "0" },
+
+  /* ── Info pane ───────────────────────────────────────────── */
+  "#info-panel": {
+    width: "280px",
+    "min-width": "240px",
+    display: "flex",
+    "flex-direction": "column",
+    "border-left": "1px solid var(--border-primary)",
+    background: "var(--bg-secondary)",
+    overflow: "hidden",
+  },
+  "#info-header": {
+    padding: "8px 14px",
+    "border-bottom": "1px solid var(--border-primary)",
+    "font-size": "12px",
+    "font-weight": "600",
+    color: "var(--text-secondary)",
+    "min-height": "36px",
+    display: "flex",
+    "align-items": "center",
+  },
+  "#info-body": { flex: "1", "overflow-y": "auto", padding: "8px 14px 16px" },
+  ".info-section": { padding: "8px 0 12px", "border-bottom": "1px solid var(--border-secondary)" },
+  ".info-section:last-child": { "border-bottom": "none" },
+  ".info-title": {
+    margin: "4px 0 6px",
+    "font-size": "11px",
+    "font-weight": "600",
+    "text-transform": "uppercase",
+    "letter-spacing": "0.06em",
+    color: "var(--text-tertiary)",
+  },
+  ".info-row": { display: "flex", "justify-content": "space-between", "align-items": "baseline", gap: "12px", padding: "3px 0", "font-size": "12px" },
+  ".info-key": { color: "var(--text-tertiary)", "flex-shrink": "0" },
+  ".info-val": { color: "var(--text-primary)", "text-align": "right", "font-variant-numeric": "tabular-nums", "min-width": "0", overflow: "hidden", "text-overflow": "ellipsis", "white-space": "nowrap" },
+  ".info-path .info-val": { "font-family": "ui-monospace, SFMono-Regular, Menlo, monospace", "font-size": "11px" },
+  ".info-model-row": { "align-items": "center" },
+  ".info-model-row select": { flex: "1", "min-width": "0", "font-size": "12px" },
+  ".info-actions": { "margin-top": "8px", display: "flex", "justify-content": "flex-end" },
   "#chat-input-area": {
     display: "flex",
     padding: "16px",
@@ -847,7 +921,7 @@ const writing: CssRules = {
   "#find-close": { "margin-left": "auto" },
 
   /* Focus mode */
-  "#app.focus #titlebar, #app.focus #statusbar, #app.focus #file-tree, #app.focus #outline, #app.focus #chat-panel, #app.focus #tab-bar": {
+  "#app.focus #titlebar, #app.focus #statusbar, #app.focus #file-tree, #app.focus #outline, #app.focus #chat-panel, #app.focus #info-panel, #app.focus #tab-bar": {
     display: "none !important",
   },
   "#app.focus #editor-container .qde-container": { border: "none", "border-radius": "0" },
@@ -883,10 +957,10 @@ const writing: CssRules = {
 
   /* Print: only the rendered preview pane (`#editor-container .qde-preview`). */
   "@media print": {
-    "#titlebar, #statusbar, #file-tree, #outline, #chat-panel, #tab-bar, #find-bar, #focus-exit, #editor-container .qde-toolbar, #editor-container .qde-source": {
+    "#titlebar, #statusbar, #file-tree, #outline, #chat-panel, #info-panel, #tab-bar, #find-bar, #focus-exit, #editor-container .qde-toolbar, #editor-container .qde-source": {
       display: "none !important",
     },
-    "html, body, #app, #main, #editor-column, #editor-container, #editor-container .qde-container, #editor-container .qde-editor": {
+    "html, body, #app, #main, #editor-column, #tab-body, #editor-container, #editor-container .qde-container, #editor-container .qde-editor": {
       display: "block !important",
       height: "auto !important",
       overflow: "visible !important",
