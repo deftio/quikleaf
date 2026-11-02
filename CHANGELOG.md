@@ -5,6 +5,26 @@ All notable changes to quikleaf are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-11-02
+
+AI assistance: the publishing change and this entry were drafted with Claude
+Code under the maintainer's direction; reviewed, tested and released by the
+maintainer.
+
+### Changed
+- npm publishing moved to trusted publishing (OIDC) in a dedicated
+  `.github/workflows/publish.yml`, dispatched by the release workflow after the
+  installers and portable archives are on the GitHub release, or by hand for an
+  existing release. No npm token anywhere; every published version carries
+  provenance.
+- Only the `quikleaf` launcher is published to npm. The four
+  `@deftio/quikleaf-<platform>` packages were never published and are gone;
+  the launcher downloads the portable archive for its platform from the GitHub
+  release of the same version at install time (as 1.0.3 already did), so
+  everything stays downloadable from the release and the site. v1.1.0 and
+  v1.2.0 never reached npm because the old job expected an `NPM_TOKEN` secret
+  that was not set.
+
 ## [1.2.0] - 2026-11-01
 
 AI assistance: the per-tab chat and pane model, the project-persistence fix,

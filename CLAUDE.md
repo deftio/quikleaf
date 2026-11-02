@@ -97,7 +97,7 @@ Commits, tags, PRs and GitHub releases list the maintainer as the only author. D
 
 Versioned releases are authored only by the maintainer. Claude Code should never run `npm run release` or `npm run feature` autonomously.
 
-The version is tracked in three files that must stay in sync: `package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json`. The `feature` script handles this automatically.
+The version is tracked in `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`, `npm/quikleaf/package.json` (the launcher downloads the release archives of exactly its own version) and the site badge. The `feature` script bumps them all.
 
 ```bash
 # 1. Start a feature branch (from main) — auto-bumps version in all 3 files
@@ -117,7 +117,9 @@ npm run release:no-playwright                      # skip E2E tests
 git checkout main && git pull                      # once the release has shipped
 ```
 
-The release workflow (`.github/workflows/release.yml`) builds platform binaries, creates a GitHub Release, and publishes npm packages. CI's `tag` job pushes the tag with `GITHUB_TOKEN` (which cannot trigger other workflows) and then dispatches `release.yml` explicitly with `gh workflow run`; release.yml therefore accepts both `push: tags` and `workflow_dispatch`. Requires the `NPM_TOKEN` repo secret.
+The release workflow (`.github/workflows/release.yml`) builds platform binaries, creates a GitHub Release with installers and the four portable archives, then dispatches `publish.yml`. CI's `tag` job pushes the tag with `GITHUB_TOKEN` (which cannot trigger other workflows) and then dispatches `release.yml` explicitly with `gh workflow run`; release.yml therefore accepts both `push: tags` and `workflow_dispatch`, and dispatches `publish.yml` the same way.
+
+npm: only the `quikleaf` launcher is published (no platform packages). `publish.yml` uses npm trusted publishing (OIDC): `id-token: write`, npm 11.5+, no token. The trusted-publisher config on npmjs.com is bound to the filename `publish.yml` in `deftio/quikleaf`, so do not rename that workflow. It checks that the launcher version equals the tag and that the four release archives exist (install.js downloads them), and skips if the version is already on npm. Manual (re)publish for an existing release: `gh workflow run publish.yml --ref vX.Y.Z`.
 
 ## GitHub Pages site
 

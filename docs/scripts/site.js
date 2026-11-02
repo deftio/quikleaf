@@ -12,7 +12,7 @@
   'use strict';
 
   /* --- version (bumped by tools/feature.sh) ------------------------------- */
-  var SITE_VERSION = '1.2.0';
+  var SITE_VERSION = '1.2.1';
   var REPO = 'https://github.com/deftio/quikleaf';
 
   /* --- theme ---------------------------------------------------------------- */

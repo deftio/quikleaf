@@ -100,14 +100,12 @@ node -e "
   fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(conf, null, 2) + '\n');
 "
 
-# Bump version in npm/quikleaf/package.json (version + optionalDependencies)
+# Bump version in npm/quikleaf/package.json (the launcher downloads the
+# release archives for exactly this version, so it must match the tag)
 node -e "
   const fs = require('fs');
   const pkg = JSON.parse(fs.readFileSync('npm/quikleaf/package.json', 'utf8'));
   pkg.version = '${NEW_VERSION}';
-  for (const dep of Object.keys(pkg.optionalDependencies || {})) {
-    pkg.optionalDependencies[dep] = '${NEW_VERSION}';
-  }
   fs.writeFileSync('npm/quikleaf/package.json', JSON.stringify(pkg, null, 2) + '\n');
 "
 
@@ -121,17 +119,7 @@ node -e "
   ]) fs.writeFileSync(f, fs.readFileSync(f, 'utf8').replace(re, rep));
 "
 
-# Bump version in npm platform packages
-for platform in darwin-arm64 darwin-x64 linux-x64 win32-x64; do
-  node -e "
-    const fs = require('fs');
-    const pkg = JSON.parse(fs.readFileSync('npm/${platform}/package.json', 'utf8'));
-    pkg.version = '${NEW_VERSION}';
-    fs.writeFileSync('npm/${platform}/package.json', JSON.stringify(pkg, null, 2) + '\n');
-  "
-done
-
-git add package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json docs/scripts/site.js docs/index.html npm/quikleaf/package.json npm/darwin-arm64/package.json npm/darwin-x64/package.json npm/linux-x64/package.json npm/win32-x64/package.json
+git add package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json docs/scripts/site.js docs/index.html npm/quikleaf/package.json
 git commit -m "bump version to ${NEW_VERSION}"
 
 info "\nCreated branch: $BRANCH"
