@@ -31,9 +31,6 @@
   "bin": {
     "quikleaf": "bin/quikleaf"
   },
-  "scripts": {
-    "postinstall": "node install.js"
-  },
   "engines": {
     "node": ">=18"
   }

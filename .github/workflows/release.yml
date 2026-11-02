@@ -10,8 +10,8 @@ name: Release
 #
 # npm is not published here. After the build job has attached the portable
 # archives to the release, the `publish` job dispatches publish.yml, which
-# publishes the `quikleaf` launcher with npm trusted publishing (OIDC). No
-# npm token is involved anywhere.
+# publishes the `quikleaf` launcher with npm trusted publishing (OIDC).
+# No npm token is involved anywhere.
 on:
   push:
     tags:
@@ -133,9 +133,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Dispatch publish.yml for this tag (OIDC trusted publishing of the npm
-  # launcher). A dispatch rather than a job here because npm's trusted
-  # publisher is bound to the workflow filename `publish.yml`; with
+  # Dispatch publish.yml for this tag (OIDC trusted publishing publishes the
+  # npm launcher). A dispatch rather than a job here because npm's
+  # trusted publisher is bound to the workflow filename `publish.yml`; with
   # `workflow_dispatch` the OIDC claim names that file.
   publish:
     needs: build

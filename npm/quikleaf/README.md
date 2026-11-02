@@ -25,6 +25,14 @@ npx quikleaf
 npx quikleaf document.md
 ```
 
+The package contains no binaries. On first run it downloads the portable
+build for your platform (macOS arm64/x64, Linux x64, Windows x64) from the
+[GitHub release](https://github.com/deftio/quikleaf/releases) of the same
+version into a per-user cache and runs that; later runs start immediately.
+Cache location: `~/Library/Caches/quikleaf` (macOS), `~/.cache/quikleaf`
+(Linux), `%LOCALAPPDATA%\quikleaf\cache` (Windows), or `QUIKLEAF_CACHE_DIR`.
+No postinstall script is used, so no `--allow-scripts` opt-in is needed.
+
 ## Features
 
 - Rich markdown rendering (Mermaid, LaTeX, GeoJSON, STL, CSV, Vega, SVG, ABC music)

@@ -97,7 +97,7 @@ Commits, tags, PRs and GitHub releases list the maintainer as the only author. D
 
 Versioned releases are authored only by the maintainer. Claude Code should never run `npm run release` or `npm run feature` autonomously.
 
-The version is tracked in `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`, `npm/quikleaf/package.json` (the launcher downloads the release archives of exactly its own version) and the site badge. The `feature` script bumps them all.
+The version is tracked in `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`, `npm/quikleaf/package.json` (the launcher downloads the release archive of exactly its own version on first run; it has no postinstall script because npm 12 blocks install scripts for `-g`/`npx`) and the site badge. The `feature` script bumps them all.
 
 ```bash
 # 1. Start a feature branch (from main) — auto-bumps version in all 3 files
@@ -119,7 +119,7 @@ git checkout main && git pull                      # once the release has shippe
 
 The release workflow (`.github/workflows/release.yml`) builds platform binaries, creates a GitHub Release with installers and the four portable archives, then dispatches `publish.yml`. CI's `tag` job pushes the tag with `GITHUB_TOKEN` (which cannot trigger other workflows) and then dispatches `release.yml` explicitly with `gh workflow run`; release.yml therefore accepts both `push: tags` and `workflow_dispatch`, and dispatches `publish.yml` the same way.
 
-npm: only the `quikleaf` launcher is published (no platform packages). `publish.yml` uses npm trusted publishing (OIDC): `id-token: write`, npm 11.5+, no token. The trusted-publisher config on npmjs.com is bound to the filename `publish.yml` in `deftio/quikleaf`, so do not rename that workflow. It checks that the launcher version equals the tag and that the four release archives exist (install.js downloads them), and skips if the version is already on npm. Manual (re)publish for an existing release: `gh workflow run publish.yml --ref vX.Y.Z`.
+npm: only the `quikleaf` launcher is published (no platform packages). `publish.yml` uses npm trusted publishing (OIDC): `id-token: write`, no token, `npm publish --provenance`. The trusted-publisher config on npmjs.com is bound to the filename `publish.yml` in `deftio/quikleaf` and must have direct `npm publish` under "Allowed actions" (npm's form defaults new configs to stage-only, which refuses `npm publish` with "OIDC permission denied for this action"; that is what broke 1.2.1). Do not rename that workflow. The job checks that the launcher version equals the tag and that the four release archives exist (install.js downloads them), skips if the version is already on npm, then publishes. No human step: a push to main that passes CI ends on npm, same as bitwrench. Manual (re)publish for any existing release: `gh workflow run publish.yml --ref main -f tag=vX.Y.Z`.
 
 ## GitHub Pages site
 

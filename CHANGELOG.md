@@ -5,6 +5,28 @@ All notable changes to quikleaf are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2026-11-02
+
+AI assistance: the publishing fix and this entry were drafted with Claude
+Code under the maintainer's direction; reviewed, tested and released by the
+maintainer.
+
+### Fixed
+- npm publishing. 1.2.1's `npm publish` was refused with "OIDC permission
+  denied for this action" because the new trusted-publisher configuration on
+  npmjs.com had been created stage-only (npm's current default). The
+  configuration now allows direct `npm publish`, and `publish.yml` documents
+  that requirement, checks the launcher version against the tag and the four
+  release archives before publishing, and accepts a `tag` input so any
+  existing release can be (re)published from `main`.
+- npm launcher under npm 12. npm 12 blocks install-time lifecycle scripts for
+  `npm install -g` and `npx` by default, which would have left the launcher
+  with no binary. The launcher no longer has a postinstall script: `bin/quikleaf`
+  downloads the platform archive from the matching GitHub release on first run
+  into a per-user cache (`~/Library/Caches/quikleaf`, `~/.cache/quikleaf`,
+  `%LOCALAPPDATA%\quikleaf\cache`, or `QUIKLEAF_CACHE_DIR`) and runs it from
+  there. `node install.js` still pre-fetches it explicitly.
+
 ## [1.2.1] - 2026-11-02
 
 AI assistance: the publishing change and this entry were drafted with Claude

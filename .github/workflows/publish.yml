@@ -1,35 +1,61 @@
 name: Publish npm
 
 # Publishes the `quikleaf` npm launcher for one tagged release, using npm
-# trusted publishing (OIDC): no NPM_TOKEN anywhere. The trusted-publisher
-# configuration on npmjs.com for `quikleaf` names this file, `publish.yml`,
-# on deftio/quikleaf, so the filename and repository must not change.
+# trusted publishing (OIDC). No NPM_TOKEN anywhere.
 #
-# The launcher contains no binaries. At install time `npm/quikleaf/install.js`
-# downloads the platform archive from the GitHub release for its own version,
-# so this job first checks that all four archives are attached to the release.
+# Trust points, in order:
+#   1. npm's trusted-publisher configuration for `quikleaf` names this exact
+#      file, `publish.yml`, on `deftio/quikleaf`, with direct `npm publish`
+#      allowed ("Allowed actions" on npmjs.com). Do not rename this file.
+#      A configuration created without direct publish refuses the publish
+#      step with "OIDC permission denied for this action" (that was 1.2.1).
+#   2. GitHub mints a short-lived OIDC identity for a run of this file; npm
+#      accepts it, signs provenance (source commit + this run) and publishes
+#      the version. No human step follows: a push to main that passes CI
+#      ends on npm, same as bitwrench.
 #
-# Triggered two ways, always for a tag (`github.ref` must be `refs/tags/vX.Y.Z`):
-#   1. release.yml dispatches it after the build job has uploaded the archives.
-#   2. By hand, to (re)publish the launcher for an existing release:
-#        gh workflow run publish.yml --ref vX.Y.Z
+# The launcher contains no binaries: on first run `npm/quikleaf/install.js`
+# downloads the platform archive from the GitHub release of its own version,
+# so the job first checks that all four archives are attached to that release.
 #
-# Requirements for OIDC: `id-token: write`, npm CLI 11.5.1+ (Node 22's bundled
-# npm is too old, hence the upgrade step), a GitHub-hosted runner, and no
-# NODE_AUTH_TOKEN in the environment of `npm publish`.
+# Triggered two ways:
+#   1. release.yml dispatches it with `--ref vX.Y.Z` after the build job has
+#      uploaded the archives.
+#   2. By hand, for any existing release, from any ref of this repository:
+#        gh workflow run publish.yml --ref main -f tag=vX.Y.Z
+#      (the trusted publisher matches repository + filename, not the ref).
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish (vX.Y.Z). Defaults to the ref this run was dispatched on."
+        required: false
+        type: string
 
 jobs:
   publish:
-    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write   # OIDC token for npm trusted publishing
 
     steps:
+      - name: Resolve the release tag
+        id: tag
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          TAG="${INPUT_TAG:-$GITHUB_REF_NAME}"
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::'$TAG' is not a release tag (vX.Y.Z). Dispatch with --ref vX.Y.Z or -f tag=vX.Y.Z." >&2
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -37,15 +63,16 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
 
-      - name: Upgrade npm (trusted publishing needs 11.5.1+)
+      - name: Upgrade npm (OIDC trusted publishing needs 11.5+)
         run: |
           npm install -g npm@latest
           npm --version
 
       - name: Check the launcher version matches the tag
         working-directory: npm/quikleaf
+        env:
+          TAG_VERSION: ${{ steps.tag.outputs.version }}
         run: |
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
           PKG_VERSION="$(node -p "require('./package.json').version")"
           echo "tag: $TAG_VERSION  package.json: $PKG_VERSION"
           if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
@@ -56,18 +83,19 @@ jobs:
       - name: Check the release archives the launcher will download exist
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
         run: |
-          ASSETS="$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
+          ASSETS="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
           echo "$ASSETS"
           for a in quikleaf-darwin-aarch64.tar.gz quikleaf-darwin-x86_64.tar.gz quikleaf-linux-x86_64.tar.gz quikleaf-windows-x86_64.zip; do
-            echo "$ASSETS" | grep -qx "$a" || { echo "::error::Release $GITHUB_REF_NAME has no asset $a; the launcher would fail to install." >&2; exit 1; }
+            echo "$ASSETS" | grep -qx "$a" || { echo "::error::Release $TAG has no asset $a; the launcher would fail to install." >&2; exit 1; }
           done
 
       - name: Skip if this version is already on npm
         id: exists
-        working-directory: npm/quikleaf
+        env:
+          V: ${{ steps.tag.outputs.version }}
         run: |
-          V="${GITHUB_REF_NAME#v}"
           if npm view "quikleaf@$V" version >/dev/null 2>&1; then
             echo "quikleaf@$V is already published; nothing to do."
             echo "published=true" >> "$GITHUB_OUTPUT"
@@ -75,7 +103,20 @@ jobs:
             echo "published=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # Direct publish with provenance. Needs the trusted publisher to allow
+      # `npm publish`; a stage-only configuration refuses this step.
       - name: Publish quikleaf
         if: steps.exists.outputs.published == 'false'
         working-directory: npm/quikleaf
-        run: npm publish --access public
+        run: npm publish --access public --provenance
+
+      - name: Summary
+        if: steps.exists.outputs.published == 'false'
+        env:
+          V: ${{ steps.tag.outputs.version }}
+        run: |
+          {
+            echo "## quikleaf@$V is on npm"
+            echo
+            echo "https://www.npmjs.com/package/quikleaf/v/$V — published with provenance from this run."
+          } >> "$GITHUB_STEP_SUMMARY"
