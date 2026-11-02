@@ -66,12 +66,17 @@ npm install -g quikleaf      # or: npx quikleaf document.md
 quikleaf document.md
 ```
 
-The npm package is a thin launcher with no binaries inside: on install it
-downloads the portable archive for your platform from the GitHub release of
-the same version and runs that. It needs network access to github.com at
-install time and Node.js 18+. The package is published with npm trusted
+The npm package is a thin launcher with no binaries inside: the first time
+you run it, it downloads the portable archive for your platform from the
+GitHub release of the same version into a per-user cache (`~/Library/Caches/quikleaf`
+on macOS, `~/.cache/quikleaf` on Linux, `%LOCALAPPDATA%\quikleaf\cache` on
+Windows; override with `QUIKLEAF_CACHE_DIR`) and runs that. It needs network
+access to github.com on that first run and Node.js 18+. There is no
+postinstall script, so it works under npm 12's default of blocking
+install-time scripts. The package is published by npm trusted
 publishing (OIDC) from `.github/workflows/publish.yml`, so every version on
-npm carries provenance back to this repository.
+npm carries provenance back to this repository and no long-lived npm token
+exists anywhere.
 
 ### Build from source
 
@@ -248,7 +253,7 @@ cd src-tauri && cargo test  # Rust tests (~70, run for both the lib and bin targ
 
 ### Releasing
 
-Maintainers only. `npm run feature -- "name" [minor|major]` starts a branch and bumps every version file; `npm run release:dry` runs all gates (types, unit tests with the coverage gate, e2e, cargo check/test, version sync) without pushing; `npm run release` runs them and opens the PR whose merge triggers CI to tag, build the installers and release, and dispatch `publish.yml`, which publishes the npm launcher via OIDC. To republish the launcher for an existing release: `gh workflow run publish.yml --ref vX.Y.Z`.
+Maintainers only. `npm run feature -- "name" [minor|major]` starts a branch and bumps every version file; `npm run release:dry` runs all gates (types, unit tests with the coverage gate, e2e, cargo check/test, version sync) without pushing; `npm run release` runs them and opens the PR whose merge triggers CI to tag, build the installers and release, and dispatch `publish.yml`, which publishes the npm launcher via OIDC trusted publishing. To publish the launcher again for an existing release: `gh workflow run publish.yml --ref main -f tag=vX.Y.Z`.
 
 ### Build Output
 
