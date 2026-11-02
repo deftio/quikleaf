@@ -21,6 +21,7 @@ import {
   openDocument,
   openFileDialog,
   openPath,
+  openProjectChat,
   saveActiveDocument,
   setDocumentsProjectMode,
   showTab,
@@ -472,5 +473,38 @@ describe("handleKeydown", () => {
     await vi.waitFor(() => expect(tabs.activeTab()?.id).toBe(b.id));
     // Cmd+Shift+other bracket-ish keys are not shortcuts.
     expect(handleKeydown(pressKey({ key: "]", code: "BracketRight", metaKey: true }))).toBe(false);
+  });
+});
+
+describe("the project chat tab", () => {
+  it("openProjectChat is a no-op outside project mode", async () => {
+    expect(await openProjectChat()).toBeNull();
+    expect(listTabs().every((t) => t.kind === "document")).toBe(true);
+  });
+
+  it("opens the project tab with an empty, hidden editor, a project status line, and no saving", async () => {
+    setDocumentsProjectMode(true, "/root");
+    const a = await openDocument("/a.md", "# A");
+    type("# A edited");
+    const p = await openProjectChat();
+    expect(p).toMatchObject({ kind: "project", title: "Project" });
+    expect(tabs.activeTab()!.id).toBe(tabs.PROJECT_TAB_ID);
+    // The outgoing document's edit was parked; the editor was emptied.
+    expect(tabs.getTab(a.id)).toMatchObject({ content: "# A edited", dirty: true });
+    expect(editorText).toBe("");
+    expect(status()).toBe("[Project] /root — project chat");
+    expect(document.title).toBe("quikleaf — Project");
+    // Typing cannot reach the project tab, and it cannot be saved.
+    type("stray");
+    expect(tabs.getTab(tabs.PROJECT_TAB_ID)!.content).toBe("");
+    expect(await saveActiveDocument()).toBe(false);
+    expect(mockWrite).not.toHaveBeenCalled();
+    // Going back restores the parked text without parking the empty editor into the project tab.
+    await showTab(a.id);
+    expect(editorText).toBe("# A edited");
+    expect(await openProjectChat()).toMatchObject({ id: tabs.PROJECT_TAB_ID });
+    expect(listTabs().filter((t) => t.kind === "project")).toHaveLength(1);
+    expect(await closeDocument()).toBe(true);
+    expect(tabs.getTab(tabs.PROJECT_TAB_ID)).toBeNull();
   });
 });

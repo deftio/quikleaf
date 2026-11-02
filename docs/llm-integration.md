@@ -46,41 +46,48 @@ On first launch (if no LLM is configured), quikleaf probes:
 
 If models are found, the first one is auto-configured.
 
+## Chats and scope
+
+Every editor tab has its own chat, and the chat is sealed to a scope. The header of the chat pane says which:
+
+| Header | Belongs to | The model sees | Tools may change |
+|--------|-----------|----------------|------------------|
+| `Document chat · notes.md` | One document tab | That document and the conversation. Not other tabs, not other files, not even their names. | That document only |
+| `Project chat` | The project tab (View → Project Chat, project mode) | Files under the project root, by path; which project files are open in tabs | Files under the project root, each named by path |
+
+The seal is enforced in the tool dispatcher: a document chat that asks for `file_read` or `project_search` gets an error naming its document, and the project chat has no `document_*` tools. This is deliberate. Files from unrelated projects may be open side by side, and one project's content must never reach a model call made for another. A chat keeps working on its own document if you switch tabs while it is replying; closing a tab ends its chat (the project chat survives its tab and comes back with View → Project Chat).
+
+Each chat can use its own model on the host and provider from Settings: `/model <name>` in the chat, or the Model picker in the info pane; `/model default` returns to the Settings model. In project mode the chats of project files, the project chat, each chat's model override and each tab's pane layout are saved in `quikleaf.prj` and restored on the next launch.
+
 ## Tool Calling
 
-QD has access to 26 tools (23 outside project mode):
+Tools are offered per scope. A document chat has 10 (18 when its document is a file under the project root, which adds memory and KV); the project chat has 17.
 
-### Document Tools
+### Document Tools (document chats)
+
+All act on the chat's own document, on screen or in a background tab, and tag results with `document: "<title>"`.
 
 | Tool | Description |
 |------|-------------|
 | `document_read` | Read the full markdown source |
 | `document_write` | Replace the entire document |
 | `document_replace` | Find and replace text in the document |
-| `document_insert` | Insert text at the cursor position |
-| `document_undo` | Undo the last editor change |
-| `document_redo` | Redo the last undone change |
-| `document_get_selection` | Get the currently selected text |
+| `document_insert` | Insert text at the cursor position (tab must be on screen) |
+| `document_undo` | Undo the last editor change (tab must be on screen) |
+| `document_redo` | Redo the last undone change (tab must be on screen) |
+| `document_get_selection` | Get the currently selected text (tab must be on screen) |
 | `document_outline` | List headings with level and line number |
 
-### Tab Tools
-
-| Tool | Description |
-|------|-------------|
-| `tabs_list` | List open tabs; document tools act on the active one |
-| `tab_switch` | Activate an open tab by id or path |
-| `tab_open` | Open a project file in a tab (project mode) |
-
-### Plan Tools
+### Plan Tools (every chat)
 
 | Tool | Description |
 |------|-------------|
 | `plan_set` | Set a step list; shown as a plan card in the chat |
 | `plan_update` | Mark a step pending, active, done or skipped |
 
-### Memory Tools
+### Memory Tools (project files and the project chat)
 
-A persistent scratchpad for QD to store notes and context:
+The project's scratchpad, saved to `quikleaf.prj`. Shared by the project chat and the chats of files under the root; a document outside the project, or any document in simple mode, is not offered it:
 
 | Tool | Description |
 |------|-------------|
@@ -89,9 +96,9 @@ A persistent scratchpad for QD to store notes and context:
 | `memory_append` | Append to scratchpad |
 | `memory_clear` | Clear scratchpad |
 
-### Key-Value Store
+### Key-Value Store (project files and the project chat)
 
-Persistent named storage:
+Named storage, saved to `quikleaf.prj`, same scope as the scratchpad:
 
 | Tool | Description |
 |------|-------------|
@@ -100,17 +107,19 @@ Persistent named storage:
 | `kv_delete` | Delete a key |
 | `kv_list` | List all keys |
 
-### File Tools (Project Mode Only)
+### File and Tab Tools (project chat)
 
-Available when quikleaf is launched with `--project ./dir`:
+Available in the project chat when quikleaf was launched with `--project ./dir`:
 
 | Tool | Description |
 |------|-------------|
 | `file_read` | Read a file relative to project root |
-| `file_write` | Write a file relative to project root |
+| `file_write` | Write a file relative to project root (the path is the explicit target of every edit) |
 | `file_list` | List directory contents |
 | `file_stat` | Get file metadata (size, modified date) |
 | `project_search` | Search text files under the project root (substring or regex, case-insensitive) |
+| `tabs_list` | Which project files are open in tabs (files from outside the root are not listed) |
+| `tab_open` | Open a project file in a tab |
 
 ## Reviewing Edits
 
@@ -131,10 +140,11 @@ Type these in the chat input:
 | Command | Description |
 |---------|-------------|
 | `/help` | Show available commands |
-| `/clear` | Clear chat history |
-| `/model` | Show current LLM model and endpoint |
-| `/memory` | Display scratchpad contents |
-| `/tools` | List all available tools |
+| `/clear` | Clear this chat |
+| `/model` | Show the model and endpoint this chat uses |
+| `/model <name>` | Use `<name>` for this chat only; `/model default` returns to Settings |
+| `/memory` | Display the project scratchpad (project files and the project chat) |
+| `/tools` | List the tools this chat has |
 | `/log` | Show the performance log path, whether it is on, and the last entries |
 
 ## Timestamps, timing and the performance log
@@ -159,7 +169,6 @@ Turn the switch off and nothing is written. "Open Log Folder" and "Clear Log" ar
 
 ## Safety Features
 
-- **Timeout**: 60-second timeout per LLM API call
 - **Max iterations**: Tool-calling loop limited to 10 rounds
 - **Stop button**: Send button becomes a red "Stop" button during execution
 - **Backend proxy**: API keys never exposed to the webview

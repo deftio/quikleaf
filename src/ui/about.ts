@@ -97,7 +97,8 @@ function howItWorksTab(): Taco {
       ]),
       ...section("The chat loop (QD)", [
         "Your message, the conversation, a system prompt and the tool schemas go to the backend, which streams the model's reply back as events.",
-        "The model works on raw markdown only — it never sees rendered HTML. It can read, replace, insert, undo and redo the document, keep a scratchpad and key-value notes, and in project mode read and write files under the project root.",
+        "Every tab has its own chat, sealed to its document: the model sees that document and the conversation, nothing else, and its tools can change only that document. The project chat (View → Project Chat) is the one place that works across files, by path, under the project root.",
+        "The model works on raw markdown only — it never sees rendered HTML. A document chat can read, replace, insert, undo and redo its document; the project chat can read, write, list and search files; chats of project files share the project's scratchpad and key-value notes.",
         "When the model asks for tools, quikleaf runs them locally, appends the results, and calls the model again — up to ten rounds — with a Stop button at every step.",
         "Works with any OpenAI-compatible server (Ollama, LM Studio, Docker Model Runner, OpenRouter, Groq) or Anthropic. Local servers are auto-detected on first launch.",
       ]),
@@ -106,7 +107,7 @@ function howItWorksTab(): Taco {
         "When \"Write performance log\" is on, the same numbers are appended as JSON lines to a file in the OS log folder (path in the Diagnostics tab). Turn it off and nothing is written.",
       ]),
       ...section("Project mode and privacy", [
-        "quikleaf --project ./dir opens a folder: a file tree, project-scoped file tools, and a quikleaf.prj file that persists the open file, scratchpad and key-value store.",
+        "quikleaf --project ./dir opens a folder: a file tree, the project chat, and a quikleaf.prj file that persists the open tabs, each project file's chat and pane layout, the scratchpad and the key-value store.",
         "API keys live in the webview's local storage and are only ever sent by the backend proxy to the host you configured. Nothing is uploaded anywhere else.",
       ]),
     ],

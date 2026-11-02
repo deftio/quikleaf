@@ -5,10 +5,11 @@ Project mode gives quikleaf folder-level awareness with a file tree sidebar, pro
 ## Launching
 
 ```bash
-quikleaf --project ./mydir
+quikleaf --project ./mydir               # a folder
+quikleaf --project ./mydir/quikleaf.prj  # or the project file itself
 ```
 
-This creates (or loads) a `quikleaf.prj` file in the specified directory.
+This creates (or loads) a `quikleaf.prj` file in the specified directory. The file is rewritten a few hundred milliseconds after every change to the open tabs, the active file, the scratchpad or the key-value store, and flushed when the window closes. On the next launch every project tab is reopened and the active one focused.
 
 ## Features
 
@@ -23,46 +24,67 @@ A collapsible sidebar shows the project's directory structure:
 - Toggle visibility with the "Files" toggle button in the title bar (it stays highlighted while the tree is shown)
 - Cmd/Ctrl+S saves the open file back through the project-scoped file tools
 
-### File Tools for QD
+### The Project Chat
 
-In project mode, QD gains four additional tools:
+Each document tab's chat sees only its own document. Cross-file work happens in the **project chat**: View → Project Chat opens a "Project" tab with no editor, just a chat whose tools work on files under the project root by path:
 
 | Tool | Description |
 |------|-------------|
 | `file_read` | Read any file in the project |
-| `file_write` | Create or update files |
+| `file_write` | Create or update a file (always by path; there is no "current document" in this chat) |
 | `file_list` | List directory contents |
 | `file_stat` | Get file size and modification time |
-| `project_search` | Find text across the project (skips `.git`, `node_modules`, `target`, `dist`, dotdirs) |
+| `project_search` | Find text across the project (skips `.git`, `node_modules`, `target`, `dist`, `.venv`, `__pycache__`, dotdirs) |
+| `tabs_list` | Which project files are open in tabs (files from outside the root are not listed) |
 | `tab_open` | Open a project file in an editor tab |
 
 Project file writes made by QD are shown as a diff card and wait for Accept / Reject by default (Settings > Agent).
 
-All paths are relative to the project root. Path traversal outside the project root is blocked.
+All paths are relative to the project root. Path traversal outside the project root is blocked. A document chat that asks for a file tool gets an error naming its own document; this is enforced at dispatch, not by the prompt.
 
 ### Persistent Memory
 
-The scratchpad (`/memory` slash command) persists across sessions in the `quikleaf.prj` file. QD can use this to remember context between conversations.
+The scratchpad (`/memory` slash command) persists across sessions in the `quikleaf.prj` file. It is the project's: the project chat and the chats of files under the root share it, so QD can carry context between those conversations. A file opened from outside the root does not get the memory tools.
 
 ### Key-Value Store
 
-Named key-value pairs persist in `quikleaf.prj`. Useful for QD to track structured data like preferences, project metadata, or task lists.
+Named key-value pairs persist in `quikleaf.prj`, with the same scope as the scratchpad. Useful for QD to track structured data like preferences, project metadata, or task lists.
+
+### Chats are saved with the project
+
+Every project file's chat (the visible transcript, that chat's model override and the tab's pane layout) and the project chat are written to `quikleaf.prj` and restored when the file is reopened on the next launch. Untitled documents and files outside the root are not saved.
 
 ## Project File Format
 
-`quikleaf.prj` is a JSON file:
+`quikleaf.prj` is a JSON file with camelCase keys (written by the Rust backend):
 
 ```json
 {
-  "project_root": "/absolute/path/to/dir",
-  "open_file": "docs/readme.md",
+  "version": 1,
+  "projectRoot": "/absolute/path/to/dir",
+  "openFile": "docs/readme.md",
+  "openTabs": ["readme.md", "docs/readme.md"],
+  "chatHistory": {
+    "version": 1,
+    "tabs": {
+      "docs/readme.md": {
+        "transcript": [{ "role": "user", "text": "tighten the intro" }, { "role": "assistant", "text": "Done — QD" }],
+        "model": null,
+        "view": { "chat": true, "info": false, "mode": "split" }
+      }
+    },
+    "project": null
+  },
   "memory": "User prefers concise responses.",
   "kv": {
-    "project_name": "My Project",
-    "last_task": "Refactored auth module"
-  }
+    "project_name": { "value": "My Project", "created": "2026-11-01T18:00:00Z", "modified": "2026-11-01T18:00:00Z" }
+  },
+  "log": [],
+  "preferences": {}
 }
 ```
+
+`chatHistory` holds each open project file's chat by path and the project chat (see `agents.md` for the fields). `log` and `preferences` are reserved for later and written empty. quikleaf owns the file while it is running; edit it by hand only when the app is closed (see `agents.md`).
 
 ## Simple Mode vs Project Mode
 
@@ -70,7 +92,8 @@ Named key-value pairs persist in `quikleaf.prj`. Useful for QD to track structur
 |---------|------------|--------------|
 | File editing | Single file | Any file in project |
 | File tree sidebar | No | Yes |
-| File tools for QD | No | Yes |
-| Memory persistence | Session only | Saved to quikleaf.prj |
-| KV store | Session only | Saved to quikleaf.prj |
+| Document chat per tab | Yes | Yes |
+| Project chat (file tools) | No | Yes (View → Project Chat) |
+| Scratchpad and KV store | Not offered | Project files and the project chat; saved to quikleaf.prj |
+| Chats saved | No | Project files' chats and the project chat, in quikleaf.prj |
 | CLI | `quikleaf file.md` | `quikleaf --project ./dir` |

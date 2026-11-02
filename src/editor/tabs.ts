@@ -13,11 +13,35 @@
  */
 import bw from "bitwrench";
 
+/**
+ * What a tab is: a markdown document, or the project chat — a tab with no
+ * document whose chat sees the project root instead of one file.
+ */
+export type TabKind = "document" | "project";
+
+export type EditorMode = "source" | "split" | "preview";
+
+/**
+ * The panes a tab shows: `[chat | quikdown view | info]`. Each tab remembers
+ * its own layout; a new tab inherits the active tab's layout at creation.
+ */
+export interface TabView {
+  chat: boolean;
+  info: boolean;
+  mode: EditorMode;
+}
+
+export const DEFAULT_VIEW: TabView = { chat: false, info: false, mode: "split" };
+
+/** The single project chat tab's id; there is at most one such tab. */
+export const PROJECT_TAB_ID = "tab-project";
+
 export interface Tab {
   id: string;
-  /** Absolute path, project-relative path, or null for an unsaved document. */
+  kind: TabKind;
+  /** Absolute path, project-relative path, or null for an unsaved document (and the project tab). */
   path: string | null;
-  /** File name (or "Untitled", "Untitled 2", …). */
+  /** File name (or "Untitled", "Untitled 2", …; "Project" for the project tab). */
   title: string;
   /** Current markdown — the editor's text when active, the parked text otherwise. */
   content: string;
@@ -25,6 +49,8 @@ export interface Tab {
   dirty: boolean;
   /** True when `path` is relative to the project root (saved via `file_write`). */
   projectRelative: boolean;
+  /** Which panes this tab shows and the editor's mode. */
+  view: TabView;
 }
 
 export interface TabsSnapshot {
@@ -45,7 +71,13 @@ let seq = 0;
 
 function pub(rec: TabRecord): Tab {
   const { saved: _saved, ...tab } = rec;
-  return tab;
+  return { ...tab, view: { ...rec.view } };
+}
+
+/** The layout a new tab starts with: the active tab's, or the default. */
+function inheritView(): TabView {
+  const active = activeId ? find(activeId) : undefined;
+  return active ? { ...active.view } : { ...DEFAULT_VIEW };
 }
 
 function find(id: string): TabRecord | undefined {
@@ -105,12 +137,14 @@ export function openTab(path: string, content: string, opts: { projectRelative?:
   } else {
     rec = {
       id: `tab-${++seq}`,
+      kind: "document",
       path,
       title: fileName(path),
       content,
       saved: content,
       dirty: false,
       projectRelative,
+      view: inheritView(),
     };
     records.push(rec);
   }
@@ -123,16 +157,55 @@ export function openTab(path: string, content: string, opts: { projectRelative?:
 export function newUntitledTab(content = ""): Tab {
   const rec: TabRecord = {
     id: `tab-${++seq}`,
+    kind: "document",
     path: null,
     title: nextUntitledTitle(),
     content,
     saved: content,
     dirty: false,
     projectRelative: false,
+    view: inheritView(),
   };
   records.push(rec);
   activeId = rec.id;
   notify();
+  return pub(rec);
+}
+
+/**
+ * Open (or focus) the project chat tab. It has no document: its chat pane is
+ * always shown and its info pane describes the project. Only one exists.
+ */
+export function openProjectTab(): Tab {
+  let rec = find(PROJECT_TAB_ID);
+  if (!rec) {
+    rec = {
+      id: PROJECT_TAB_ID,
+      kind: "project",
+      path: null,
+      title: "Project",
+      content: "",
+      saved: "",
+      dirty: false,
+      projectRelative: false,
+      view: { ...inheritView(), chat: true },
+    };
+    records.push(rec);
+  }
+  activeId = rec.id;
+  notify();
+  return pub(rec);
+}
+
+/** Change which panes a tab shows (or its editor mode). Notifies only when something changed. */
+export function setView(id: string, patch: Partial<TabView>): Tab | null {
+  const rec = find(id);
+  if (!rec) return null;
+  const next = { ...rec.view, ...patch };
+  if (rec.kind === "project") next.chat = true; // the project tab is its chat
+  const changed = next.chat !== rec.view.chat || next.info !== rec.view.info || next.mode !== rec.view.mode;
+  rec.view = next;
+  if (changed) notify();
   return pub(rec);
 }
 

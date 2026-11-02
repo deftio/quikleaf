@@ -44,6 +44,9 @@ pub struct ProjectData {
     pub version: u32,
     pub project_root: String,
     pub open_file: Option<String>,
+    /// Project-relative paths of every open project tab, in tab order.
+    #[serde(default)]
+    pub open_tabs: Vec<String>,
     pub chat_history: serde_json::Value,
     pub memory: String,
     pub kv: HashMap<String, KvEntry>,
@@ -357,6 +360,7 @@ pub async fn project_load(
 pub async fn project_save(
     state: State<'_, ProjectState>,
     open_file: Option<String>,
+    #[allow(unused_mut)] mut open_tabs: Option<Vec<String>>,
     chat_history: serde_json::Value,
     preferences: serde_json::Value,
 ) -> Result<(), String> {
@@ -380,6 +384,7 @@ pub async fn project_save(
         version: 1,
         project_root: root,
         open_file,
+        open_tabs: open_tabs.take().unwrap_or_default(),
         chat_history,
         memory: mem_lock.clone(),
         kv: kv_lock.clone(),
@@ -1056,6 +1061,7 @@ mod tests {
             version: 1,
             project_root: tmp.path().to_string_lossy().to_string(),
             open_file: Some("readme.md".to_string()),
+            open_tabs: vec!["readme.md".to_string(), "docs/guide.md".to_string()],
             chat_history: serde_json::json!([]),
             memory: "saved memory".to_string(),
             kv: state.kv.lock().unwrap().clone(),

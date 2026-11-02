@@ -3,29 +3,33 @@ import { invoke } from "@tauri-apps/api/core";
 import "./ui/theme"; // generates and injects all CSS at import
 import { setDarkMode } from "./ui/theme";
 import { el } from "./ui/taco";
-import { initMenus, makeMain, makeStatusbar, makeTitlebar, setChatDisplay, setStatusFile, setToggleState, toggleChatPanel } from "./ui/shell";
+import { initMenus, makeMain, makeStatusbar, makeTitlebar, setChatDisplay, setStatusFile, setToggleState } from "./ui/shell";
 import { initTabBar, makeTabBar } from "./ui/tabbar";
+import { activeEditorMode, handlePanesKeydown, initPanes, isChatPaneOpen, isInfoPaneOpen, setActiveEditorMode, toggleChatPane, toggleInfoPane } from "./ui/panes";
+import { initInfoPane, makeInfoPanel, setInfoProjectRoot } from "./ui/infopane";
 import { initAbout, installCli } from "./ui/about";
 import { initStats } from "./ui/stats";
-import { handleOutlineKeydown, initOutline, makeOutlinePanel, toggleOutline } from "./ui/outline";
+import { handleOutlineKeydown, initOutline, isOutlineVisible, makeOutlinePanel, toggleOutline } from "./ui/outline";
 import { handleFindKeydown, initFindBar, makeFindBar, openFind } from "./ui/findbar";
 import { handleFocusKeydown, makeFocusExitPill, toggleFocusMode } from "./ui/focus";
 import { exportHtml, printDocument } from "./editor/export";
 import { initEditor } from "./editor/editor";
-import {
+import { listTabs,
   closeDocument,
   handleKeydown,
   initDocuments,
   newDocument,
   openFileDialog,
   openPath,
+  openProjectChat,
   saveActiveDocument,
   setDocumentsProjectMode,
   showTab,
 } from "./editor/documents";
 import { chatDisplayOf, initSettingsUI, loadSettings, openSettings } from "./settings/settings";
 import { logEvent } from "./diag/perf";
-import { initChat, makeChatPanel, setProjectMode } from "./chat/chat-ui";
+import { initChat, makeChatPanel } from "./chat/chat-ui";
+import { exportChatHistory, importChatHistory } from "./chat/session";
 import {
   hideFileTree,
   highlightFile,
@@ -35,6 +39,7 @@ import {
   setOnFileClick,
   showFileTree,
 } from "./project/file-tree";
+import { flushProjectSaveOnUnload, initProjectPersistence, saveProjectNow } from "./project/persist";
 
 import { activeTab } from "./editor/tabs";
 
@@ -65,9 +70,12 @@ bw.mount("#app", [
     onOpen: () => openFileDialog(),
     onSave: () => saveActiveDocument(),
     onCloseTab: () => closeDocument(),
-    onToggleChat: () => toggleChatPanel(),
+    onToggleChat: () => toggleChatPane(),
+    onToggleInfo: () => toggleInfoPane(),
     onToggleFiles: () => toggleFiles(),
     onToggleOutline: () => toggleOutline(),
+    onProjectChat: () => openProjectChat(),
+    onEditorMode: (mode) => setActiveEditorMode(mode),
     onFocusMode: () => toggleFocusMode(),
     onFind: () => openFind(),
     onExportHtml: () => exportHtml(),
@@ -75,9 +83,18 @@ bw.mount("#app", [
     onSettings: () => openSettings(),
     onAbout: () => openAbout(),
     onInstallCli: () => installCli(),
+    state: {
+      chat: isChatPaneOpen,
+      info: isInfoPaneOpen,
+      files: isFileTreeVisible,
+      outline: isOutlineVisible,
+      editorMode: activeEditorMode,
+    },
   }),
+  // Window-wide panels on the left; the chat and info panes live inside the
+  // tab column, because they belong to the tab: [chat | quikdown view | info].
   makeMain(
-    [makeFileTreePanel(), makeOutlinePanel(), makeChatPanel()],
+    [makeFileTreePanel(), makeOutlinePanel()],
     [
       makeTabBar({
         onSelect: (id) => showTab(id),
@@ -86,6 +103,7 @@ bw.mount("#app", [
       }),
       makeFindBar(),
     ],
+    { left: [makeChatPanel()], right: [makeInfoPanel()] },
   ),
   makeStatusbar(),
   makeFocusExitPill(),
@@ -99,6 +117,8 @@ initOutline();
 initFindBar();
 initSettingsUI();
 initChat();
+initInfoPane();
+initPanes();
 setChatDisplay(chatDisplayOf(loadSettings()));
 openAbout = initAbout();
 setOnFileClick((path) => loadFileIntoEditor(path));
@@ -121,14 +141,30 @@ function initDarkMode() {
 
 // --- Keyboard shortcuts ---
 // Documents first (new/open/save/close/cycle tabs), then find (Cmd+F/H, Esc),
-// outline (Cmd+Shift+O), focus mode (Cmd+Shift+D, Esc) and print (Cmd+P).
+// outline (Cmd+Shift+O), panes (Cmd+Shift+C chat, Cmd+Shift+I info), focus
+// mode (Cmd+Shift+D, Esc) and print (Cmd+P).
 document.addEventListener("keydown", (e) => {
-  if (handleKeydown(e) || handleFindKeydown(e) || handleOutlineKeydown(e) || handleFocusKeydown(e)) return;
+  if (handleKeydown(e) || handleFindKeydown(e) || handleOutlineKeydown(e) || handlePanesKeydown(e) || handleFocusKeydown(e)) return;
   if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "p") {
     e.preventDefault();
     printDocument();
   }
 });
+
+/** The project-relative path of the active tab, for quikleaf.prj. */
+function projectOpenFile(): string | null {
+  const t = activeTab();
+  return t?.projectRelative && t.path ? t.path : null;
+}
+
+/** Every open project tab's path, in tab order (untitled and outside-project tabs are not persisted). */
+function projectOpenTabs(): string[] {
+  return listTabs()
+    .filter((t) => t.projectRelative && t.path)
+    .map((t) => t.path as string);
+}
+
+const persistenceProviders = { openFile: projectOpenFile, openTabs: projectOpenTabs, chatHistory: exportChatHistory };
 
 // --- Startup ---
 async function init() {
@@ -142,24 +178,39 @@ async function init() {
       if (launchMode.file_path) await openPath(launchMode.file_path);
     } else if (launchMode.type === "Project") {
       setDocumentsProjectMode(true, launchMode.project_root);
-      setProjectMode(true);
+      setInfoProjectRoot(launchMode.project_root);
 
       if (launchMode.exists) {
-        const data = await invoke<any>("project_load", { path: launchMode.project_file });
-        if (data.open_file) {
-          // File may have been deleted; openPath logs and leaves the untitled tab.
-          await openPath(data.open_file, true);
-        }
+        // ProjectData is serialised camelCase by the Rust side.
+        const data = await invoke<{ openFile?: string | null; openTabs?: string[]; chatHistory?: unknown }>("project_load", {
+          path: launchMode.project_file,
+        });
+        initProjectPersistence(persistenceProviders);
+        // Reopen every remembered tab, then focus the one that was active.
+        // A deleted file is logged by openPath and skipped.
+        for (const p of data?.openTabs ?? []) await openPath(p, true);
+        if (data?.openFile) await openPath(data.openFile, true);
+        // The startup Untitled tab is noise once remembered files are open.
+        const restored = listTabs();
+        const blank = restored.find((t) => !t.path && !t.dirty);
+        if (blank && restored.length > 1) await closeDocument(blank.id);
+        // Each reopened file gets its chat (and pane layout) back; the project chat too.
+        importChatHistory(data?.chatHistory);
       } else {
         await invoke("project_init", {
           root: launchMode.project_root,
           file: launchMode.project_file,
         });
+        initProjectPersistence(persistenceProviders);
+        await saveProjectNow(); // create quikleaf.prj right away
       }
+      flushProjectSaveOnUnload();
 
       showFileTree();
       await loadTree();
       bw.removeClass("btn-toggle-files", "hidden");
+      bw.removeClass("btn-toggle-files-menu", "hidden");
+      bw.removeClass("btn-project-chat", "hidden");
       setToggleState("btn-toggle-files", true);
       // The tree did not exist when the remembered file was opened; sync its highlight now.
       const active = activeTab();

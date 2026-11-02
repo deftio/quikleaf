@@ -7,17 +7,17 @@
 quikleaf is a native desktop application built with Tauri v2 (Rust backend + webview frontend) and powered by quikdown for markdown rendering. It provides:
 
 - Rich markdown editing with live preview
-- Built-in LLM chat assistant ("QD") with tool calling, reviewable edits and a plan card
+- Built-in LLM chat assistant ("QD"): one sealed chat per document tab (sees and edits only that document), plus a project chat for cross-file work by path; reviewable edits, plan card, per-chat model
 - Multiple documents in tabs (Cmd/Ctrl+N, Cmd/Ctrl+W, Ctrl+Tab)
 - Writing tools: outline panel, find & replace (case / regex), word count and reading time, focus mode, Export HTML, Print / PDF
 - Support for Mermaid diagrams, LaTeX math, GeoJSON maps, 3D STL, CSV tables, Vega charts, ABC music notation, SVG
-- Project mode with file tree, persistent memory, and key-value store
-- Auto-detection of local LLM servers (Ollama, LM Studio)
+- Project mode with file tree, the project chat, and a scratchpad + key-value store saved to `quikleaf.prj` along with each project file's chat and pane layout
+- Auto-detection of local LLM servers (Ollama, LM Studio, Docker Model Runner)
 - Support for OpenAI-compatible APIs (Ollama, LM Studio, Docker Model Runner, OpenRouter, Groq) and Anthropic Claude, with presets in Settings
 
 ## Install options
 
-- Pre-built installers (.dmg, .msi/.exe, .deb/.AppImage) from https://github.com/deftio/quikleaf/releases, built automatically for every tagged release from v1.1.0 on.
+- Pre-built installers (.dmg, .msi/.exe, .deb/.rpm/.AppImage, portable .tar.gz/.zip) from https://github.com/deftio/quikleaf/releases, built automatically for every tagged release from v1.1.0 on.
 - npm: `npm install -g quikleaf` (or `npx quikleaf file.md`) — a launcher that pulls the platform binary from `@deftio/quikleaf-<platform>` or the GitHub release.
 - Build from source: `npm install && npm run setup && npm run tauri:build` (Node 18+, Rust stable, platform webkit deps).
 - From the installed macOS app: Help → Install Command Line Tool writes a `quikleaf` shim so `quikleaf file.md` and `quikleaf --project ./dir` work from a terminal.
@@ -27,7 +27,8 @@ quikleaf is a native desktop application built with Tauri v2 (Rust backend + web
 - Backend: Rust (Tauri v2) — handles file I/O, CLI parsing, LLM API proxying
 - Frontend: TypeScript (Vite) — runs in Tauri's webview; UI built with bitwrench.js TACO objects (src/ui/)
 - Rendering: quikdown standalone bundle (~8 MB) with all fence renderers included
-- LLM: Tool-calling loop with 26 tools (document, tabs, plan, memory, KV, project files, project search); optional review of edits as diff cards (Settings > Agent); a plan card for multi-step work
+- LLM: Tool-calling loop; tools are scoped per chat (document chat: 8 document + 2 plan tools, +8 memory/KV for project files; project chat: 5 file, project_search, tabs_list, tab_open, 2 plan, 8 memory/KV); optional review of edits as diff cards (Settings > Agent); a plan card for multi-step work
+- Layout: each tab shows [chat | quikdown view | info]; panes and editor mode are remembered per tab
 
 ## Key Files
 
@@ -41,24 +42,26 @@ quikleaf is a native desktop application built with Tauri v2 (Rust backend + web
 - src/ui/findbar.ts, src/ui/outline.ts, src/ui/focus.ts — find & replace, outline panel, focus mode
 - src/diag/perf.ts — Timing math and performance-log client
 - src-tauri/src/commands/diag.rs — Performance log file + CLI shim installer
-- src/chat/chat-ui.ts — Chat panel, tool dispatch, slash commands
+- src/chat/chat-ui.ts — Chat pane, scoped tool dispatch, slash commands
+- src/chat/session.ts — One chat session per tab (scope, transcript, model, log); quikleaf.prj chat history
+- src/ui/panes.ts, src/ui/infopane.ts — Per-tab pane layout and the info pane
 - src/chat/providers.ts — LLM provider adapters (OpenAI, Anthropic)
 - src/editor/editor.ts — quikdown editor wrapper
 - src/settings/settings.ts — LLM configuration UI
-- src/main.ts — App initialization, file operations
+- src/project/persist.ts — Debounced quikleaf.prj writer (project_save)
+- src/main.ts — Mounts the shell, wires modules, launch mode (file or project)
 
 ## LLM Integration Details
 
-The LLM operates on raw markdown only — it never sees or produces HTML. API calls are proxied through the Rust backend to avoid CORS and protect API keys. The tool-calling loop has a 60-second timeout per call and supports abort via stop button.
+The LLM operates on raw markdown only — it never sees or produces HTML. API calls are proxied through the Rust backend to avoid CORS and protect API keys. The tool-calling loop runs at most 10 rounds per turn and can be aborted with the Stop button; there is no per-call timeout.
 
-### Available Tools
+### Chat scopes and tools
 
-Document: document_read, document_write, document_replace, document_insert, document_undo, document_redo, document_get_selection, document_outline
-Tabs: tabs_list, tab_switch, tab_open (project mode)
-Plan: plan_set, plan_update
-Memory: memory_read, memory_write, memory_append, memory_clear
-Key-Value: kv_get, kv_set, kv_delete, kv_list
-File (project mode): file_read, file_write, file_list, file_stat, project_search
+Every tab has its own chat. A document chat is bound to one document: the model sees that document and the conversation only, and its tools can change only that document. Files from unrelated projects open side by side can never reach each other's chats. The project chat (View → Project Chat, project mode) is the only cross-file scope and works on files under the project root by path. The dispatcher enforces the scope: out-of-scope tools return an error.
+
+Document chat: document_read, document_write, document_replace, document_insert, document_undo, document_redo, document_get_selection, document_outline; plan_set, plan_update; memory_* and kv_* only when the document is a file under the project root
+Project chat: file_read, file_write, file_list, file_stat, project_search, tabs_list (project files only), tab_open; plan_set, plan_update; memory_read, memory_write, memory_append, memory_clear; kv_get, kv_set, kv_delete, kv_list
+Per-chat model: /model <name> (same host/provider as Settings), /model default; also the info pane picker
 
 Edit approval (Settings > Agent): "always" reviews every document and file edit, "files" (default) reviews project file writes only, "never" applies directly. Reviewed edits render as a diff card with Accept/Reject; a rejected tool returns {success:false, rejected:true} and the model is told to ask rather than retry.
 

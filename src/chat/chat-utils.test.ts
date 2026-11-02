@@ -9,40 +9,63 @@ import {
   buildAssistantToolCallMessage,
 } from "./chat-utils";
 
+const DOC = { scope: "document" as const, title: "notes.md", path: "notes.md", projectRelative: true, memory: true };
+const LOOSE_DOC = { scope: "document" as const, title: "Untitled", path: null, projectRelative: false, memory: false };
+const PROJECT = { scope: "project" as const, title: "Project", path: null, projectRelative: false, memory: true };
+
 describe("buildSystemPrompt", () => {
-  it("includes doc/memory/KV tools when not project mode", () => {
-    const prompt = buildSystemPrompt(false);
+  it("binds a document chat to its document and offers only document tools (plus memory for project files)", () => {
+    const prompt = buildSystemPrompt(DOC);
+    expect(prompt).toContain("bound to one document: **notes.md** (a file in the project)");
+    expect(prompt).toContain("only sees notes.md");
     expect(prompt).toContain("document_read");
     expect(prompt).toContain("document_outline");
     expect(prompt).toContain("plan_set");
     expect(prompt).toContain("plan_update");
-    expect(prompt).not.toContain("project_search");
     expect(prompt).toContain("memory_read");
     expect(prompt).toContain("kv_get");
+    expect(prompt).not.toContain("project_search");
     expect(prompt).not.toContain("file_read");
+    expect(prompt).not.toContain("tabs_list");
     expect(prompt).not.toContain("File tools");
   });
 
-  it("includes file tools section in project mode", () => {
-    const prompt = buildSystemPrompt(true);
+  it("leaves memory and KV out for a document outside any project", () => {
+    const prompt = buildSystemPrompt(LOOSE_DOC);
+    expect(prompt).toContain("**Untitled** (an unsaved document)");
+    expect(prompt).not.toContain("memory_read");
+    expect(prompt).not.toContain("kv_get");
+    expect(buildSystemPrompt({ ...LOOSE_DOC, path: "/tmp/x.md" })).toContain("(a file on disk)");
+  });
+
+  it("describes the project chat as path-based with file tools and no current document", () => {
+    const prompt = buildSystemPrompt(PROJECT);
+    expect(prompt).toContain("**project chat**");
+    expect(prompt).toContain('no "current document"');
     expect(prompt).toContain("file_read");
     expect(prompt).toContain("file_write");
     expect(prompt).toContain("file_list");
     expect(prompt).toContain("file_stat");
     expect(prompt).toContain("project_search");
+    expect(prompt).toContain("tabs_list");
+    expect(prompt).toContain("tab_open");
     expect(prompt).toContain("File tools");
+    expect(prompt).toContain("memory_read");
+    expect(prompt).not.toContain("document_read");
   });
 
   it("tells the model edits may be reviewed and not to retry a rejected one", () => {
-    const prompt = buildSystemPrompt(false);
-    expect(prompt).toContain("may be shown to the user for review");
-    expect(prompt).toContain('"rejected": true');
-    expect(prompt).toMatch(/do not retry/);
+    for (const ctx of [DOC, PROJECT]) {
+      const prompt = buildSystemPrompt(ctx);
+      expect(prompt).toContain("may be shown to the user for review");
+      expect(prompt).toContain('"rejected": true');
+      expect(prompt).toMatch(/do not retry/);
+    }
   });
 
   it("always includes the sign-off instruction", () => {
-    expect(buildSystemPrompt(false)).toContain("Sign off briefly as QD");
-    expect(buildSystemPrompt(true)).toContain("Sign off briefly as QD");
+    expect(buildSystemPrompt(DOC)).toContain("Sign off briefly as QD");
+    expect(buildSystemPrompt(PROJECT)).toContain("Sign off briefly as QD");
   });
 });
 
@@ -66,35 +89,50 @@ describe("toAnthropicTool", () => {
 });
 
 describe("getTools", () => {
-  it("returns 18 tools in OpenAI format without project mode", () => {
-    const tools = getTools("openai-compatible", false);
-    expect(tools.length).toBe(20);
-    const names = tools.map((t: any) => t.function.name);
-    expect(names).toContain("document_outline");
-    expect(names).toContain("plan_set");
-    expect(names).toContain("plan_update");
-    expect(names).not.toContain("project_search");
+  const names = (tools: any[]) => tools.map((t: any) => t.function?.name ?? t.name);
+
+  it("gives a project-file document chat 18 tools: document, plan, memory and KV", () => {
+    const tools = getTools("openai-compatible", { scope: "document", memory: true });
+    expect(tools.length).toBe(18);
+    const n = names(tools);
+    expect(n).toContain("document_outline");
+    expect(n).toContain("plan_set");
+    expect(n).toContain("plan_update");
+    expect(n).toContain("memory_read");
+    expect(n).toContain("kv_list");
+    expect(n).not.toContain("project_search");
+    expect(n).not.toContain("file_read");
+    expect(n).not.toContain("tabs_list");
+    expect(n).not.toContain("tab_open");
+    expect(n).not.toContain("tab_switch");
     expect(tools[0].type).toBe("function");
     expect(tools[0].function.name).toBe("document_read");
   });
 
-  it("returns 23 tools with project mode (adds file tools and project_search)", () => {
-    const tools = getTools("openai-compatible", true);
-    expect(tools.length).toBe(26);
-    const names = tools.map((t: any) => t.function.name);
-    expect(names).toContain("file_read");
-    expect(names).toContain("file_write");
-    expect(names).toContain("file_list");
-    expect(names).toContain("file_stat");
-    expect(names).toContain("project_search");
+  it("gives a document outside the project 10 tools: no memory or KV", () => {
+    const tools = getTools("openai-compatible", { scope: "document", memory: false });
+    expect(tools.length).toBe(10);
+    expect(names(tools)).not.toContain("memory_read");
+    expect(names(tools)).not.toContain("kv_get");
+  });
+
+  it("gives the project chat 17 tools: files, search, tabs, plan, memory and KV, but no document tools", () => {
+    const tools = getTools("openai-compatible", { scope: "project", memory: true });
+    expect(tools.length).toBe(17);
+    const n = names(tools);
+    for (const t of ["file_read", "file_write", "file_list", "file_stat", "project_search", "tabs_list", "tab_open", "plan_set", "memory_read", "kv_set"]) {
+      expect(n).toContain(t);
+    }
+    expect(n).not.toContain("document_read");
+    expect(n).not.toContain("document_write");
     const search = tools.find((t: any) => t.function.name === "project_search");
     expect(search.function.parameters.required).toEqual(["query"]);
     expect(Object.keys(search.function.parameters.properties)).toEqual(["query", "path", "regex", "max_results"]);
   });
 
   it("returns Anthropic-formatted tools", () => {
-    const tools = getTools("anthropic", false);
-    expect(tools.length).toBe(20);
+    const tools = getTools("anthropic", { scope: "document", memory: false });
+    expect(tools.length).toBe(10);
     expect(tools[0].name).toBe("document_read");
     expect(tools[0].input_schema).toBeDefined();
     expect(tools[0].function).toBeUndefined();

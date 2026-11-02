@@ -1,12 +1,16 @@
 /**
- * The agent's plan card: one `.chat-msg.plan` (`#plan-card`) placed in the
- * chat log where `plan_set` was first called and updated in place by
- * `plan_update`. Pure state lives in `getPlan()`; rendering is TACO patched
- * with `bw.patch`.
+ * The agent's plan card: one `.chat-msg.plan` (`#plan-card`) placed in a
+ * chat's log where `plan_set` was first called and updated in place by
+ * `plan_update`.
+ *
+ * Plans belong to a chat, so every function takes a `PlanHost` — the chat
+ * session (`session.ts`) satisfies it — holding the plan, its card element
+ * and the log the card is rendered into. The card is kept as an element
+ * reference, not looked up by id: a background chat's log is detached from
+ * the document, so `getElementById` would not find it.
  */
 import bw from "bitwrench";
 import type { Taco } from "bitwrench";
-import { el } from "../ui/taco";
 
 export type StepStatus = "pending" | "active" | "done" | "skipped";
 
@@ -27,17 +31,30 @@ export const STEP_GLYPH: Record<StepStatus, string> = { pending: "○", active: 
 const CARD_ID = "plan-card";
 const MAX_STEPS = 50;
 
-let plan: Plan | null = null;
+/** Where a plan lives: the chat that set it. */
+export interface PlanHost {
+  plan: Plan | null;
+  planCard: HTMLElement | null;
+  log: HTMLElement;
+}
 
-export function getPlan(): Plan | null {
+/** A standalone host (tests, or a chat log mounted without a session). */
+export function makePlanHost(log: HTMLElement): PlanHost {
+  return { plan: null, planCard: null, log };
+}
+
+export function getPlan(host: PlanHost): Plan | null {
+  const plan = host.plan;
   return plan ? { title: plan.title, steps: plan.steps.map((s) => ({ ...s })) } : null;
 }
 
 /** Forget the plan and remove its card if one is mounted. */
-export function resetPlan(): void {
-  plan = null;
-  const card = el(CARD_ID);
-  if (card) bw.remove(card);
+export function resetPlan(host: PlanHost): void {
+  host.plan = null;
+  if (host.planCard) {
+    bw.remove(host.planCard);
+    host.planCard = null;
+  }
 }
 
 function stepTaco(step: PlanStep, i: number): Taco {
@@ -68,21 +85,18 @@ function contentTaco(p: Plan): Taco[] {
   ];
 }
 
-/** Create the card at the end of the log, or patch the existing one in place. */
-function render(p: Plan): void {
-  const existing = el(CARD_ID);
-  if (existing) {
-    bw.patch(existing, contentTaco(p));
+/** Create the card at the end of the host's log, or patch the existing one in place. */
+function render(host: PlanHost, p: Plan): void {
+  if (host.planCard && host.planCard.isConnected !== false && host.planCard.parentNode) {
+    bw.patch(host.planCard, contentTaco(p));
     return;
   }
-  const log = el("chat-messages");
-  if (!log) return;
-  bw.append(log, { t: "div", a: { id: CARD_ID, class: "chat-msg plan" }, c: contentTaco(p) });
-  log.scrollTop = log.scrollHeight;
+  host.planCard = bw.append(host.log, { t: "div", a: { id: CARD_ID, class: "chat-msg plan" }, c: contentTaco(p) });
+  host.log.scrollTop = host.log.scrollHeight;
 }
 
 /** `plan_set` tool: replace the plan (title optional) and render it. */
-export function planSet(args: { title?: unknown; steps?: unknown }): string {
+export function planSet(args: { title?: unknown; steps?: unknown }, host: PlanHost): string {
   const raw = Array.isArray(args?.steps) ? args.steps : null;
   if (!raw || raw.length === 0) return JSON.stringify({ error: "plan_set needs a non-empty steps array" });
   const steps: PlanStep[] = raw
@@ -92,13 +106,14 @@ export function planSet(args: { title?: unknown; steps?: unknown }): string {
     .map((text) => ({ text, status: "pending" as StepStatus }));
   if (steps.length === 0) return JSON.stringify({ error: "plan_set needs at least one non-empty step" });
   const title = typeof args.title === "string" && args.title.trim() ? args.title.trim() : "Plan";
-  plan = { title, steps };
-  render(plan);
+  host.plan = { title, steps };
+  render(host, host.plan);
   return JSON.stringify({ success: true, title, steps: steps.length });
 }
 
 /** `plan_update` tool: change one step's status (and optional note). */
-export function planUpdate(args: { index?: unknown; status?: unknown; note?: unknown }): string {
+export function planUpdate(args: { index?: unknown; status?: unknown; note?: unknown }, host: PlanHost): string {
+  const plan = host.plan;
   if (!plan) return JSON.stringify({ error: "No plan set. Call plan_set first." });
   const index = typeof args?.index === "number" ? args.index : Number(args?.index);
   if (!Number.isInteger(index) || index < 0 || index >= plan.steps.length) {
@@ -115,6 +130,6 @@ export function planUpdate(args: { index?: unknown; status?: unknown; note?: unk
     if (note) step.note = note;
     else delete step.note;
   }
-  render(plan);
+  render(host, plan);
   return JSON.stringify({ success: true, index, step: { ...step }, progress: progress(plan) });
 }

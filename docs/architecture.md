@@ -48,13 +48,13 @@ Located in `src-tauri/src/`. Commands are in `src-tauri/src/commands/`.
 
 ### State Management
 
-- `LaunchInfo` — CLI-parsed file path, shared to webview via managed state
+- `LaunchInfo` — wraps the CLI-parsed `LaunchMode`, shared to the webview via managed state
 - `LaunchMode` — enum: `Simple { file_path }` or `Project { project_root, project_file, exists }`
 - `ProjectState` — Mutex-wrapped project data (root, open file, memory, KV store)
 
 ### LLM Proxy
 
-The `llm_chat` command accepts the full request body and proxies it to the configured LLM endpoint. This avoids CORS issues and keeps API keys server-side. Streaming is handled via chunked HTTP responses.
+The `llm_chat_stream` command accepts the full request body, proxies it to the configured LLM endpoint, reads the SSE response and emits one Tauri event per chunk back to the webview (`llm_chat` is the non-streaming form, used for model listing). This avoids CORS issues and keeps API keys server-side.
 
 ## Frontend (TypeScript)
 
@@ -64,23 +64,27 @@ Located in `src/`. Built with Vite, runs in Tauri's webview. `index.html` is an 
 |--------|---------|
 | `main.ts` | Mounts the shell, file operations, project mode detection, keyboard shortcuts |
 | `ui/theme.ts` | Two bitwrench themes (`bw.loadStyles()` light, and dark scoped under `.dark`) plus app CSS written with `bw.css()` over CSS custom properties |
-| `ui/shell.ts` | Title bar, File/Help menus, main row, status bar as TACO |
+| `ui/shell.ts` | Title bar, File/View/Help menus, main row, status bar as TACO |
 | `ui/about.ts` | About dialog (`bw.makeModal`) with system-browser links |
 | `ui/taco.ts` | Helpers: `withAttrs()` to add ids to factory output, typed `makeModal()`, element lookups |
 | `ui/toast.ts` | Notifications via `bw.makeToast` in a lazily created container |
 | `ui/tabbar.ts` | Editor tab bar (`bw.syncChildren` keyed by tab id) |
 | `ui/outline.ts`, `ui/findbar.ts`, `ui/focus.ts`, `ui/stats.ts` | Outline panel, find & replace bar, focus mode, status-bar word count |
-| `editor/tabs.ts` | Pure tab model; publishes `tabs:changed` |
+| `ui/panes.ts` | Per-tab pane layout `[chat \| quikdown view \| info]`: applies the active tab's `view` to the DOM, toggles write back to the tab, keeps quikdown's mode in step |
+| `ui/infopane.ts` | Info pane: document facts (location, words, chars, lines, reading time, headings) and chat facts (scope, turns, tool calls, provider, per-chat model picker, Clear) |
+| `editor/tabs.ts` | Pure tab model (document tabs and the single project tab, each with a `view`); publishes `tabs:changed` |
 | `editor/documents.ts` | Session controller: binds tabs to the single quikdown instance, open/save/close, unsaved prompts, shortcuts |
 | `editor/find.ts`, `editor/outline.ts`, `editor/stats.ts`, `editor/export.ts` | Pure logic for find/replace, heading parsing, document stats, standalone HTML export and print |
 | `chat/diff.ts`, `chat/review.ts`, `chat/plan.ts`, `chat/outline.ts` | Line diff, Accept/Reject review cards, plan card, heading tool |
 | `diag/perf.ts` | Stopwatch, time-to-first-token / tok/s math, formatting, `logEvent()` client for the performance log |
 | `editor/editor.ts` | quikdown editor wrapper with undo/redo/insert/selection exports |
-| `chat/chat-ui.ts` | Chat panel TACO, streaming bubbles via `bw.append`/`bw.patch`, tool dispatch loop, slash commands |
+| `chat/session.ts` | One chat session per tab: scope (document / project), provider-format history, visible transcript, plan, model override, stats, and the chat's own log element; `exportChatHistory` / `importChatHistory` for `quikleaf.prj` |
+| `chat/chat-ui.ts` | Chat pane TACO: mounts the active tab's session log, header naming the target, streaming bubbles via `bw.append`/`bw.patch`, scoped tool dispatch loop, slash commands |
 | `chat/chat-utils.ts` | System prompt, tool schemas, provider-neutral message shaping |
 | `chat/providers.ts` | Provider adapters — translates between internal format and OpenAI/Anthropic APIs |
 | `settings/settings.ts` | LLM settings dialog (bitwrench modal + form controls), localStorage, auto-detect |
 | `project/file-tree.ts` | File tree sidebar for project mode |
+| `project/persist.ts` | Debounced `project_save` so `quikleaf.prj` follows the open file, open tabs, chat history, scratchpad and KV store |
 
 ### UI rules
 
@@ -88,6 +92,11 @@ Located in `src/`. Built with Vite, runs in Tauri's webview. `index.html` is an 
 - Updates use bitwrench verbs (`bw.patch`, `bw.toggleClass`, `bw.clear`, `bw.remove`), never `innerHTML`.
 - Dark mode is a one-class toggle (`.dark` on `#app`); both themes derive from the same seed accent.
 - Chat display toggles are classes on `#chat-panel` (`show-timestamps`, `show-tools`): bubbles always render their meta line and tool entries, so flipping a setting restyles history instantly.
+- The chat and info panes live inside `#editor-column > #tab-body`, under the tab bar, not beside the window: the tab is the unit a chat belongs to. Each session owns a `.chat-log` element; `chat-ui.ts` re-parents the active one into `#chat-messages` on tab switches (bitwrench's `append` takes TACO, not elements), so a background chat keeps its streaming bubble, review cards and plan card.
+
+### Chat scope
+
+A chat's scope is a trust boundary, enforced in `dispatchTool`, not just described in the prompt. A document chat's tools read and write the session's own tab (the editor when it is on screen, the parked text otherwise) and nothing else; file, search and tab tools return an error naming the document. The project chat has no document tools and sees only files under the project root, with tabs from outside the root filtered out of `tabs_list`. Memory and KV are project state and are offered only to project files and the project chat.
 
 ### Performance log
 
@@ -97,13 +106,13 @@ Each LLM request logs `ttft_ms`, `total_ms`, `chars`, `est_tokens` (chars/4), `t
 
 1. User sends message
 2. Build messages array with system prompt + history
-3. Send to LLM via `invoke("llm_chat", ...)`
+3. Send to LLM via `invoke("llm_chat_stream", ...)` and listen for chunk events
 4. If response contains `tool_calls`:
    - Dispatch each tool call locally
    - Append tool results to messages
    - Send back to LLM (loop)
 5. If response is plain text: display to user
-6. Max 10 iterations, 60s timeout per call, abort button available
+6. Max 10 iterations; the Stop button aborts the stream and rejects pending edit reviews; no per-call timeout
 
 ## Key Dependencies
 

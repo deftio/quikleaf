@@ -1,6 +1,6 @@
 {
   "name": "@deftio/quikleaf-darwin-arm64",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "quikleaf binary for macOS Apple Silicon (aarch64)",
   "author": "deftio <deftio@deftio.com>",
   "license": "BSD-2-Clause",

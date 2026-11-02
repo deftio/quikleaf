@@ -2,9 +2,14 @@
 import QuikdownEditor from "quikdown-standalone";
 
 export type EditorChangeListener = (md: string, html: string) => void;
+export type EditorMode = "source" | "split" | "preview";
+export type EditorModeListener = (mode: EditorMode) => void;
+
+export const EDITOR_MODES: EditorMode[] = ["source", "split", "preview"];
 
 let editorInstance: any = null;
 const changeListeners = new Set<EditorChangeListener>();
+const modeListeners = new Set<EditorModeListener>();
 
 export function initEditor(container: HTMLElement): any {
   editorInstance = new QuikdownEditor(container, {
@@ -16,8 +21,32 @@ export function initEditor(container: HTMLElement): any {
     allowExternalFetch: true,
     placeholder: "Start typing markdown or open a file...",
     onChange: notifyEditorChange,
+    onModeChange: notifyEditorModeChange,
   });
   return editorInstance;
+}
+
+/** Register for mode changes (the quikdown toolbar's Source / Split / Preview, or `setEditorMode`). */
+export function onEditorModeChange(fn: EditorModeListener): () => void {
+  modeListeners.add(fn);
+  return () => modeListeners.delete(fn);
+}
+
+/** The editor's `onModeChange` callback; exported so tests can drive it. */
+export function notifyEditorModeChange(mode: string): void {
+  if (!EDITOR_MODES.includes(mode as EditorMode)) return;
+  for (const fn of modeListeners) fn(mode as EditorMode);
+}
+
+export function getEditorMode(): EditorMode {
+  const m = editorInstance?.mode ?? editorInstance?.options?.mode;
+  return EDITOR_MODES.includes(m) ? m : "split";
+}
+
+/** Switch Source / Split / Preview. A no-op when the editor is already in that mode. */
+export function setEditorMode(mode: EditorMode): void {
+  if (!editorInstance || getEditorMode() === mode) return;
+  editorInstance.setMode?.(mode);
 }
 
 /**

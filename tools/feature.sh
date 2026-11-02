@@ -111,6 +111,16 @@ node -e "
   fs.writeFileSync('npm/quikleaf/package.json', JSON.stringify(pkg, null, 2) + '\n');
 "
 
+# Bump version shown on the GitHub Pages site (scripts/site.js badge + JSON-LD)
+node -e "
+  const fs = require('fs');
+  const v = '${NEW_VERSION}';
+  for (const [f, re, rep] of [
+    ['docs/scripts/site.js', /var SITE_VERSION = '[^']*';/, \"var SITE_VERSION = '\" + v + \"';\"],
+    ['docs/index.html', /\"softwareVersion\": \"[^\"]*\"/, '\"softwareVersion\": \"' + v + '\"'],
+  ]) fs.writeFileSync(f, fs.readFileSync(f, 'utf8').replace(re, rep));
+"
+
 # Bump version in npm platform packages
 for platform in darwin-arm64 darwin-x64 linux-x64 win32-x64; do
   node -e "
@@ -121,7 +131,7 @@ for platform in darwin-arm64 darwin-x64 linux-x64 win32-x64; do
   "
 done
 
-git add package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json npm/quikleaf/package.json npm/darwin-arm64/package.json npm/darwin-x64/package.json npm/linux-x64/package.json npm/win32-x64/package.json
+git add package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json docs/scripts/site.js docs/index.html npm/quikleaf/package.json npm/darwin-arm64/package.json npm/darwin-x64/package.json npm/linux-x64/package.json npm/win32-x64/package.json
 git commit -m "bump version to ${NEW_VERSION}"
 
 info "\nCreated branch: $BRANCH"

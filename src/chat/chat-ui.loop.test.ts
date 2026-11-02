@@ -28,6 +28,8 @@ interface Turn {
 }
 
 let mod: ChatUi;
+let tabs: typeof import("../editor/tabs");
+let sessions: typeof import("./session");
 let sendChatStream: ReturnType<typeof vi.fn>;
 const SETTINGS_KEY = "quikleaf_llm_settings";
 
@@ -72,6 +74,10 @@ function sendBtn(): HTMLButtonElement {
 function log(): HTMLElement {
   return document.getElementById("chat-messages")!;
 }
+/** The active chat's own log, mounted inside #chat-messages. */
+function chatLog(): HTMLElement {
+  return document.querySelector("#chat-messages .chat-log") as HTMLElement;
+}
 function bubbles(role?: string): HTMLElement[] {
   return Array.from(log().querySelectorAll(role ? `.chat-msg.${role}` : ".chat-msg")) as HTMLElement[];
 }
@@ -115,19 +121,28 @@ beforeEach(async () => {
   document.getElementById("status-timing")?.remove();
 
   mod = await import("./chat-ui");
+  tabs = await import("../editor/tabs");
+  sessions = await import("./session");
   const providers = (await import("./providers")) as Providers;
   sendChatStream = vi.mocked(providers.sendChatStream) as any;
   sendChatStream.mockReset();
+
+  // One project-file tab, so the chat has memory/KV tools and a document name.
+  tabs.resetTabs();
+  sessions.resetSessions();
+  tabs.openTab("notes.md", "", { projectRelative: true });
 
   const app = document.getElementById("app")!;
   bw.append(app, mod.makeChatPanel());
   bw.append(app, { t: "span", a: { id: "status-timing" } });
   mod.initChat();
   // Welcome bubble is not part of what the tests count.
-  log().innerHTML = "";
+  bw.clear(chatLog());
 });
 
 afterEach(() => {
+  tabs.resetTabs();
+  sessions.resetSessions();
   document.getElementById("chat-panel")?.remove();
   document.getElementById("status-timing")?.remove();
   document.body.style.cursor = "";
@@ -138,28 +153,140 @@ afterEach(() => {
 });
 
 describe("makeChatPanel / initChat", () => {
-  it("mounts the hidden panel with log, input, send button and resize handle", () => {
+  it("mounts the hidden panel with header, the chat's log, input, send button and resize handle", () => {
     const panel = document.getElementById("chat-panel")!;
     expect(panel.classList.contains("hidden")).toBe(true);
-    expect(log().getAttribute("role")).toBe("log");
-    expect(log().getAttribute("aria-live")).toBe("polite");
+    expect(chatLog().getAttribute("role")).toBe("log");
+    expect(chatLog().getAttribute("aria-live")).toBe("polite");
+    expect(chatLog().dataset.tabId).toBe(tabs.activeTab()!.id);
+    expect(document.getElementById("chat-scope")!.textContent).toBe("Document chat");
+    expect(document.getElementById("chat-target")!.textContent).toBe("notes.md");
+    expect(document.getElementById("chat-model")!.textContent).toBe("no model");
     expect(input().tagName).toBe("TEXTAREA");
-    expect(input().getAttribute("placeholder")).toBe("Ask the LLM...");
+    expect(input().getAttribute("placeholder")).toBe("Ask about notes.md…");
     expect(sendBtn().textContent).toBe("Send");
     const handle = panel.querySelector(".chat-resize-handle") as HTMLElement;
     expect(handle.style.cursor).toBe("ew-resize");
   });
 
   it("initChat shows the welcome message rendered as markdown", async () => {
-    // Re-mount to observe the welcome bubble this time.
+    // Re-mount with fresh sessions to observe the welcome bubble this time.
     document.getElementById("chat-panel")!.remove();
+    sessions.resetSessions();
     bw.append(document.getElementById("app")!, mod.makeChatPanel());
     mod.initChat();
     const welcome = bubbles("assistant");
     expect(welcome.length).toBe(1);
     expect(welcome[0].querySelector(".chat-body p")!.textContent).toContain("I'm **QD**");
+    expect(welcome[0].querySelector(".chat-body p")!.textContent).toContain("**notes.md**");
     expect(welcome[0].querySelector(".chat-meta time")!.textContent).toMatch(/^\d\d:\d\d:\d\d$/);
     expect(document.getElementById("quikdown_css")).not.toBeNull();
+  });
+
+  it("switching tabs swaps in that tab's own chat and keeps the other's log and draft", async () => {
+    configure();
+    const first = tabs.activeTab()!;
+    script([{ chunks: ["about notes"] }]);
+    await sendMessage("hello notes");
+    input().value = "half-typed";
+    expect(bubbles().length).toBe(2);
+
+    const second = tabs.openTab("/tmp/other.md", "# Other");
+    // New tab: its own (greeted) log, empty input, header renamed.
+    expect(chatLog().dataset.tabId).toBe(second.id);
+    expect(bubbles("assistant").length).toBe(1);
+    expect(lastBody()).toContain("**other.md**");
+    expect(bubbles("user").length).toBe(0);
+    expect(input().value).toBe("");
+    expect(document.getElementById("chat-target")!.textContent).toBe("other.md");
+    expect(input().getAttribute("placeholder")).toBe("Ask about other.md…");
+
+    // Back: the first chat's bubbles and draft are intact.
+    tabs.setActive(first.id);
+    expect(chatLog().dataset.tabId).toBe(first.id);
+    expect(bubbles("user").map(bodyText)).toEqual(["hello notes"]);
+    expect(input().value).toBe("half-typed");
+    expect(sessions.sessionFor(first.id).transcript).toEqual([
+      { role: "user", text: "hello notes" },
+      { role: "assistant", text: "about notes" },
+    ]);
+    expect(sessions.sessionFor(first.id).stats).toEqual({ turns: 1, llmCalls: 1, toolCalls: 0 });
+  });
+
+  it("editing the document does not disturb the chat draft or the log", () => {
+    const tab = tabs.activeTab()!;
+    mod.handleSlashCommand("/help");
+    input().value = "half a question";
+    // Typing in the editor updates the tab (dirty flag) and notifies tab subscribers.
+    tabs.updateContent(tab.id, "# changed");
+    tabs.updateContent(tab.id, "# changed more");
+    expect(input().value).toBe("half a question");
+    expect(bubbles().length).toBe(1);
+    expect(chatLog().dataset.tabId).toBe(tab.id);
+    // A rename (Save As) refreshes the header without touching the input.
+    tabs.markSaved(tab.id, "docs/renamed.md", { projectRelative: true });
+    expect(document.getElementById("chat-target")!.textContent).toBe("renamed.md");
+    expect(input().value).toBe("half a question");
+  });
+
+  it("a turn keeps streaming into its own chat after the user switches tabs", async () => {
+    configure();
+    const first = tabs.activeTab()!;
+    script([{ chunks: ["slow reply"], delayMs: 60 }]);
+    input().value = "go";
+    sendBtn().click();
+    expect(sendBtn().textContent).toBe("Stop");
+
+    const second = tabs.openTab("/tmp/other.md", "# Other");
+    // The pane now shows the idle second chat.
+    expect(sendBtn().textContent).toBe("Send");
+    expect(bubbles("user").length).toBe(0);
+
+    await vi.waitFor(() => {
+      if (sessions.sessionFor(first.id).sending) throw new Error("still sending");
+    }, { timeout: 3000, interval: 5 });
+    // The reply landed in the first chat's log, not the visible one.
+    expect(bubbles("assistant").filter((b) => bodyText(b) === "slow reply").length).toBe(0);
+    const firstLog = sessions.sessionFor(first.id).log;
+    expect(Array.from(firstLog.querySelectorAll(".chat-msg.assistant")).map((b) => bodyText(b as HTMLElement))).toEqual(["slow reply"]);
+    tabs.setActive(first.id);
+    expect(lastBody()).toBe("slow reply");
+    expect(sendBtn().textContent).toBe("Send");
+    void second;
+  });
+
+  it("closing a tab drops its chat; the project chat survives its tab", async () => {
+    const first = tabs.activeTab()!;
+    const other = tabs.openTab("/tmp/other.md", "# Other");
+    expect(sessions.peekSession(other.id)).toBeDefined();
+    tabs.closeTab(other.id);
+    expect(sessions.peekSession(other.id)).toBeUndefined();
+    expect(chatLog().dataset.tabId).toBe(first.id);
+
+    const project = tabs.openProjectTab();
+    expect(document.getElementById("chat-scope")!.textContent).toBe("Project chat");
+    expect(document.getElementById("chat-panel")!.classList.contains("project-scope")).toBe(true);
+    expect(input().getAttribute("placeholder")).toBe("Ask about the project…");
+    sessions.sessionFor(project.id).transcript.push({ role: "user", text: "kept" });
+    tabs.closeTab(project.id);
+    expect(sessions.peekSession(project.id)?.transcript).toEqual([{ role: "user", text: "kept" }]);
+  });
+
+  it("restored transcript entries are rendered when the chat is shown", () => {
+    const s = sessions.activeSession()!;
+    sessions.importChatHistory({ version: 1, tabs: { "notes.md": { transcript: [{ role: "user", text: "old q" }, { role: "assistant", text: "old a" }], model: "qwen3" } }, project: null });
+    expect(bubbles().map(bodyText)).toEqual(["old q", "old a"]);
+    expect(document.getElementById("chat-model")!.textContent).toBe("qwen3");
+    expect(document.getElementById("chat-model")!.classList.contains("override")).toBe(true);
+    expect(s.rendered).toBe(2);
+  });
+
+  it("the info pane's clear request empties the visible chat and greets again", async () => {
+    mod.handleSlashCommand("/help");
+    expect(bubbles().length).toBe(1);
+    bw.pub(sessions.CHAT_CLEAR, { tabId: tabs.activeTab()!.id });
+    expect(bubbles().length).toBe(1);
+    expect(lastBody()).toContain("I'm **QD**");
   });
 });
 
@@ -317,21 +444,21 @@ describe("document_replace against a live editor", () => {
   it("replaces the first occurrence only by default", async () => {
     const inst = await editorWith("a b a");
     const result = await mod.dispatchTool("document_replace", { search: "a", replace: "c" });
-    expect(JSON.parse(result)).toEqual({ count: 1 });
+    expect(JSON.parse(result)).toEqual({ count: 1, document: "notes.md" });
     expect(inst.setMarkdown).toHaveBeenCalledWith("c b a");
   });
 
   it("replaces every occurrence with all: true and reports the count", async () => {
     const inst = await editorWith("a b a");
     const result = await mod.dispatchTool("document_replace", { search: "a", replace: "c", all: true });
-    expect(JSON.parse(result)).toEqual({ count: 2 });
+    expect(JSON.parse(result)).toEqual({ count: 2, document: "notes.md" });
     expect(inst.setMarkdown).toHaveBeenCalledWith("c b c");
   });
 
   it("does not write when nothing matches", async () => {
     const inst = await editorWith("a b a");
     const result = await mod.dispatchTool("document_replace", { search: "zzz", replace: "c", all: true });
-    expect(JSON.parse(result)).toEqual({ count: 0 });
+    expect(JSON.parse(result)).toEqual({ count: 0, document: "notes.md" });
     expect(inst.setMarkdown).not.toHaveBeenCalled();
   });
 });
@@ -412,6 +539,7 @@ describe("tool round-trips", () => {
     const asst = bubbles("assistant").map(bodyText);
     expect(asst).toEqual(["Let me look.", "Still looking.", "Empty doc."]);
     const final = sendChatStream.mock.calls[2][1].map((m: any) => m.content);
+    expect(sendChatStream.mock.calls[0][1][0].content).toContain("bound to one document: **notes.md**");
     expect(final).toContain("Let me look.");
     expect(final).toContain("Still looking.");
     expect(bubbles("tool").length).toBe(2);
@@ -463,7 +591,7 @@ describe("tool round-trips", () => {
       { chunks: ["The document is empty."] },
     ]);
     await sendMessage("read");
-    expect(bodyText(bubbles("tool")[0])).toBe('document_read() → {"content":""}');
+    expect(bodyText(bubbles("tool")[0])).toBe('document_read() → {"document":"notes.md","content":""}');
     const second = sendChatStream.mock.calls[1][1];
     const toolResult = second[second.length - 1];
     expect(toolResult.role).toBe("user");

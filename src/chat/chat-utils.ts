@@ -1,29 +1,25 @@
 import type { ChatMessage } from "./providers";
 
 // --- Dynamic system prompt ---
-export function buildSystemPrompt(isProjectMode: boolean): string {
-  let prompt = `You are QD, a friendly AI document assistant built into quikleaf, a markdown editor.
-You help users write, edit, and improve markdown documents. Keep responses concise and helpful.
 
-You have access to the following tools to interact with the editor:
+export type ChatScope = "document" | "project";
 
-**Document tools:**
-- **document_read**: Read the current document content. Always call this first before making edits.
-- **document_write**: Replace the entire document with new markdown content.
-- **document_replace**: Find and replace specific text in the document.
-- **document_insert**: Insert text at the current cursor position.
-- **document_undo**: Undo the last editor change.
-- **document_redo**: Redo the last undone change.
-- **document_get_selection**: Get the currently selected text in the editor.
-- **document_outline**: List the document's headings (level, text, line) — a cheap way to navigate a long document before reading it all.
-- **tabs_list**: Several documents can be open in editor tabs; this lists them. All document_* tools act on the active tab.
-- **tab_switch**: Make another open tab active (by id or path) before using document_* tools on it.
+/** What the prompt needs to know about the chat it is written for. */
+export interface PromptContext {
+  scope: ChatScope;
+  /** Tab title ("notes.md", "Untitled 2"); ignored for the project chat. */
+  title: string;
+  /** The document's path, project-relative or absolute; null for an unsaved document. */
+  path: string | null;
+  /** True when the document is a file under the project root. */
+  projectRelative: boolean;
+  /** Whether the scratchpad / key-value tools are offered (project files and the project chat). */
+  memory: boolean;
+}
 
-**Planning tools** (for multi-step work, call plan_set first and keep it updated as you go):
-- **plan_set**: Set the plan as a list of short steps (replaces any earlier plan).
-- **plan_update**: Mark a step pending, active, done or skipped, optionally with a short note.
+const MEMORY_PROMPT = `
 
-**Memory tools** (scratchpad for persisting notes across the conversation):
+**Memory tools** (the project's scratchpad, shared by every chat in this project):
 - **memory_read**: Read the scratchpad contents.
 - **memory_write**: Overwrite the scratchpad with new content.
 - **memory_append**: Append text to the scratchpad.
@@ -35,26 +31,70 @@ You have access to the following tools to interact with the editor:
 - **kv_delete**: Delete a key.
 - **kv_list**: List all keys with their last-modified timestamps.`;
 
-  if (isProjectMode) {
-    prompt += `
+const PLAN_PROMPT = `
 
-**File tools** (available in project mode — operate relative to the project root):
-- **file_read**: Read a file's contents by relative path.
-- **file_write**: Write content to a file by relative path.
-- **file_list**: List directory contents (optionally recursive).
-- **file_stat**: Get file metadata (size, modified date, type).
-- **tab_open**: Open a project file in an editor tab (focuses it if already open) so the user sees it and document_* tools act on it.
-- **project_search**: Search project files for text (case-insensitive substring, or a regex). Returns matching lines with paths and line numbers.`;
-  }
+**Planning tools** (for multi-step work, call plan_set first and keep it updated as you go):
+- **plan_set**: Set the plan as a list of short steps (replaces any earlier plan).
+- **plan_update**: Mark a step pending, active, done or skipped, optionally with a short note.`;
 
-  prompt += `
-
-When the user asks you to read, edit, modify, or improve the document, use the document tools.
-First call document_read to see the current content, then use document_write or document_replace to make changes.
+const REVIEW_PROMPT = `
 Document and file edits may be shown to the user for review before they are applied. If a tool result contains
 "rejected": true, the user declined that change: do not retry it or try a different route to the same edit —
 briefly ask what they would like instead.
 Use markdown formatting in your replies. Sign off briefly as QD when appropriate.`;
+
+/**
+ * The system prompt for one chat. A document chat is told exactly which
+ * document it is bound to and that nothing else is visible to it; the
+ * project chat is told it works on files under the project root by path.
+ */
+export function buildSystemPrompt(ctx: PromptContext): string {
+  if (ctx.scope === "project") {
+    return `You are QD, a friendly AI assistant built into quikleaf, a markdown editor. This is the **project chat**:
+you work on the files of one project, under its root folder, and every file you read or write is named by its
+project-relative path. There is no "current document" in this chat; to change a file, write it by path.
+Only files under the project root exist for you. Keep responses concise and helpful.
+
+You have access to the following tools:
+
+**File tools** (paths are relative to the project root):
+- **file_read**: Read a file's contents by relative path.
+- **file_write**: Write content to a file by relative path (replaces the whole file).
+- **file_list**: List directory contents (optionally recursive).
+- **file_stat**: Get file metadata (size, modified date, type).
+- **project_search**: Search project files for text (case-insensitive substring, or a regex). Returns matching lines with paths and line numbers.
+- **tabs_list**: List the project files the user has open in editor tabs.
+- **tab_open**: Open a project file in an editor tab so the user sees it.${PLAN_PROMPT}${MEMORY_PROMPT}
+
+Read a file before changing it, and change files one at a time.${REVIEW_PROMPT}`;
+  }
+
+  const where = ctx.projectRelative ? "a file in the project" : ctx.path ? "a file on disk" : "an unsaved document";
+  let prompt = `You are QD, a friendly AI document assistant built into quikleaf, a markdown editor.
+You help users write, edit, and improve markdown documents. Keep responses concise and helpful.
+
+This chat is bound to one document: **${ctx.title}** (${where}). You can read and change only this document.
+Other documents the user may have open are not visible to you, and you cannot open, read or search other files.
+If the user asks about another document, say that this chat only sees ${ctx.title} and that each tab has its own chat.
+
+You have access to the following tools to interact with the editor:
+
+**Document tools** (all act on ${ctx.title}):
+- **document_read**: Read the current document content. Always call this first before making edits.
+- **document_write**: Replace the entire document with new markdown content.
+- **document_replace**: Find and replace specific text in the document.
+- **document_insert**: Insert text at the current cursor position.
+- **document_undo**: Undo the last editor change.
+- **document_redo**: Redo the last undone change.
+- **document_get_selection**: Get the currently selected text in the editor.
+- **document_outline**: List the document's headings (level, text, line) — a cheap way to navigate a long document before reading it all.${PLAN_PROMPT}`;
+
+  if (ctx.memory) prompt += MEMORY_PROMPT;
+
+  prompt += `
+
+When the user asks you to read, edit, modify, or improve the document, use the document tools.
+First call document_read to see the current content, then use document_write or document_replace to make changes.${REVIEW_PROMPT}`;
 
   return prompt;
 }
@@ -150,33 +190,15 @@ const DOC_TOOLS_OPENAI = [
   },
 ];
 
-// Tab tools (always available; tab_open is project-only, see FILE_TOOLS)
-const TAB_TOOLS_OPENAI = [
-  {
-    type: "function",
-    function: {
-      name: "tabs_list",
-      description:
-        "List the open editor tabs as [{id, title, path, dirty, active}]. document_* tools operate on the active tab; use tab_switch to change it.",
-      parameters: { type: "object", properties: {}, required: [] },
-    },
+// Tab tools (project chat only)
+const TABS_LIST_TOOL_OPENAI = {
+  type: "function",
+  function: {
+    name: "tabs_list",
+    description: "List the project files the user has open in editor tabs as [{title, path, dirty, active}]. Files outside the project are not listed.",
+    parameters: { type: "object", properties: {}, required: [] },
   },
-  {
-    type: "function",
-    function: {
-      name: "tab_switch",
-      description: "Make an already-open tab active, by id or by path, so that document_* tools act on it.",
-      parameters: {
-        type: "object",
-        properties: {
-          id: { type: "string", description: "Tab id from tabs_list" },
-          path: { type: "string", description: "Tab path from tabs_list (alternative to id)" },
-        },
-        required: [],
-      },
-    },
-  },
-];
+};
 
 const TAB_OPEN_TOOL_OPENAI = {
   type: "function",
@@ -420,15 +442,20 @@ export function toAnthropicTool(t: any): any {
   };
 }
 
-export function getTools(provider: string, isProjectMode: boolean): any[] {
-  const tools = [
-    ...DOC_TOOLS_OPENAI,
-    ...TAB_TOOLS_OPENAI,
-    ...PLAN_TOOLS_OPENAI,
-    ...MEMORY_TOOLS_OPENAI,
-    ...KV_TOOLS_OPENAI,
-    ...(isProjectMode ? [...FILE_TOOLS_OPENAI, TAB_OPEN_TOOL_OPENAI] : []),
-  ];
+/** Which tools a chat gets. */
+export interface ToolScope {
+  scope: ChatScope;
+  /** Scratchpad / key-value tools (project files and the project chat). */
+  memory: boolean;
+}
+
+/** The tool count for a scope, for tests and the `/tools` text. */
+export function getTools(provider: string, ts: ToolScope): any[] {
+  const memory = ts.memory ? [...MEMORY_TOOLS_OPENAI, ...KV_TOOLS_OPENAI] : [];
+  const tools =
+    ts.scope === "project"
+      ? [...FILE_TOOLS_OPENAI, TABS_LIST_TOOL_OPENAI, TAB_OPEN_TOOL_OPENAI, ...PLAN_TOOLS_OPENAI, ...memory]
+      : [...DOC_TOOLS_OPENAI, ...PLAN_TOOLS_OPENAI, ...memory];
   return provider === "anthropic" ? tools.map(toAnthropicTool) : tools;
 }
 

@@ -156,4 +156,65 @@ test.describe("File tree", () => {
       expect(log.length).toBeGreaterThan(0);
     }).toPass({ timeout: 5000 });
   });
+
+  test("project mode persists state: creates the project file on launch and saves the open file", async ({ page }) => {
+    await page.addInitScript(() => {
+      (window as any).__E2E_PRECONFIG__ = {
+        launchInfo: {
+          type: "Project",
+          project_root: "/test/project",
+          project_file: "/test/project/quikleaf.prj",
+          exists: false,
+        },
+        fsStore: { "readme.md": "# Hello", "docs/guide.md": "# Guide" },
+      };
+    });
+
+    await page.goto("/");
+    await page.waitForSelector("#file-tree", { state: "visible" });
+
+    // project_init is followed by an immediate save so quikleaf.prj exists.
+    await expect
+      .poll(() => page.evaluate(() => (window as any).__E2E__.projectSaves.length))
+      .toBeGreaterThanOrEqual(1);
+    const first = await page.evaluate(() => (window as any).__E2E__.projectSaves[0]);
+    expect(first).toEqual({ openFile: null, openTabs: [], chatHistory: { version: 1, tabs: {}, project: null }, preferences: {} });
+
+    // Opening a project file records it as the open file (debounced save).
+    await page.locator("#file-tree").getByText("readme.md").click();
+    await expect
+      .poll(() => page.evaluate(() => (window as any).__E2E__.projectSaves.at(-1)?.openFile))
+      .toBe("readme.md");
+
+    // A second tab is remembered too, in tab order, with the active one as openFile.
+    await page.locator("#file-tree").getByText("guide.md").click();
+    await expect
+      .poll(() => page.evaluate(() => (window as any).__E2E__.projectSaves.at(-1)))
+      .toMatchObject({ openFile: "docs/guide.md", openTabs: ["readme.md", "docs/guide.md"] });
+  });
+
+  test("project mode restores the remembered open file from a camelCase project file", async ({ page }) => {
+    await page.addInitScript(() => {
+      (window as any).__E2E_PRECONFIG__ = {
+        launchInfo: {
+          type: "Project",
+          project_root: "/test/project",
+          project_file: "/test/project/quikleaf.prj",
+          exists: true,
+        },
+        projectData: { openFile: "docs/guide.md", openTabs: ["readme.md", "docs/guide.md"] },
+        fsStore: { "readme.md": "# Hello", "docs/guide.md": "# Guide" },
+      };
+    });
+
+    await page.goto("/");
+    await page.waitForSelector("#file-tree", { state: "visible" });
+    await expect(page.locator("#status-file")).toContainText("guide.md");
+    // Both remembered tabs are open; the remembered active one is active.
+    const tabs = page.locator("#tab-list .editor-tab");
+    await expect(tabs).toHaveCount(2); // the startup Untitled tab is closed once files are restored
+    await expect(tabs.nth(0).locator(".tab-title")).toHaveText("readme.md");
+    await expect(tabs.nth(1).locator(".tab-title")).toHaveText("guide.md");
+    await expect(page.locator("#tab-list .editor-tab.active .tab-title")).toHaveText("guide.md");
+  });
 });
