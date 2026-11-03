@@ -13,7 +13,8 @@ import { handleOutlineKeydown, initOutline, isOutlineVisible, makeOutlinePanel, 
 import { handleFindKeydown, initFindBar, makeFindBar, openFind } from "./ui/findbar";
 import { handleFocusKeydown, makeFocusExitPill, toggleFocusMode } from "./ui/focus";
 import { exportHtml, printDocument } from "./editor/export";
-import { initEditor } from "./editor/editor";
+import { copyToClipboard, initEditor, redo, undo } from "./editor/editor";
+import { flashCopied, initEditorToolbar, makeEditorToolbar } from "./ui/editor-toolbar";
 import { listTabs,
   closeDocument,
   handleKeydown,
@@ -26,7 +27,9 @@ import { listTabs,
   setDocumentsProjectMode,
   showTab,
 } from "./editor/documents";
-import { applyChatSettings, initSettingsUI, loadSettings, openSettings } from "./settings/settings";
+import { applyLiveSettings, initSettingsUI, loadSettings, openSettings } from "./settings/settings";
+import { open as shellOpen } from "@tauri-apps/plugin-shell";
+import { ISSUES_URL, SITE_URL } from "./ui/about";
 import { logEvent } from "./diag/perf";
 import { notify } from "./ui/toast";
 import { initChat, makeChatPanel } from "./chat/chat-ui";
@@ -84,6 +87,8 @@ bw.mount("#app", [
     onSettings: () => openSettings(),
     onAbout: () => openAbout(),
     onInstallCli: () => installCli(),
+    onOpenDocs: () => shellOpen(SITE_URL).catch(console.error),
+    onReportIssue: () => shellOpen(ISSUES_URL).catch(console.error),
     state: {
       chat: isChatPaneOpen,
       info: isInfoPaneOpen,
@@ -92,10 +97,13 @@ bw.mount("#app", [
       editorMode: activeEditorMode,
     },
   }),
-  // Window-wide panels on the left; the chat and info panes live inside the
-  // tab column, because they belong to the tab: [chat | quikdown view | info].
-  // The chat is a drawer: Settings → Chat drawer side moves it to the right
-  // edge (CSS order), and a pull on that edge opens it while it is closed.
+  // Rows: [menus … Settings Help About] / [tabs +] / [Files Outline Chat |
+  // editor controls … | Info] / the tab body. Window-wide panels (files,
+  // outline) are to the left of the editor column; the chat and info panes
+  // live inside the tab column, because they belong to the tab:
+  // [chat | quikdown view | info]. The chat is a drawer: Settings → Chat
+  // drawer side moves it to the right edge (CSS order), and a pull on that
+  // edge opens it while it is closed.
   makeMain(
     [makeFileTreePanel(), makeOutlinePanel()],
     [
@@ -103,6 +111,17 @@ bw.mount("#app", [
         onSelect: (id) => showTab(id),
         onClose: (id) => closeDocument(id),
         onNew: () => newDocument(),
+      }),
+      // The tab's control row: panel toggles at the ends, editor controls between.
+      makeEditorToolbar({
+        onMode: (mode) => setActiveEditorMode(mode),
+        onUndo: () => undo(),
+        onRedo: () => redo(),
+        onCopy: (kind) => void copyToClipboard(kind).then((ok) => ok && flashCopied(kind)),
+        onToggleFiles: () => toggleFiles(),
+        onToggleOutline: () => toggleOutline(),
+        onToggleChat: () => toggleChatPane(),
+        onToggleInfo: () => toggleInfoPane(),
       }),
       makeFindBar(),
     ],
@@ -114,6 +133,7 @@ bw.mount("#app", [
 
 initMenus();
 initEditor(el("editor-container")!);
+initEditorToolbar();
 initTabBar();
 initStats();
 initOutline();
@@ -122,7 +142,7 @@ initSettingsUI();
 initChat();
 initInfoPane();
 initPanes();
-applyChatSettings(loadSettings());
+applyLiveSettings(loadSettings());
 openAbout = initAbout();
 setOnFileClick((path) => loadFileIntoEditor(path));
 logEvent({ kind: "app", event: "start", version: __APP_VERSION__ });

@@ -47,6 +47,9 @@ export interface ShellHandlers {
   onSettings: () => void;
   onAbout: () => void;
   onInstallCli: () => void;
+  /** Help → Documentation / Report an Issue: open the site or the issue tracker in the system browser. */
+  onOpenDocs: () => void;
+  onReportIssue: () => void;
   /** Current pane states, read when the View menu opens to tick its items. */
   state?: {
     chat: () => boolean;
@@ -148,22 +151,24 @@ export function initMenus(): void {
 }
 
 /**
- * A press-to-toggle button (`aria-pressed`), used for panels that stay open:
- * Chat and Files. Visually distinct from the menu triggers: it carries a
- * state dot and fills with the accent color while pressed.
+ * A press-to-toggle button (`aria-pressed`) for a panel that stays open. It
+ * inverts (text colour on background colour swap) while pressed. Two
+ * variants: `titlebar` (a title bar button) and `toolbar` (a full-height
+ * button at an end of the tab's control row, `ui/editor-toolbar.ts`).
  */
-export function makeToggleButton(id: string, label: string, onclick: () => void, extraClass = ""): Taco {
+export function makeToggleButton(id: string, label: string, onclick: () => void, extraClass = "", variant: "titlebar" | "toolbar" = "titlebar"): Taco {
+  const base = variant === "toolbar" ? "tool-toggle" : "titlebar-btn";
   return {
     t: "button",
     a: {
       id,
-      class: `titlebar-btn toggle-btn ${extraClass}`.trim(),
+      class: `${base} toggle-btn ${extraClass}`.trim(),
       type: "button",
       "aria-pressed": "false",
       title: `Show or hide the ${label.toLowerCase()} panel`,
       onclick,
     },
-    c: [{ t: "span", a: { class: "toggle-dot", "aria-hidden": "true" } }, label],
+    c: label,
   };
 }
 
@@ -213,10 +218,8 @@ export function makeTitlebar(h: ShellHandlers): Taco {
             { id: "btn-focus-mode", label: "Focus Mode", shortcut: "Cmd+Shift+D", onclick: h.onFocusMode },
             { id: "btn-find", label: "Find & Replace…", shortcut: "Cmd+F", onclick: h.onFind },
           ]),
-          makeToggleButton("btn-toggle-chat", "Chat", h.onToggleChat),
-          makeToggleButton("btn-toggle-info", "Info", h.onToggleInfo),
-          makeToggleButton("btn-toggle-files", "Files", h.onToggleFiles, "hidden"),
-          makeToggleButton("btn-toggle-outline", "Outline", h.onToggleOutline),
+          // Panel toggles are not here: they sit on the tab's control row
+          // (`ui/editor-toolbar.ts`), each at the end its panel opens on.
         ],
       },
       {
@@ -226,9 +229,12 @@ export function makeTitlebar(h: ShellHandlers): Taco {
           { t: "span", a: { id: "llm-status" }, c: "" },
           { t: "button", a: { id: "btn-settings", class: "titlebar-btn", type: "button", onclick: h.onSettings }, c: "Settings" },
           makeMenu("btn-help-menu", "help-menu-dropdown", "Help", [
-            { id: "btn-about", label: "About quikleaf", onclick: h.onAbout },
+            { id: "btn-docs", label: "Documentation", onclick: h.onOpenDocs },
+            { id: "btn-report-issue", label: "Report an Issue", onclick: h.onReportIssue },
+            { separator: true },
             { id: "btn-install-cli", label: "Install Command Line Tool", onclick: h.onInstallCli },
           ]),
+          { t: "button", a: { id: "btn-about", class: "titlebar-btn", type: "button", onclick: h.onAbout }, c: "About" },
         ],
       },
     ],
@@ -320,6 +326,8 @@ export type ChatSide = "left" | "right";
  */
 export function setChatSide(side: ChatSide): void {
   bw.toggleClass("tab-body", "chat-right", side === "right");
+  // The tab bar's Chat / Info toggles swap ends with the drawer.
+  bw.toggleClass("editor-column", "chat-right", side === "right");
 }
 
 export function chatSide(): ChatSide {

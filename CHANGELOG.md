@@ -19,6 +19,30 @@ the maintainer.
   the info pane crosses to the other side and the resize handle follows. The
   choice previews live in Settings and is remembered. The slide respects
   `prefers-reduced-motion`.
+- **Three rows, each with one job.** The title bar holds the File and View
+  menus and, on the right, Settings, Help and About. The tab bar holds only
+  tabs. Under it, a control row for the active tab: `[Files Outline Chat |
+  Source Split Rendered · Undo Redo … Copy MD/HTML/Rendered | Info]`. Each
+  panel's toggle sits at the end its panel opens on, and the Chat toggle moves
+  to the right end with its drawer. A pressed toggle now inverts (text and
+  background swap) instead of filling with the accent colour, and the state
+  dots are gone. The title bar is a little shorter.
+- **quikdown runs headless.** The editor controls on that row (Source / Split
+  / Rendered, Undo / Redo, Copy MD / HTML / Rendered) are drawn by quikleaf in
+  the app's palette instead of quikdown's built-in toolbar, so they match the
+  rest of the shell in both themes. Same functions, same keyboard shortcuts.
+- **About is its own button**, not a Help item, and the dialog is laid out to
+  be read: logo, name, version and a one-line tagline; one short paragraph;
+  then a facts grid with clickable links to the source, the website, and the
+  three libraries with their installed versions (quikdown, bitwrench, Tauri).
+  "How it works" is now bold-lead bullets instead of blocks of text. Help
+  holds Documentation, Report an Issue and Install Command Line Tool.
+- **Readable chrome.** Menu and toolbar text is the primary text colour (it
+  was a light grey) and one size up (14 px). Settings → **Appearance** adds
+  the interface font size (12–18 px), the editor font size (13–22 px), a
+  choice of four preview styles for the rendered markdown (quikdown's
+  Default, Book, Plain, Mono) and a box for your own preview CSS. All preview
+  live and Cancel puts them back.
 - GitHub Pages site: left-justified, more compact layout with the install
   strip above the fold; the hero shows a real screenshot of the app (document
   chat proposing a reviewed diff, source, rendered preview) instead of the

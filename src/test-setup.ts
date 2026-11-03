@@ -39,6 +39,9 @@ vi.mock("quikdown-standalone", () => {
     getHTML = vi.fn(() => "");
     undo = vi.fn();
     redo = vi.fn();
+    canUndo = vi.fn(() => false);
+    canRedo = vi.fn(() => false);
+    copyRendered = vi.fn(async () => {});
     sourceTextarea: HTMLTextAreaElement;
     mode = "split";
     options: any;

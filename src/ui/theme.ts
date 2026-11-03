@@ -15,6 +15,7 @@ import type { CssRules, Palette, StylesResult } from "bitwrench";
 
 const ACCENT = "#6366f1";
 const MONO = '"SF Mono", "Monaco", "Menlo", "Consolas", monospace';
+const SERIF = '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif';
 const SANS = '-apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 
 const layout = { radius: "md", spacing: "compact", elevation: "sm", motion: "reduced" } as const;
@@ -113,6 +114,9 @@ const shell: CssRules = {
     background: "var(--bg-primary)",
     color: "var(--text-primary)",
     transition: "background 0.2s ease, color 0.2s ease",
+    // Settings → Appearance overrides these on the element (ui/appearance.ts).
+    "--ui-font-size": "14px",
+    "--editor-font-size": "16px",
   },
   ".hidden": { display: "none !important" },
 
@@ -121,8 +125,8 @@ const shell: CssRules = {
     display: "flex",
     "align-items": "center",
     "justify-content": "space-between",
-    height: "48px",
-    padding: "0 16px",
+    height: "42px",
+    padding: "0 12px",
     background: "var(--bg-primary)",
     "border-bottom": "1px solid var(--border-primary)",
     "user-select": "none",
@@ -155,21 +159,22 @@ const shell: CssRules = {
     background: "transparent",
     border: "none",
     "border-radius": "var(--radius-sm)",
-    padding: "6px 12px",
-    "font-size": "13px",
+    padding: "0 12px",
+    "font-size": "var(--ui-font-size)",
     "font-weight": "500",
     "font-family": "inherit",
     cursor: "pointer",
-    color: "var(--text-secondary)",
+    color: "var(--text-primary)",
     transition: "all 0.15s ease",
-    height: "32px",
+    height: "30px",
   },
   ".titlebar-btn:hover": { background: "var(--bg-tertiary)", color: "var(--text-primary)" },
   ".titlebar-btn:active": { transform: "scale(0.97)" },
-  ".titlebar-btn.active": { background: "var(--accent-primary)", color: "var(--accent-text)" },
-  ".titlebar-btn.active:hover": { background: "var(--accent-hover)" },
+  // A pressed panel toggle inverts: text colour and background swap.
+  ".titlebar-btn.active": { background: "var(--text-primary)", color: "var(--bg-primary)" },
+  ".titlebar-btn.active:hover": { background: "var(--text-secondary)", color: "var(--bg-primary)" },
   "#llm-status": {
-    "font-size": "12px",
+    "font-size": "calc(var(--ui-font-size) - 2px)",
     color: "var(--text-tertiary)",
     "font-weight": "500",
     padding: "4px 8px",
@@ -205,7 +210,7 @@ const shell: CssRules = {
     "border-radius": "var(--radius-sm)",
     background: "transparent",
     color: "var(--text-primary)",
-    "font-size": "13px",
+    "font-size": "var(--ui-font-size)",
     "font-family": "inherit",
     cursor: "pointer",
     transition: "background 0.1s ease",
@@ -223,8 +228,135 @@ const shell: CssRules = {
   /* The active tab's panes: [chat | quikdown view | info] */
   "#tab-body": { position: "relative", flex: "1", "min-height": "0", display: "flex", overflow: "hidden" },
   "#editor-container": { order: "2", flex: "1", "min-width": "0", "min-height": "0", overflow: "hidden", background: "var(--bg-primary)" },
-  /* The project tab has no document: the chat takes the whole body. */
-  "#editor-column.project-tab #editor-container": { display: "none" },
+  // quikdown draws its own box; the pane already has edges from the control row and the drawers.
+  "#editor-container .qde-container": { border: "none", "border-radius": "0" },
+  // Settings → Appearance → Editor font size; the source pane follows at 7/8.
+  "#editor-container .qde-preview": { "font-size": "var(--editor-font-size)" },
+  "#editor-container .qde-textarea": { "font-size": "calc(var(--editor-font-size) * 0.875)" },
+
+  /* ── Preview stylesheets (Settings → Appearance → Preview style; `preview-<name>` on #app) ──
+     "default" is quikdown's own. The others keep the pane full width and
+     centre a reading measure with padding, so the pane's background stays. */
+  "#app.preview-book #editor-container .qde-preview": {
+    "font-family": SERIF,
+    "line-height": "1.75",
+    padding: "28px max(28px, calc((100% - 70ch) / 2))",
+  },
+  "#app.preview-book #editor-container .qde-preview h1, #app.preview-book #editor-container .qde-preview h2, #app.preview-book #editor-container .qde-preview h3": {
+    "font-weight": "600",
+    "letter-spacing": "-0.01em",
+    margin: "1.3em 0 0.4em",
+    "line-height": "1.2",
+  },
+  "#app.preview-book #editor-container .qde-preview h1": { "font-size": "2.1em" },
+  "#app.preview-book #editor-container .qde-preview p": { margin: "0.9em 0" },
+  "#app.preview-book #editor-container .qde-preview li": { margin: "0.3em 0" },
+  "#app.preview-book #editor-container .qde-preview blockquote": {
+    "border-left": "3px solid var(--border-secondary)",
+    "padding-left": "1em",
+    margin: "1em 0",
+    "font-style": "italic",
+    color: "var(--text-secondary)",
+  },
+  "#app.preview-book #editor-container .qde-preview pre, #app.preview-book #editor-container .qde-preview code": { "font-size": "0.88em" },
+
+  "#app.preview-plain #editor-container .qde-preview": { "font-family": SANS, "line-height": "1.55", padding: "20px max(28px, calc((100% - 86ch) / 2))" },
+  "#app.preview-plain #editor-container .qde-preview h1, #app.preview-plain #editor-container .qde-preview h2": {
+    "font-weight": "600",
+    "padding-bottom": "0.3em",
+    "border-bottom": "1px solid var(--border-primary)",
+    margin: "1.2em 0 0.6em",
+  },
+  "#app.preview-plain #editor-container .qde-preview h1": { "font-size": "1.9em" },
+  "#app.preview-plain #editor-container .qde-preview h2": { "font-size": "1.4em" },
+  "#app.preview-plain #editor-container .qde-preview h3": { "font-size": "1.15em", "font-weight": "600", margin: "1em 0 0.4em" },
+  "#app.preview-plain #editor-container .qde-preview p, #app.preview-plain #editor-container .qde-preview ul, #app.preview-plain #editor-container .qde-preview ol": {
+    margin: "0 0 0.9em",
+  },
+  "#app.preview-plain #editor-container .qde-preview blockquote": {
+    "border-left": "4px solid var(--border-secondary)",
+    padding: "0 1em",
+    margin: "0 0 0.9em",
+    color: "var(--text-secondary)",
+  },
+
+  "#app.preview-mono #editor-container .qde-preview": {
+    "font-family": MONO,
+    "font-size": "calc(var(--editor-font-size) * 0.9)",
+    "line-height": "1.65",
+    padding: "20px max(24px, calc((100% - 90ch) / 2))",
+  },
+  "#app.preview-mono #editor-container .qde-preview h1, #app.preview-mono #editor-container .qde-preview h2, #app.preview-mono #editor-container .qde-preview h3, #app.preview-mono #editor-container .qde-preview h4": {
+    "font-family": MONO,
+    "font-weight": "700",
+    margin: "1.2em 0 0.4em",
+  },
+  "#app.preview-mono #editor-container .qde-preview h1": { "font-size": "1.5em" },
+  "#app.preview-mono #editor-container .qde-preview h2": { "font-size": "1.3em" },
+  "#app.preview-mono #editor-container .qde-preview h3": { "font-size": "1.15em" },
+  "#app.preview-mono #editor-container .qde-preview h4": { "font-size": "1em" },
+  "#app.preview-mono #editor-container .qde-preview blockquote": { "border-left": "2px solid var(--text-tertiary)", "padding-left": "1em", margin: "0.8em 0" },
+
+  /* ── The tab's control row: [Files Outline Chat | editor controls … | Info] ── */
+  "#editor-toolbar": {
+    display: "flex",
+    "align-items": "stretch",
+    gap: "0",
+    height: "32px",
+    "flex-shrink": "0",
+    background: "var(--bg-secondary)",
+    "border-bottom": "1px solid var(--border-primary)",
+    "user-select": "none",
+    "-webkit-user-select": "none",
+  },
+  "#editor-toolbar .tool-group": { display: "flex", "align-items": "center", gap: "2px", padding: "0 6px" },
+  "#editor-toolbar .tool-spacer": { flex: "1" },
+  "#editor-toolbar .tool-sep": { width: "1px", margin: "7px 2px", background: "var(--border-primary)", "flex-shrink": "0" },
+  /* Panel toggles at the ends of the row; the Chat one swaps ends with its drawer. */
+  ".tool-toggle": {
+    "flex-shrink": "0",
+    order: "1",
+    border: "none",
+    "border-right": "1px solid var(--border-primary)",
+    "border-radius": "0",
+    padding: "0 12px",
+    background: "transparent",
+    color: "var(--text-secondary)",
+    "font-size": "calc(var(--ui-font-size) - 1px)",
+    "font-weight": "500",
+    "font-family": "inherit",
+    cursor: "pointer",
+    transition: "background 0.1s ease, color 0.1s ease",
+  },
+  ".tool-toggle:hover": { background: "var(--bg-tertiary)", color: "var(--text-primary)" },
+  "#editor-toolbar .tool-group, #editor-toolbar .tool-sep, #editor-toolbar .tool-spacer": { order: "5" },
+  "#editor-toolbar #btn-toggle-info": { order: "9", "border-right": "none", "border-left": "1px solid var(--border-primary)" },
+  "#editor-column.chat-right #btn-toggle-chat": { order: "8", "border-right": "none", "border-left": "1px solid var(--border-primary)" },
+  ".tool-btn": {
+    background: "transparent",
+    border: "none",
+    "border-radius": "var(--radius-sm)",
+    height: "24px",
+    "align-self": "center",
+    padding: "0 10px",
+    "font-size": "calc(var(--ui-font-size) - 1px)",
+    "font-weight": "500",
+    "font-family": "inherit",
+    color: "var(--text-secondary)",
+    cursor: "pointer",
+    "white-space": "nowrap",
+    transition: "background 0.1s ease, color 0.1s ease",
+  },
+  ".tool-btn:hover": { background: "var(--bg-tertiary)", color: "var(--text-primary)" },
+  ".tool-btn[aria-checked=\"true\"]": { background: "var(--text-primary)", color: "var(--bg-primary)" },
+  ".tool-btn[aria-checked=\"true\"]:hover": { background: "var(--text-secondary)", color: "var(--bg-primary)" },
+  ".tool-btn:disabled": { opacity: "0.4", cursor: "default" },
+  ".tool-btn:disabled:hover": { background: "transparent", color: "var(--text-secondary)" },
+  ".tool-btn.copied": { color: "var(--success)" },
+  /* The project tab has no document: the chat takes the whole body, the editor controls go, the toggles stay. */
+  "#editor-column.project-tab #editor-container, #editor-column.project-tab #btn-toggle-chat, #editor-column.project-tab #editor-toolbar .editor-only": {
+    display: "none",
+  },
   "#editor-column.project-tab #chat-panel": { flex: "1", width: "auto", "max-width": "none", border: "none", animation: "none" },
   "#editor-column.project-tab .chat-resize-handle, #editor-column.project-tab .chat-drawer-pull": { display: "none" },
 
@@ -293,6 +425,7 @@ const shell: CssRules = {
     "-webkit-user-select": "none",
   },
   "#tab-list": {
+    order: "2",
     display: "flex",
     flex: "1",
     "min-width": "0",
@@ -311,7 +444,7 @@ const shell: CssRules = {
     "border-right": "1px solid var(--border-primary)",
     "border-bottom": "2px solid transparent",
     color: "var(--text-secondary)",
-    "font-size": "12px",
+    "font-size": "calc(var(--ui-font-size) - 1px)",
     "font-weight": "500",
     cursor: "pointer",
     "white-space": "nowrap",
@@ -347,6 +480,7 @@ const shell: CssRules = {
   ".editor-tab:hover .tab-close, .editor-tab.active .tab-close, .tab-close:focus-visible": { opacity: "1" },
   ".tab-close:hover": { background: "var(--border-primary)", color: "var(--text-primary)" },
   ".tab-new": {
+    order: "3",
     "flex-shrink": "0",
     width: "34px",
     border: "none",
@@ -368,7 +502,7 @@ const shell: CssRules = {
     padding: "0 16px",
     background: "var(--bg-secondary)",
     "border-top": "1px solid var(--border-primary)",
-    "font-size": "11px",
+    "font-size": "calc(var(--ui-font-size) - 2px)",
     color: "var(--text-tertiary)",
     gap: "16px",
     "font-weight": "500",
@@ -733,7 +867,7 @@ const shell: CssRules = {
   ".bw_bccl_modal": { background: "rgba(0, 0, 0, 0.5)", "backdrop-filter": "blur(4px)" },
   ".bw_bccl_modal_dialog": { "max-width": "520px" },
   ".bw_bccl_modal_content": { "max-height": "85vh", "overflow-y": "auto" },
-  "#about-overlay .bw_bccl_modal_dialog": { "max-width": "420px" },
+  "#about-overlay .bw_bccl_modal_dialog": { "max-width": "540px" },
 
   /* Settings form */
   ".settings-form .bw_bccl_form_group": { "margin-top": "18px" },
@@ -743,6 +877,7 @@ const shell: CssRules = {
   ".settings-form .bw_bccl_form_text": { display: "block", "font-size": "12px", "margin-top": "6px", "line-height": "1.5" },
   ".settings-form .bw_bccl_form_check": { "margin-top": "18px", display: "flex", "align-items": "center", gap: "8px" },
   ".settings-form .bw_bccl_form_check_label": { "font-size": "13px", "font-weight": "500", cursor: "pointer" },
+  ".settings-form textarea.bw_bccl_form_control": { "font-family": MONO, "font-size": "12px", "line-height": "1.5", "min-height": "96px", resize: "vertical" },
   ".model-row": { display: "flex", gap: "8px" },
   ".model-row .bw_bccl_form_control": { flex: "1" },
   ".model-row .bw_bccl_btn": { "white-space": "nowrap" },
@@ -768,55 +903,37 @@ const shell: CssRules = {
   },
   "#models-list a:hover": { background: "var(--bg-tertiary)" },
 
-  /* About */
+  /* About: a header row (logo, name, version, tagline), a short paragraph, a facts grid with links. */
   "#about-modal": { padding: "4px 4px 0" },
-  "#about-modal .about-logo": {
-    width: "72px",
-    height: "72px",
-    "border-radius": "16px",
-    "box-shadow": "var(--shadow-md)",
-    "margin-bottom": "20px",
-  },
-  "#about-modal .about-name": {
-    "font-size": "24px",
-    "font-weight": "700",
-    "letter-spacing": "-0.02em",
-    color: "var(--text-primary)",
-    "margin-bottom": "4px",
-  },
-  "#about-modal .about-version": { "font-size": "13px", color: "var(--text-tertiary)", "font-weight": "500", "margin-bottom": "20px" },
-  "#about-modal .about-desc": { "font-size": "14px", color: "var(--text-secondary)", "line-height": "1.6", "margin-bottom": "24px" },
-  "#about-modal .about-links": { display: "flex", "justify-content": "center", gap: "24px", "margin-bottom": "24px" },
-  "#about-modal .about-links a": {
-    "font-size": "13px",
-    "font-weight": "600",
-    color: "var(--accent-primary)",
-    "text-decoration": "none",
-    transition: "color 0.15s ease",
-  },
-  "#about-modal .about-links a:hover": { color: "var(--accent-hover)" },
-  "#about-modal .about-copyright": {
-    "font-size": "12px",
-    color: "var(--text-tertiary)",
-    "padding-top": "20px",
+  "#about-modal .about-head": { display: "flex", "align-items": "center", gap: "18px", "margin-bottom": "16px" },
+  "#about-modal .about-logo": { width: "64px", height: "64px", "border-radius": "14px", "box-shadow": "var(--shadow-md)", "flex-shrink": "0" },
+  "#about-modal .about-name": { "font-size": "22px", "font-weight": "700", "letter-spacing": "-0.02em", color: "var(--text-primary)", "line-height": "1.2" },
+  "#about-modal .about-version": { "font-size": "13px", color: "var(--text-tertiary)", "font-weight": "500", "margin-top": "2px" },
+  "#about-modal .about-tagline": { "font-size": "14px", color: "var(--text-secondary)", "margin-top": "6px" },
+  "#about-modal .about-desc": { "font-size": "14px", color: "var(--text-secondary)", "line-height": "1.6", margin: "0 0 16px" },
+  "#about-modal .about-facts": {
+    display: "grid",
+    "grid-template-columns": "auto 1fr",
+    gap: "8px 18px",
+    "align-items": "baseline",
+    margin: "0",
+    padding: "14px 0",
     "border-top": "1px solid var(--border-primary)",
+    "border-bottom": "1px solid var(--border-primary)",
+    "font-size": "13px",
   },
-  "#about-modal .about-license": { "font-size": "11px", color: "var(--text-tertiary)", "margin-top": "6px", "padding-bottom": "8px" },
+  "#about-modal .about-facts dt": { "font-weight": "600", color: "var(--text-tertiary)", "text-transform": "uppercase", "font-size": "11px", "letter-spacing": "0.05em" },
+  "#about-modal .about-facts dd": { margin: "0", color: "var(--text-primary)" },
+  "#about-modal .about-facts .about-ver": { color: "var(--text-tertiary)", "font-variant-numeric": "tabular-nums", "margin-left": "6px" },
+  "#about-modal .about-facts a": { color: "var(--accent-primary)", "font-weight": "600", "text-decoration": "none" },
+  "#about-modal .about-facts a:hover": { color: "var(--accent-hover)", "text-decoration": "underline" },
+  "#about-modal .about-copyright": { "font-size": "12px", color: "var(--text-tertiary)", "padding": "12px 0 8px" },
 
 
-  /* ── Toggle buttons (Chat / Files) ──────────────────────── */
-  ".toggle-btn": { display: "inline-flex", "align-items": "center", gap: "7px" },
-  ".toggle-btn .toggle-dot": {
-    width: "7px",
-    height: "7px",
-    "border-radius": "50%",
-    background: "var(--text-tertiary)",
-    "box-shadow": "inset 0 0 0 1px rgba(0,0,0,0.08)",
-    transition: "background 0.15s ease, box-shadow 0.15s ease",
-  },
-  ".toggle-btn[aria-pressed=\"true\"]": { background: "var(--accent-primary)", color: "var(--accent-text)" },
-  ".toggle-btn[aria-pressed=\"true\"]:hover": { background: "var(--accent-hover)" },
-  ".toggle-btn[aria-pressed=\"true\"] .toggle-dot": { background: "var(--accent-text)", "box-shadow": "0 0 0 2px rgba(255,255,255,0.35)" },
+  /* ── Panel toggles: pressed = inverted ───────────────────── */
+  ".toggle-btn": { display: "inline-flex", "align-items": "center", "justify-content": "center" },
+  ".toggle-btn[aria-pressed=\"true\"]": { background: "var(--text-primary)", color: "var(--bg-primary)" },
+  ".toggle-btn[aria-pressed=\"true\"]:hover": { background: "var(--text-secondary)", color: "var(--bg-primary)" },
   ".status-timing": { "margin-left": "auto", "font-variant-numeric": "tabular-nums" },
 
   /* ── Message meta: timestamps, timings, tool entries ─────── */
@@ -853,13 +970,21 @@ const shell: CssRules = {
 
   /* ── About tabs, How it works, Diagnostics ───────────────── */
   "#about-modal .bw_nav_tabs": { "justify-content": "center", "margin-bottom": "16px" },
-  ".about-pane": { "text-align": "center", padding: "8px 8px 0" },
-  ".about-how": { "text-align": "left", "font-size": "13px", "line-height": "1.6", color: "var(--text-secondary)", "max-height": "55vh", "overflow-y": "auto", padding: "0 4px" },
-  ".about-how h4": { margin: "14px 0 4px", "font-size": "13px", color: "var(--text-primary)" },
+  ".about-pane": { "text-align": "left", padding: "4px 4px 0" },
+  ".about-how": { "text-align": "left", "font-size": "13px", "line-height": "1.55", color: "var(--text-secondary)", "max-height": "55vh", "overflow-y": "auto", padding: "0 4px" },
+  ".about-how h4": {
+    margin: "18px 0 6px",
+    "font-size": "11px",
+    "font-weight": "700",
+    "text-transform": "uppercase",
+    "letter-spacing": "0.06em",
+    color: "var(--text-tertiary)",
+  },
   ".about-how h4:first-child": { "margin-top": "0" },
-  ".about-how ul": { "padding-left": "1.2em", margin: "0" },
-  ".about-how li": { margin: "4px 0" },
-  ".about-how strong": { color: "var(--text-primary)" },
+  ".about-how ul": { "list-style": "none", "padding-left": "0", margin: "0" },
+  ".about-how li": { margin: "0 0 8px", "padding-left": "12px", "border-left": "2px solid var(--border-primary)" },
+  ".about-how strong": { color: "var(--text-primary)", display: "block", "margin-bottom": "1px" },
+  ".about-how code": { "font-family": MONO, "font-size": "12px", background: "var(--bg-tertiary)", padding: "0 4px", "border-radius": "3px" },
   ".about-diag": { "text-align": "left", "font-size": "12px", color: "var(--text-secondary)" },
   ".diag-grid": { display: "grid", "grid-template-columns": "auto 1fr", gap: "6px 14px", "align-items": "baseline" },
   ".diag-label": { "font-weight": "600", color: "var(--text-primary)", "white-space": "nowrap" },
@@ -980,7 +1105,7 @@ const writing: CssRules = {
   "#find-close": { "margin-left": "auto" },
 
   /* Focus mode */
-  "#app.focus #titlebar, #app.focus #statusbar, #app.focus #file-tree, #app.focus #outline, #app.focus #chat-panel, #app.focus #chat-drawer-pull, #app.focus #info-panel, #app.focus #tab-bar": {
+  "#app.focus #titlebar, #app.focus #statusbar, #app.focus #file-tree, #app.focus #outline, #app.focus #chat-panel, #app.focus #chat-drawer-pull, #app.focus #info-panel, #app.focus #tab-bar, #app.focus #editor-toolbar": {
     display: "none !important",
   },
   "#app.focus #editor-container .qde-container": { border: "none", "border-radius": "0" },
@@ -1016,7 +1141,7 @@ const writing: CssRules = {
 
   /* Print: only the rendered preview pane (`#editor-container .qde-preview`). */
   "@media print": {
-    "#titlebar, #statusbar, #file-tree, #outline, #chat-panel, #chat-drawer-pull, #info-panel, #tab-bar, #find-bar, #focus-exit, #editor-container .qde-toolbar, #editor-container .qde-source": {
+    "#titlebar, #statusbar, #file-tree, #outline, #chat-panel, #chat-drawer-pull, #info-panel, #tab-bar, #find-bar, #focus-exit, #editor-toolbar, #editor-container .qde-source": {
       display: "none !important",
     },
     "html, body, #app, #main, #editor-column, #tab-body, #editor-container, #editor-container .qde-container, #editor-container .qde-editor": {

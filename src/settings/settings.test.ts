@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { chatSideOf, loadSettings, saveSettings, isConfigured } from "./settings";
+import { appearanceOf, chatSideOf, loadSettings, saveSettings, isConfigured } from "./settings";
 import type { LLMSettings } from "./settings";
 
 describe("isConfigured", () => {
@@ -102,5 +102,35 @@ describe("chatSideOf", () => {
     expect(loadSettings().chatSide).toBe("right");
     localStorage.clear();
     expect(loadSettings().chatSide).toBe("left");
+  });
+});
+
+describe("appearanceOf", () => {
+  const base: LLMSettings = { provider: "openai-compatible", host: "http://localhost", apiKey: "", model: "m", showToolCalls: false };
+
+  it("applies the defaults when nothing is stored", () => {
+    expect(appearanceOf(base)).toEqual({ uiFontSize: 14, editorFontSize: 16, previewStyle: "default", previewCss: "" });
+  });
+
+  it("keeps chosen values and drops sizes and styles it does not offer", () => {
+    expect(appearanceOf({ ...base, uiFontSize: 16, editorFontSize: 20, previewStyle: "book", previewCss: "h1 { color: red }" })).toEqual({
+      uiFontSize: 16,
+      editorFontSize: 20,
+      previewStyle: "book",
+      previewCss: "h1 { color: red }",
+    });
+    expect(appearanceOf({ ...base, uiFontSize: 9, editorFontSize: 99, previewStyle: "comic" as any, previewCss: 7 as any })).toEqual({
+      uiFontSize: 14,
+      editorFontSize: 16,
+      previewStyle: "default",
+      previewCss: "",
+    });
+  });
+
+  it("is stored and loaded with the rest of the settings", () => {
+    localStorage.clear();
+    saveSettings({ ...base, previewStyle: "mono", editorFontSize: 18 });
+    expect(appearanceOf(loadSettings())).toMatchObject({ previewStyle: "mono", editorFontSize: 18 });
+    localStorage.clear();
   });
 });

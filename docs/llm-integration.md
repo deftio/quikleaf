@@ -36,6 +36,10 @@ Click **Settings** in the title bar to configure:
 | API Key | Authentication key (blank for local models) |
 | Model | Model name (use "Fetch Models" to list available) |
 | Chat drawer side | Which edge of the tab the chat slides out of: left (default) or right. Applies immediately. |
+| Interface font size | Menus, tab bar, toolbars, status bar (12–18 px, default 14). Applies immediately. |
+| Editor font size | The preview's base size (13–22 px, default 16); the source pane follows at 7/8. |
+| Preview style | Default (quikdown's), Book (serif, reading measure), Plain (ruled headings), Mono. |
+| Preview CSS | Your own rules, applied inside the preview on top of the style: `h1 { … }`, `p { … }`, or a bare declaration for the preview itself. |
 
 ## Auto-Detection
 

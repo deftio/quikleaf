@@ -172,8 +172,10 @@ test.describe("Project chat", () => {
     await expect(last).toContainText("File:");
     await expect(last).not.toContainText("Document:");
 
-    // The chat pane cannot be closed on the project tab.
-    await page.click("#btn-toggle-chat");
+    // The chat pane cannot be closed on the project tab: its tab-bar toggle is
+    // not shown there, and the shortcut is a no-op.
+    await expect(page.locator("#btn-toggle-chat")).toBeHidden();
+    await page.keyboard.press("ControlOrMeta+Shift+c");
     await expect(page.locator("#chat-panel")).toBeVisible();
 
     // Opening a file from the tree leaves the project tab in place; coming back finds the same chat.

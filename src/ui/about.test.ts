@@ -123,21 +123,31 @@ describe("makeAboutModal", () => {
     expect(how.querySelectorAll("ul")).toHaveLength(5);
     expect(how.querySelectorAll("li").length).toBeGreaterThanOrEqual(14);
     expect(how.querySelector("li strong")?.textContent).toContain("Rust backend");
+    // Every bullet opens with a bold lead, so the tab scans as a list of points.
+    const items = Array.from(how.querySelectorAll("li"));
+    expect(items.every((li) => li.firstElementChild?.tagName === "STRONG")).toBe(true);
   });
 
   it("opens project links in the system browser instead of the webview", () => {
     const node = bw.append(byId("app"), makeAboutModal());
     const links = Array.from(node.querySelectorAll(".about-links a")) as HTMLAnchorElement[];
-    expect(links.map((a) => a.textContent)).toEqual(["quikleaf", "quikdown", "bitwrench", "Tauri"]);
+    expect(links.map((a) => a.textContent)).toEqual(["github.com/deftio/quikleaf", "deftio.github.io/quikleaf", "quikdown", "bitwrench", "Tauri"]);
     expect(links.map((a) => a.getAttribute("href"))).toEqual([
       "https://github.com/deftio/quikleaf",
+      "https://deftio.github.io/quikleaf/",
       "https://github.com/deftio/quikdown",
       "https://github.com/deftio/bitwrench",
       "https://tauri.app",
     ]);
+    // Facts are a label/value grid; each library carries its installed version.
+    const labels = Array.from(node.querySelectorAll(".about-facts dt")).map((d) => d.textContent);
+    expect(labels).toEqual(["Source", "Website", "Rendering", "Interface", "Shell", "License"]);
+    const versions = Array.from(node.querySelectorAll(".about-facts .about-ver")).map((v) => v.textContent);
+    expect(versions).toHaveLength(3);
+    for (const v of versions) expect(v).toMatch(/^\d+\.\d+\.\d+/);
 
     const ev = new MouseEvent("click", { bubbles: true, cancelable: true });
-    links[3].dispatchEvent(ev);
+    links[4].dispatchEvent(ev);
     expect(ev.defaultPrevented).toBe(true);
     expect(mockShellOpen).toHaveBeenCalledTimes(1);
     expect(mockShellOpen).toHaveBeenCalledWith("https://tauri.app");

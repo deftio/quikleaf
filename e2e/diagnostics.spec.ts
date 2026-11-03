@@ -175,7 +175,6 @@ test.describe("About dialog tabs and CLI install", () => {
   });
 
   test("About has How it works and Diagnostics tabs", async ({ page }) => {
-    await page.click("#btn-help-menu");
     await page.click("#btn-about");
     const modal = page.locator("#about-modal");
     await expect(modal.locator('[role="tab"]')).toHaveCount(3);

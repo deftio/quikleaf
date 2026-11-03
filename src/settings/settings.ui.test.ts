@@ -17,6 +17,7 @@ import {
   chatDisplayOf,
   editApprovalOf,
   closeSettings,
+  applyLiveSettings,
   initSettingsUI,
   loadSettings,
   makeSettingsModal,
@@ -178,6 +179,10 @@ describe("makeSettingsModal", () => {
       "set-perf-log",
       "set-edit-approval",
       "set-chat-side",
+      "set-ui-font",
+      "set-editor-font",
+      "set-preview-style",
+      "set-preview-css",
       "settings-open-log",
       "settings-clear-log",
       "settings-cancel",
@@ -211,7 +216,7 @@ describe("makeSettingsModal", () => {
   it("offers the three edit-approval policies under an Agent section, defaulting to files", () => {
     const node = bw.append(byId("app"), makeSettingsModal());
     const titles = Array.from(node.querySelectorAll(".settings-section-title")).map((h) => h.textContent);
-    expect(titles).toEqual(["LLM provider", "Chat display", "Agent", "Diagnostics"]);
+    expect(titles).toEqual(["LLM provider", "Appearance", "Chat display", "Agent", "Diagnostics"]);
     const sel = byId<HTMLSelectElement>("set-edit-approval");
     expect(Array.from(sel.options).map((o) => o.value)).toEqual(EDIT_APPROVAL_OPTIONS.map((o) => o.value));
     expect(sel.value).toBe("files");
@@ -358,6 +363,10 @@ describe("open / close and the form round-trip", () => {
       perfLog: true,
       editApproval: "always",
       chatSide: "right",
+      uiFontSize: 14,
+      editorFontSize: 16,
+      previewStyle: "default",
+      previewCss: "",
     });
     const panel = byId("chat-panel");
     expect(panel.classList.contains("show-timestamps")).toBe(true);
@@ -653,5 +662,47 @@ describe("applyChatSettings", () => {
     expect(byId("chat-panel").classList.contains("show-tools")).toBe(false);
     expect(byId("chat-panel").classList.contains("show-timestamps")).toBe(true);
     expect(byId("tab-body").classList.contains("chat-right")).toBe(false);
+  });
+});
+
+describe("applyLiveSettings / Appearance", () => {
+  it("sets the font sizes and preview style on #app and installs the user's CSS", () => {
+    applyLiveSettings({ ...saved, uiFontSize: 16, editorFontSize: 20, previewStyle: "book", previewCss: "h1 { color: red }" });
+    const app = byId("app");
+    expect(app.style.getPropertyValue("--ui-font-size")).toBe("16px");
+    expect(app.style.getPropertyValue("--editor-font-size")).toBe("20px");
+    expect(app.classList.contains("preview-book")).toBe(true);
+    expect(document.getElementById("quikleaf_user_css")!.textContent).toBe("#editor-container .qde-preview {\nh1 { color: red }\n}");
+    applyLiveSettings(saved);
+    expect(app.style.getPropertyValue("--ui-font-size")).toBe("14px");
+    expect(app.classList.contains("preview-book")).toBe(false);
+    expect(app.classList.contains("preview-default")).toBe(true);
+    expect(document.getElementById("quikleaf_user_css")!.textContent).toBe("");
+  });
+
+  it("the Appearance pickers preview live, Save keeps them, Cancel puts them back", async () => {
+    saveSettings(saved);
+    initSettingsUI();
+    await flush();
+    openSettings();
+    const style = byId<HTMLSelectElement>("set-preview-style");
+    style.value = "mono";
+    style.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(byId("app").classList.contains("preview-mono")).toBe(true);
+    const css = byId<HTMLTextAreaElement>("set-preview-css");
+    css.value = "p { margin: 0 }";
+    css.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(document.getElementById("quikleaf_user_css")!.textContent).toContain("p { margin: 0 }");
+    byId("settings-cancel").click();
+    expect(byId("app").classList.contains("preview-mono")).toBe(false);
+    expect(document.getElementById("quikleaf_user_css")!.textContent).toBe("");
+
+    openSettings();
+    const font = byId<HTMLSelectElement>("set-ui-font");
+    font.value = "16";
+    font.dispatchEvent(new Event("change", { bubbles: true }));
+    byId("settings-save").click();
+    expect(loadSettings().uiFontSize).toBe(16);
+    expect(byId("app").style.getPropertyValue("--ui-font-size")).toBe("16px");
   });
 });

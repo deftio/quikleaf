@@ -134,7 +134,7 @@ describe("makeMenu", () => {
 });
 
 describe("makeToggleButton / setToggleState", () => {
-  it("renders an unpressed button with a state dot, label and title", () => {
+  it("renders an unpressed button with a plain label (no marker) and a title", () => {
     const onclick = vi.fn();
     mount(makeToggleButton("btn-toggle-chat", "Chat", onclick));
     const btn = document.getElementById("btn-toggle-chat")!;
@@ -142,7 +142,7 @@ describe("makeToggleButton / setToggleState", () => {
     expect(btn.getAttribute("type")).toBe("button");
     expect(btn.getAttribute("title")).toBe("Show or hide the chat panel");
     expect(btn.className).toBe("titlebar-btn toggle-btn");
-    expect(btn.querySelector(".toggle-dot")!.getAttribute("aria-hidden")).toBe("true");
+    expect(btn.children.length).toBe(0);
     expect(btn.textContent).toBe("Chat");
     click("btn-toggle-chat");
     expect(onclick).toHaveBeenCalledTimes(1);
@@ -151,6 +151,11 @@ describe("makeToggleButton / setToggleState", () => {
   it("appends the extra class", () => {
     mount(makeToggleButton("btn-toggle-files", "Files", vi.fn(), "hidden"));
     expect(document.getElementById("btn-toggle-files")!.className).toBe("titlebar-btn toggle-btn hidden");
+  });
+
+  it("the toolbar variant is a control-row toggle, not a title bar button", () => {
+    mount(makeToggleButton("btn-toggle-info", "Info", vi.fn(), "", "toolbar"));
+    expect(document.getElementById("btn-toggle-info")!.className).toBe("tool-toggle toggle-btn");
   });
 
   it("setToggleState sets aria-pressed and the legacy .active class both ways", () => {
@@ -185,13 +190,25 @@ describe("makeTitlebar", () => {
       onSettings: vi.fn(),
       onAbout: vi.fn(),
       onInstallCli: vi.fn(),
+      onOpenDocs: vi.fn(),
+      onReportIssue: vi.fn(),
     };
     mount(makeTitlebar(h));
     expect(document.getElementById("titlebar")).not.toBeNull();
     expect(document.getElementById("app-logo")!.getAttribute("src")).toBe("/icon.png");
     expect(document.getElementById("llm-status")!.textContent).toBe("");
-    expect(document.getElementById("btn-toggle-files")!.classList.contains("hidden")).toBe(true);
-    expect(document.getElementById("btn-toggle-outline")!.classList.contains("hidden")).toBe(false);
+    // Row 1 is menus on the left and Settings / Help / About on the right; the
+    // panel toggles live on the tab's control row (ui/editor-toolbar.ts).
+    for (const id of ["btn-toggle-files", "btn-toggle-outline", "btn-toggle-chat", "btn-toggle-info"]) {
+      expect(document.getElementById(id), id).toBeNull();
+    }
+    const leftIds = Array.from(document.querySelectorAll("#titlebar-left > button, #titlebar-left > .titlebar-menu > button")).map((b) => b.id);
+    expect(leftIds).toEqual(["btn-file-menu", "btn-view-menu"]);
+    const rightIds = Array.from(document.querySelectorAll("#titlebar-right > button, #titlebar-right > .titlebar-menu > button")).map((b) => b.id);
+    expect(rightIds).toEqual(["btn-settings", "btn-help-menu", "btn-about"]);
+    expect(document.getElementById("btn-about")!.textContent).toBe("About");
+    const helpItems = Array.from(document.querySelectorAll("#help-menu-dropdown .dropdown-item")).map((i) => i.id);
+    expect(helpItems).toEqual(["btn-docs", "btn-report-issue", "btn-install-cli"]);
     const fileItems = Array.from(document.querySelectorAll("#file-menu-dropdown .dropdown-item")).map((i) => i.id);
     expect(fileItems).toEqual(["btn-new", "btn-open", "btn-save", "btn-close-tab", "btn-export-html", "btn-print"]);
     const viewItems = Array.from(document.querySelectorAll("#view-menu-dropdown .dropdown-item")).map((i) => i.id);
@@ -221,20 +238,19 @@ describe("makeTitlebar", () => {
     click("btn-print");
     click("btn-focus-mode");
     click("btn-find");
-    click("btn-toggle-chat");
-    click("btn-toggle-info");
-    click("btn-toggle-files");
-    click("btn-toggle-outline");
+    click("btn-toggle-chat-menu");
+    click("btn-toggle-info-menu");
+    click("btn-toggle-files-menu");
+    click("btn-toggle-outline-menu");
     click("btn-project-chat");
+    click("btn-docs");
+    click("btn-report-issue");
     click("btn-mode-preview");
     click("btn-settings");
     click("btn-about");
     click("btn-install-cli");
     for (const fn of Object.values(h)) expect(fn).toHaveBeenCalledTimes(1);
     expect(h.onEditorMode).toHaveBeenCalledWith("preview");
-    // The View menu item is a second way to toggle the outline.
-    click("btn-toggle-outline-menu");
-    expect(h.onToggleOutline).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -268,10 +284,16 @@ describe("statusbar and main", () => {
     expect(Array.from(document.getElementById("tab-body")!.children).map((c) => c.id)).toEqual(["editor-container"]);
   });
 
-  it("makeMain stacks the given chrome above the tab body and puts side panes around the editor", () => {
-    mount(makeMain([], [{ t: "div", a: { id: "tab-bar" } }], { left: [{ t: "div", a: { id: "chat-panel" } }], right: [{ t: "div", a: { id: "info-panel" } }] }));
+  it("makeMain stacks the given chrome (tab bar, control row, find bar) above the tab body and puts side panes around the editor", () => {
+    mount(
+      makeMain(
+        [],
+        [{ t: "div", a: { id: "tab-bar" } }, { t: "div", a: { id: "editor-toolbar" } }],
+        { left: [{ t: "div", a: { id: "chat-panel" } }], right: [{ t: "div", a: { id: "info-panel" } }] },
+      ),
+    );
     const column = document.getElementById("editor-column")!;
-    expect(Array.from(column.children).map((c) => c.id)).toEqual(["tab-bar", "tab-body"]);
+    expect(Array.from(column.children).map((c) => c.id)).toEqual(["tab-bar", "editor-toolbar", "tab-body"]);
     expect(Array.from(document.getElementById("tab-body")!.children).map((c) => c.id)).toEqual(["chat-panel", "editor-container", "info-panel"]);
   });
 });
@@ -340,14 +362,16 @@ describe("chat drawer", () => {
     expect(body.classList.contains("chat-closed")).toBe(true);
   });
 
-  it("setChatSide flips the chat-right class on #tab-body and chatSide reads it back", () => {
-    mount({ t: "div", a: { id: "tab-body" } });
+  it("setChatSide flips chat-right on #tab-body (and #editor-column, for the tab bar) and chatSide reads it back", () => {
+    mount({ t: "div", a: { id: "editor-column" }, c: [{ t: "div", a: { id: "tab-body" } }] });
     expect(chatSide()).toBe("left");
     setChatSide("right");
     expect(document.getElementById("tab-body")!.classList.contains("chat-right")).toBe(true);
+    expect(document.getElementById("editor-column")!.classList.contains("chat-right")).toBe(true);
     expect(chatSide()).toBe("right");
     setChatSide("left");
     expect(document.getElementById("tab-body")!.classList.contains("chat-right")).toBe(false);
+    expect(document.getElementById("editor-column")!.classList.contains("chat-right")).toBe(false);
     expect(chatSide()).toBe("left");
   });
 

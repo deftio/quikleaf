@@ -4,6 +4,16 @@ import { invoke } from "@tauri-apps/api/core";
 import { buildModelsUrl, listModels } from "../chat/providers";
 import { control, el, makeModal, modalHandle, withAttrs } from "../ui/taco";
 import { setChatDisplay, setChatSide, setStatusProvider, type ChatSide } from "../ui/shell";
+import {
+  applyAppearance,
+  DEFAULT_APPEARANCE,
+  EDITOR_FONT_SIZES,
+  isPreviewStyle,
+  PREVIEW_STYLES,
+  UI_FONT_SIZES,
+  type Appearance,
+  type PreviewStyle,
+} from "../ui/appearance";
 import { notify } from "../ui/toast";
 
 export interface LLMSettings {
@@ -25,6 +35,11 @@ export interface LLMSettings {
   editApproval?: EditApproval;
   /** Which edge of the tab the chat drawer slides out of. Default left. */
   chatSide?: ChatSide;
+  /** Appearance (see `ui/appearance.ts`); `appearanceOf()` applies the defaults. */
+  uiFontSize?: number;
+  editorFontSize?: number;
+  previewStyle?: PreviewStyle;
+  previewCss?: string;
 }
 
 export type EditApproval = "always" | "files" | "never";
@@ -52,7 +67,12 @@ const defaults: LLMSettings = {
   perfLog: true,
   editApproval: "files",
   chatSide: "left",
+  ...DEFAULT_APPEARANCE,
 };
+
+const px = (n: number) => ({ value: String(n), text: `${n} px` });
+export const UI_FONT_OPTIONS = UI_FONT_SIZES.map(px);
+export const EDITOR_FONT_OPTIONS = EDITOR_FONT_SIZES.map(px);
 
 export function loadSettings(): LLMSettings {
   try {
@@ -89,6 +109,23 @@ export function chatSideOf(s: LLMSettings): ChatSide {
 export function applyChatSettings(s: LLMSettings): void {
   setChatDisplay(chatDisplayOf(s));
   setChatSide(chatSideOf(s));
+}
+
+/** The appearance with defaults applied and unknown stored values dropped. */
+export function appearanceOf(s: LLMSettings): Appearance {
+  const size = (v: unknown, allowed: number[], def: number) => (typeof v === "number" && allowed.includes(v) ? v : def);
+  return {
+    uiFontSize: size(s.uiFontSize, UI_FONT_SIZES, DEFAULT_APPEARANCE.uiFontSize),
+    editorFontSize: size(s.editorFontSize, EDITOR_FONT_SIZES, DEFAULT_APPEARANCE.editorFontSize),
+    previewStyle: isPreviewStyle(s.previewStyle) ? s.previewStyle : DEFAULT_APPEARANCE.previewStyle,
+    previewCss: typeof s.previewCss === "string" ? s.previewCss : "",
+  };
+}
+
+/** Everything in Settings that shows on the spot: chat display, drawer side, appearance. */
+export function applyLiveSettings(s: LLMSettings): void {
+  applyChatSettings(s);
+  applyAppearance(appearanceOf(s));
 }
 
 // --- Presets ----------------------------------------------------------------
@@ -176,6 +213,10 @@ function readForm(): LLMSettings {
     perfLog: field<HTMLInputElement>("set-perf-log").checked,
     editApproval: field<HTMLSelectElement>("set-edit-approval").value as EditApproval,
     chatSide: field<HTMLSelectElement>("set-chat-side").value as ChatSide,
+    uiFontSize: Number(field<HTMLSelectElement>("set-ui-font").value),
+    editorFontSize: Number(field<HTMLSelectElement>("set-editor-font").value),
+    previewStyle: field<HTMLSelectElement>("set-preview-style").value as PreviewStyle,
+    previewCss: field<HTMLTextAreaElement>("set-preview-css").value,
   };
 }
 
@@ -192,6 +233,11 @@ function writeForm(s: LLMSettings): void {
   field<HTMLInputElement>("set-perf-log").checked = s.perfLog !== false;
   field<HTMLSelectElement>("set-edit-approval").value = editApprovalOf(s);
   field<HTMLSelectElement>("set-chat-side").value = chatSideOf(s);
+  const a = appearanceOf(s);
+  field<HTMLSelectElement>("set-ui-font").value = String(a.uiFontSize);
+  field<HTMLSelectElement>("set-editor-font").value = String(a.editorFontSize);
+  field<HTMLSelectElement>("set-preview-style").value = a.previewStyle;
+  field<HTMLTextAreaElement>("set-preview-css").value = a.previewCss;
   bw.clear("models-list");
 }
 
@@ -221,9 +267,9 @@ export function closeSettings(): void {
   modalHandle(modalEl)?.close();
 }
 
-/** Display toggles and the drawer side preview live; Cancel/close puts them back the way they were saved. */
+/** Display toggles, the drawer side and appearance preview live; Cancel/close puts them back the way they were saved. */
 function revertDisplay(): void {
-  applyChatSettings(loadSettings());
+  applyLiveSettings(loadSettings());
 }
 
 function onCancel(): void {
@@ -234,14 +280,14 @@ function onCancel(): void {
 function onSave(): void {
   const s = readForm();
   saveSettings(s);
-  applyChatSettings(s);
+  applyLiveSettings(s);
   updateStatus();
   closeSettings();
 }
 
-/** Switches and the side picker apply immediately so the chat updates while the dialog is open. */
+/** Switches, pickers and the CSS box apply immediately so the app updates while the dialog is open. */
 function onDisplayToggle(): void {
-  applyChatSettings(readForm());
+  applyLiveSettings(readForm());
 }
 
 function onPresetChange(e: Event): void {
@@ -361,6 +407,36 @@ export function makeSettingsModal(): Taco {
         help: 'Model name as the provider expects it. Click "Fetch Models" to list available models from the host.',
       }),
       { t: "div", a: { id: "models-list" } },
+
+      sectionTitle("Appearance"),
+      bw.makeFormGroup({
+        id: "set-ui-font",
+        label: "Interface font size",
+        input: bw.makeSelect({ id: "set-ui-font", options: UI_FONT_OPTIONS, value: String(defaults.uiFontSize), onchange: onDisplayToggle }),
+        help: "Menus, tab bar, toolbars and status bar.",
+      }),
+      bw.makeFormGroup({
+        id: "set-editor-font",
+        label: "Editor font size",
+        input: bw.makeSelect({ id: "set-editor-font", options: EDITOR_FONT_OPTIONS, value: String(defaults.editorFontSize), onchange: onDisplayToggle }),
+        help: "The rendered preview; the source pane follows a little smaller.",
+      }),
+      bw.makeFormGroup({
+        id: "set-preview-style",
+        label: "Preview style",
+        input: bw.makeSelect({ id: "set-preview-style", options: PREVIEW_STYLES, value: defaults.previewStyle, onchange: onDisplayToggle }),
+        help: "How the rendered markdown is typeset. Changes show at once; Cancel puts it back.",
+      }),
+      bw.makeFormGroup({
+        id: "set-preview-css",
+        label: "Preview CSS",
+        input: withAttrs(bw.makeTextarea({ rows: 5, placeholder: "h1 { font-family: Georgia; }\nblockquote { color: #666; }" }), {
+          id: "set-preview-css",
+          spellcheck: "false",
+          oninput: onDisplayToggle,
+        }),
+        help: "Your own rules, applied inside the preview on top of the chosen style. Write selectors as if the preview were the page (h1, p, code…); a bare declaration styles the preview itself.",
+      }),
 
       sectionTitle("Chat display"),
       bw.makeSwitch({ id: "set-show-timestamps", label: "Show timestamps and timing under messages", onchange: onDisplayToggle }),

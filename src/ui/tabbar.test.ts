@@ -44,6 +44,10 @@ describe("makeTabBar", () => {
     plus.click();
     expect(handlers.onNew).toHaveBeenCalledTimes(1);
   });
+
+  it("holds only the tabs and the new-tab button (the tab's controls are on the row below)", () => {
+    expect(Array.from(byId("tab-bar").children).map((c) => c.id)).toEqual(["tab-list", "tab-new"]);
+  });
 });
 
 describe("renderTabBar", () => {

@@ -11,12 +11,12 @@ import { control, el, makeModal, modalHandle, withAttrs } from "./taco";
 import { notify } from "./toast";
 import { describeEntry, getLogPath, isPerfLogEnabled, tailLog } from "../diag/perf";
 
-const LINKS = [
-  { text: "quikleaf", href: "https://github.com/deftio/quikleaf" },
-  { text: "quikdown", href: "https://github.com/deftio/quikdown" },
-  { text: "bitwrench", href: "https://github.com/deftio/bitwrench" },
-  { text: "Tauri", href: "https://tauri.app" },
-];
+export const REPO_URL = "https://github.com/deftio/quikleaf";
+export const ISSUES_URL = "https://github.com/deftio/quikleaf/issues";
+export const SITE_URL = "https://deftio.github.io/quikleaf/";
+export const QUIKDOWN_URL = "https://github.com/deftio/quikdown";
+export const BITWRENCH_URL = "https://github.com/deftio/bitwrench";
+export const TAURI_URL = "https://tauri.app";
 
 export interface CliStatus {
   supported: boolean;
@@ -26,13 +26,13 @@ export interface CliStatus {
   note: string;
 }
 
-function externalLink(text: string, href: string): Taco {
+/** A link that opens in the system browser, never inside the webview. */
+export function externalLink(text: string, href: string): Taco {
   return {
     t: "a",
     a: {
       href,
       onclick: (e: Event) => {
-        // Open in the system browser, never inside the webview.
         e.preventDefault();
         shellOpen(href).catch(console.error);
       },
@@ -43,30 +43,56 @@ function externalLink(text: string, href: string): Taco {
 
 // --- Tab 1: About ---------------------------------------------------------
 
+function fact(label: string, value: TacoContent, ddClass = ""): Taco[] {
+  return [
+    { t: "dt", c: label },
+    { t: "dd", a: ddClass ? { class: ddClass } : {}, c: value },
+  ];
+}
+
+/** A library link followed by its installed version. */
+function lib(name: string, href: string, version: string): TacoContent {
+  return [externalLink(name, href), { t: "span", a: { class: "about-ver" }, c: version }];
+}
+
 function aboutTab(): Taco {
   return {
     t: "div",
     a: { class: "about-pane" },
     c: [
-      { t: "img", a: { class: "about-logo", src: "/icon.png", alt: "quikleaf" } },
-      { t: "div", a: { class: "about-name" }, c: "quikleaf" },
-      { t: "div", a: { class: "about-version" }, c: `Version ${__APP_VERSION__}` },
       {
         t: "div",
-        a: { class: "about-desc" },
+        a: { class: "about-head" },
         c: [
-          "A cross-platform markdown editor with rich fence rendering, live preview, and LLM chat integration. Powered by ",
-          { t: "strong", c: "quikdown" },
-          ", ",
-          { t: "strong", c: "bitwrench" },
-          " and ",
-          { t: "strong", c: "Tauri" },
-          ".",
+          { t: "img", a: { class: "about-logo", src: "/icon.png", alt: "quikleaf" } },
+          {
+            t: "div",
+            c: [
+              { t: "div", a: { class: "about-name" }, c: "quikleaf" },
+              { t: "div", a: { class: "about-version" }, c: `Version ${__APP_VERSION__}` },
+              { t: "div", a: { class: "about-tagline" }, c: "A local markdown editor with a chat per document." },
+            ],
+          },
         ],
       },
-      { t: "div", a: { class: "about-links" }, c: LINKS.map((l) => externalLink(l.text, l.href)) },
+      {
+        t: "p",
+        a: { class: "about-desc" },
+        c: "A cross-platform markdown editor: live preview with rich fences (Mermaid, LaTeX, maps, 3D, charts) rendered offline, and an LLM chat sealed to each document. Files stay on your machine; the only network traffic is to the LLM host you configure.",
+      },
+      {
+        t: "dl",
+        a: { class: "about-facts about-links" },
+        c: [
+          ...fact("Source", externalLink("github.com/deftio/quikleaf", REPO_URL)),
+          ...fact("Website", externalLink("deftio.github.io/quikleaf", SITE_URL)),
+          ...fact("Rendering", lib("quikdown", QUIKDOWN_URL, __QUIKDOWN_VERSION__)),
+          ...fact("Interface", lib("bitwrench", BITWRENCH_URL, __BITWRENCH_VERSION__)),
+          ...fact("Shell", lib("Tauri", TAURI_URL, __TAURI_API_VERSION__)),
+          ...fact("License", "BSD-2-Clause, free and open source", "about-license"),
+        ],
+      },
       { t: "div", a: { class: "about-copyright" }, c: "© deftio 2026" },
-      { t: "div", a: { class: "about-license" }, c: "Free open source software under the BSD-2-Clause license" },
     ],
   };
 }
@@ -80,35 +106,41 @@ function section(title: string, items: TacoContent[]): Taco[] {
   ];
 }
 
+/** One bullet: a bold lead on its own line, then one or two plain sentences. */
+function point(lead: string, text: TacoContent): TacoContent {
+  return [{ t: "strong", c: lead }, text];
+}
+
 function howItWorksTab(): Taco {
   return {
     t: "div",
     a: { class: "about-how", id: "about-how" },
     c: [
       ...section("Three layers", [
-        [{ t: "strong", c: "Rust backend (Tauri v2). " }, "Owns the window, file I/O, the project store, the performance log, and a small HTTP proxy. Nothing in the webview talks to the network directly."],
-        [{ t: "strong", c: "TypeScript frontend. " }, "Runs in the platform webview and calls the backend over Tauri IPC (`invoke`). It is built once with Vite and bundled into the app."],
-        [{ t: "strong", c: "Two libraries do the heavy lifting. " }, "quikdown renders markdown and every fence type (Mermaid, LaTeX, maps, 3D, charts) offline; bitwrench builds this entire interface from plain objects."],
+        point("Rust backend (Tauri v2)", "Owns the window, file I/O, the project store, the performance log and a small HTTP proxy. Nothing in the webview talks to the network directly."),
+        point("TypeScript frontend", ["Runs in the platform webview and calls the backend over Tauri IPC (", { t: "code", c: "invoke" }, "). Built once with Vite, bundled into the app."]),
+        point("Two libraries", "quikdown renders markdown and every fence type offline; bitwrench builds this whole interface from plain objects."),
       ]),
       ...section("The UI is data", [
-        "Every element you see — title bar, this dialog, each chat bubble — is a bitwrench TACO object {t, a, c, o} mounted into one empty <div id=\"app\">. There is no hand-written HTML.",
-        "Styles are generated at runtime from two seed palettes (light and dark). Dark mode is a single class toggled on the root; both themes derive from the same accent color.",
-        "Updates are targeted: a streaming reply patches one bubble's body, timestamps and tool entries flip visibility with one class on the chat panel.",
+        point("One object per element", ["Title bar, this dialog, each chat bubble: all bitwrench TACO objects ", { t: "code", c: "{t, a, c}" }, " mounted into one empty div. No hand-written HTML."]),
+        point("Two palettes", "Styles are generated at runtime from a light and a dark seed. Dark mode is one class on the root."),
+        point("Targeted updates", "A streaming reply patches one bubble; timestamps and tool entries flip with one class on the chat panel."),
       ]),
       ...section("The chat loop (QD)", [
-        "Your message, the conversation, a system prompt and the tool schemas go to the backend, which streams the model's reply back as events.",
-        "Every tab has its own chat, sealed to its document: the model sees that document and the conversation, nothing else, and its tools can change only that document. The project chat (View → Project Chat) is the one place that works across files, by path, under the project root.",
-        "The model works on raw markdown only — it never sees rendered HTML. A document chat can read, replace, insert, undo and redo its document; the project chat can read, write, list and search files; chats of project files share the project's scratchpad and key-value notes.",
-        "When the model asks for tools, quikleaf runs them locally, appends the results, and calls the model again — up to ten rounds — with a Stop button at every step.",
-        "Works with any OpenAI-compatible server (Ollama, LM Studio, Docker Model Runner, OpenRouter, Groq) or Anthropic. Local servers are auto-detected on first launch.",
+        point("Each turn", "Your message, the conversation, a system prompt and the tool schemas go to the backend, which streams the reply back as events."),
+        point("Sealed per tab", "A document chat sees that document and its own conversation, nothing else, and its tools can change only that document."),
+        point("Project chat", "View → Project Chat is the one place that works across files, by path, under the project root."),
+        point("Markdown only", "The model never sees rendered HTML. It can read, replace, insert, undo and redo; the project chat can also list, search and write files."),
+        point("Tools run locally", "Results are appended and the model is called again, up to ten rounds, with a Stop button at every step."),
+        point("Any provider", "OpenAI-compatible servers (Ollama, LM Studio, Docker Model Runner, OpenRouter, Groq) or Anthropic. Local servers are auto-detected on first launch."),
       ]),
       ...section("Timing and the performance log", [
-        "Each request records time to first token, total time, an approximate token count and generation rate; each tool call records its duration. Turn on \"Show timestamps\" in Settings to see them under every message.",
-        "When \"Write performance log\" is on, the same numbers are appended as JSON lines to a file in the OS log folder (path in the Diagnostics tab). Turn it off and nothing is written.",
+        point("Per request", "Time to first token, total time, an approximate token count and generation rate; each tool call records its duration. Settings → Show timestamps puts them under every message."),
+        point("Per file", "With the performance log on, the same numbers go to a JSON-lines file in the OS log folder (path under Diagnostics). Off means nothing is written."),
       ]),
       ...section("Project mode and privacy", [
-        "quikleaf --project ./dir opens a folder: a file tree, the project chat, and a quikleaf.prj file that persists the open tabs, each project file's chat and pane layout, the scratchpad and the key-value store.",
-        "API keys live in the webview's local storage and are only ever sent by the backend proxy to the host you configured. Nothing is uploaded anywhere else.",
+        point("quikleaf --project ./dir", ["Opens a folder: file tree, project chat, and a ", { t: "code", c: "quikleaf.prj" }, " that remembers open tabs, each file's chat and layout, the scratchpad and the key-value store."]),
+        point("API keys", "Live in the webview's local storage and are sent only by the backend proxy, only to the host you configured."),
       ]),
     ],
   };

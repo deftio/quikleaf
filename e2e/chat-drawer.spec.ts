@@ -56,6 +56,16 @@ test.describe("Chat drawer", () => {
     const pull = await page.locator("#chat-drawer-pull").boundingBox();
     expect(Math.abs(left(pull) - left(body))).toBeLessThan(2);
 
+    // The control row: [Outline Chat | editor controls … | Info]; the tab bar and title bar hold no toggles.
+    const bar = await page.locator("#editor-toolbar").boundingBox();
+    const outlineBtn = await page.locator("#editor-toolbar #btn-toggle-outline").boundingBox();
+    const chatBtn = await page.locator("#editor-toolbar #btn-toggle-chat").boundingBox();
+    const infoBtn = await page.locator("#editor-toolbar #btn-toggle-info").boundingBox();
+    expect(Math.abs(left(outlineBtn) - left(bar))).toBeLessThan(2);
+    expect(Math.abs(left(chatBtn) - right(outlineBtn))).toBeLessThan(2);
+    expect(Math.abs(right(infoBtn) - right(bar))).toBeLessThan(2);
+    await expect(page.locator("#titlebar .toggle-btn, #tab-bar .toggle-btn")).toHaveCount(0);
+
     await pullOpen(page);
     const panel = await page.locator("#chat-panel").boundingBox();
     const editor = await page.locator("#editor-container").boundingBox();
@@ -73,6 +83,14 @@ test.describe("Chat drawer", () => {
     const body = await page.locator("#tab-body").boundingBox();
     const pull = await page.locator("#chat-drawer-pull").boundingBox();
     expect(Math.abs(right(pull) - right(body))).toBeLessThan(2);
+
+    // The Chat toggle moves to the right end with its drawer, just inside Info; Outline stays left.
+    const bar = await page.locator("#editor-toolbar").boundingBox();
+    const chatBtn = await page.locator("#btn-toggle-chat").boundingBox();
+    const infoBtn = await page.locator("#btn-toggle-info").boundingBox();
+    expect(Math.abs(right(chatBtn) - left(infoBtn))).toBeLessThan(2);
+    expect(Math.abs(right(infoBtn) - right(bar))).toBeLessThan(2);
+    expect(Math.abs(left(await page.locator("#btn-toggle-outline").boundingBox()) - left(bar))).toBeLessThan(2);
 
     await pullOpen(page);
     const panel = await page.locator("#chat-panel").boundingBox();

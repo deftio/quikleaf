@@ -64,7 +64,8 @@ Located in `src/`. Built with Vite, runs in Tauri's webview. `index.html` is an 
 |--------|---------|
 | `main.ts` | Mounts the shell, file operations, project mode detection, keyboard shortcuts |
 | `ui/theme.ts` | Two bitwrench themes (`bw.loadStyles()` light, and dark scoped under `.dark`) plus app CSS written with `bw.css()` over CSS custom properties |
-| `ui/shell.ts` | Title bar, File/View/Help menus, main row, status bar as TACO |
+| `ui/shell.ts` | Title bar, File/View/Help menus, panel toggles, main row (`#editor-pane` = toolbar + editor), status bar as TACO |
+| `ui/editor-toolbar.ts` | quikleaf's toolbar over the headless quikdown editor: Source/Split/Rendered, Undo/Redo, Copy MD/HTML/Rendered |
 | `ui/about.ts` | About dialog (`bw.makeModal`) with system-browser links |
 | `ui/taco.ts` | Helpers: `withAttrs()` to add ids to factory output, typed `makeModal()`, element lookups |
 | `ui/toast.ts` | Notifications via `bw.makeToast` in a lazily created container |
@@ -77,7 +78,7 @@ Located in `src/`. Built with Vite, runs in Tauri's webview. `index.html` is an 
 | `editor/find.ts`, `editor/outline.ts`, `editor/stats.ts`, `editor/export.ts` | Pure logic for find/replace, heading parsing, document stats, standalone HTML export and print |
 | `chat/diff.ts`, `chat/review.ts`, `chat/plan.ts`, `chat/outline.ts` | Line diff, Accept/Reject review cards, plan card, heading tool |
 | `diag/perf.ts` | Stopwatch, time-to-first-token / tok/s math, formatting, `logEvent()` client for the performance log |
-| `editor/editor.ts` | quikdown editor wrapper with undo/redo/insert/selection exports |
+| `editor/editor.ts` | quikdown editor wrapper (`showToolbar: false`) with mode/undo/redo/history/copy/insert/selection exports |
 | `chat/session.ts` | One chat session per tab: scope (document / project), provider-format history, visible transcript, plan, model override, stats, and the chat's own log element; `exportChatHistory` / `importChatHistory` for `quikleaf.prj` |
 | `chat/chat-ui.ts` | Chat pane TACO: mounts the active tab's session log, header naming the target, streaming bubbles via `bw.append`/`bw.patch`, scoped tool dispatch loop, slash commands |
 | `chat/chat-utils.ts` | System prompt, tool schemas, provider-neutral message shaping |

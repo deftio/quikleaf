@@ -4,6 +4,10 @@ import fs from "fs";
 
 const QUIKDOWN_DIST = path.resolve(__dirname, "node_modules/quikdown/dist");
 const PKG_VERSION: string = JSON.parse(fs.readFileSync(path.resolve(__dirname, "package.json"), "utf8")).version;
+/** Installed version of a dependency, for the About dialog. */
+function depVersion(name: string): string {
+  return JSON.parse(fs.readFileSync(path.resolve(__dirname, "node_modules", name, "package.json"), "utf8")).version;
+}
 
 // quikdown's standalone bundle lazily fetches its offline Natural Earth basemap
 // from `new URL('./', import.meta.url)` — i.e. the directory the chunk ships in.
@@ -42,8 +46,13 @@ export default defineConfig({
     strictPort: true,
   },
   envPrefix: ["VITE_", "TAURI_"],
-  // Surfaced to the About dialog as __APP_VERSION__ (see src/vite-env.d.ts)
-  define: { __APP_VERSION__: JSON.stringify(PKG_VERSION) },
+  // Surfaced to the About dialog as __APP_VERSION__ etc. (see src/vite-env.d.ts)
+  define: {
+    __APP_VERSION__: JSON.stringify(PKG_VERSION),
+    __QUIKDOWN_VERSION__: JSON.stringify(depVersion("quikdown")),
+    __BITWRENCH_VERSION__: JSON.stringify(depVersion("bitwrench")),
+    __TAURI_API_VERSION__: JSON.stringify(depVersion("@tauri-apps/api")),
+  },
   resolve: {
     alias: {
       "quikdown-standalone": path.resolve(

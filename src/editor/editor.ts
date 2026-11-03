@@ -15,8 +15,10 @@ export function initEditor(container: HTMLElement): any {
   editorInstance = new QuikdownEditor(container, {
     mode: "split",
     theme: "auto",
-    showToolbar: true,
-    showUndoRedo: true,
+    // Headless: quikleaf draws its own toolbar (`ui/editor-toolbar.ts`) over
+    // this API, so the controls share the shell's palette.
+    showToolbar: false,
+    showUndoRedo: false,
     enableComplexFences: true,
     allowExternalFetch: true,
     placeholder: "Start typing markdown or open a file...",
@@ -94,6 +96,31 @@ export function undo(): void {
 
 export function redo(): void {
   editorInstance?.redo();
+}
+
+export function canUndo(): boolean {
+  return !!editorInstance?.canUndo?.();
+}
+
+export function canRedo(): boolean {
+  return !!editorInstance?.canRedo?.();
+}
+
+/**
+ * Copy the document to the clipboard as markdown, as HTML, or as rich text
+ * (the rendered preview; quikdown builds that from `previewPanel`). Resolves
+ * true when the write went through.
+ */
+export async function copyToClipboard(kind: "markdown" | "html" | "rendered"): Promise<boolean> {
+  if (!editorInstance) return false;
+  try {
+    if (kind === "rendered") await editorInstance.copyRendered();
+    else await navigator.clipboard.writeText(kind === "markdown" ? getMarkdown() : getHTML());
+    return true;
+  } catch (e) {
+    console.error("Copy failed:", e);
+    return false;
+  }
 }
 
 /**
