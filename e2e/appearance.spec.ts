@@ -54,3 +54,26 @@ test.describe("Appearance settings", () => {
     await expect(page.locator("#editor-container .qde-preview h1")).not.toHaveCSS("color", "rgb(200, 0, 0)");
   });
 });
+
+test.describe("Theme toggle", () => {
+  test("the sun/moon button at the far right flips dark mode, remembers it, and Settings can hand it back to the OS", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector("#editor-container", { state: "visible" });
+    const btn = page.locator("#titlebar-right #btn-theme");
+    await expect(btn).toBeVisible();
+    await expect(btn).toHaveAttribute("aria-label", "Switch to dark mode");
+    await btn.click();
+    await expect(page.locator("#app")).toHaveClass(/dark/);
+    await expect(btn).toHaveAttribute("aria-label", "Switch to light mode");
+    await page.reload();
+    await page.waitForSelector("#editor-container", { state: "visible" });
+    await expect(page.locator("#app")).toHaveClass(/dark/);
+    await page.click("#btn-settings");
+    await expect(page.locator("#set-theme")).toHaveValue("dark");
+    await page.selectOption("#set-theme", "system");
+    await expect(page.locator("#app")).not.toHaveClass(/dark/); // the test browser prefers light
+    await page.click("#settings-save");
+    await btn.click();
+    await expect(page.locator("#app")).toHaveClass(/dark/);
+  });
+});

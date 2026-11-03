@@ -36,6 +36,7 @@ Click **Settings** in the title bar to configure:
 | API Key | Authentication key (blank for local models) |
 | Model | Model name (use "Fetch Models" to list available) |
 | Chat drawer side | Which edge of the tab the chat slides out of: left (default) or right. Applies immediately. |
+| Theme | Light, Dark, or Follow the system (default). The sun/moon button in the title bar flips between light and dark. |
 | Interface font size | Menus, tab bar, toolbars, status bar (12–18 px, default 14). Applies immediately. |
 | Editor font size | The preview's base size (13–22 px, default 16); the source pane follows at 7/8. |
 | Preview style | Default (quikdown's), Book (serif, reading measure), Plain (ruled headings), Mono. |

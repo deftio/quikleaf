@@ -34,6 +34,25 @@ test.describe("Editor toolbar", () => {
     await expect(page.locator("#editor-container .qde-preview")).toBeHidden();
   });
 
+  test("toggling Outline opens it in the body row under the button, so the button itself does not move", async ({ page }) => {
+    await gotoApp(page);
+    const btn = page.locator("#btn-toggle-outline");
+    const before = await btn.boundingBox();
+    await btn.click();
+    await expect(page.locator("#outline")).toBeVisible();
+    const outline = await page.locator("#outline").boundingBox();
+    const body = await page.locator("#tab-body").boundingBox();
+    expect(Math.abs(outline!.x - body!.x)).toBeLessThan(2); // leftmost in the body row
+    expect(outline!.y).toBeGreaterThanOrEqual(before!.y + before!.height - 1); // below the control row
+    expect(await btn.boundingBox()).toEqual(before);
+    // The chat pull hugs the editor's edge, to the right of the outline.
+    const pull = await page.locator("#chat-drawer-pull").boundingBox();
+    expect(Math.abs(pull!.x - (outline!.x + outline!.width))).toBeLessThan(2);
+    await btn.click();
+    await expect(page.locator("#outline")).toBeHidden();
+    expect(await btn.boundingBox()).toEqual(before);
+  });
+
   test("the view mode is per tab (a new tab starts with the active tab's)", async ({ page }) => {
     await gotoApp(page);
     await page.click("#tool-mode-source");

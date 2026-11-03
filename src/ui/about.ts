@@ -9,7 +9,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import { control, el, makeModal, modalHandle, withAttrs } from "./taco";
 import { notify } from "./toast";
-import { describeEntry, getLogPath, isPerfLogEnabled, tailLog } from "../diag/perf";
+import { LOG_OPEN, describeEntry, getLogPath, isPerfLogEnabled, tailLog } from "../diag/perf";
 
 export const REPO_URL = "https://github.com/deftio/quikleaf";
 export const ISSUES_URL = "https://github.com/deftio/quikleaf/issues";
@@ -175,6 +175,7 @@ function diagnosticsTab(): Taco {
         t: "div",
         a: { class: "diag-actions" },
         c: [
+          withAttrs(bw.makeButton({ text: "View Log", variant: "secondary", size: "sm", onclick: viewLog }), { id: "diag-view-log" }),
           withAttrs(bw.makeButton({ text: "Open Log Folder", variant: "secondary", size: "sm", onclick: revealLog }), { id: "diag-open-log" }),
           withAttrs(bw.makeButton({ text: "Install Command Line Tool", variant: "secondary", size: "sm", onclick: installCli }), {
             id: "diag-install-cli",
@@ -204,6 +205,14 @@ async function refreshDiagnostics(): Promise<void> {
 
 function revealLog(): void {
   invoke("log_reveal").catch((e: any) => notify("Cannot open log folder", String(e?.message || e), "danger"));
+}
+
+let aboutNode: HTMLElement | null = null;
+
+/** View Log: close this dialog and ask the app for the log tab (main.ts listens). */
+function viewLog(): void {
+  modalHandle(aboutNode)?.close();
+  bw.pub(LOG_OPEN, {});
 }
 
 /** Install (or refresh) the `quikleaf` shell shim and tell the user where it went. */
@@ -241,6 +250,7 @@ export function makeAboutModal(): Taco {
 /** Mount the About dialog into the app root and return an opener. */
 export function initAbout(): () => void {
   const node = bw.append(control("app"), makeAboutModal());
+  aboutNode = node;
   return () => {
     modalHandle(node)?.open();
     refreshDiagnostics();

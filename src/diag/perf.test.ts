@@ -7,6 +7,7 @@ import {
   formatClock,
   formatMs,
   logEvent,
+  onLogEvent,
   summarizeTiming,
   tailLog,
 } from "./perf";
@@ -101,6 +102,29 @@ describe("logEvent / tailLog", () => {
     saveSettings({ ...loadSettings(), perfLog: false });
     await logEvent({ kind: "tool", name: "x", ms: 1 });
     expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("tells in-process listeners about every entry, before writing and even when writing is off", async () => {
+    const seen: any[] = [];
+    const off = onLogEvent((e) => seen.push(e));
+    const bad = onLogEvent(() => {
+      throw new Error("listener bug");
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await logEvent({ kind: "tool", name: "x", ms: 1 });
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({ kind: "tool", name: "x" });
+    expect(typeof seen[0].ts).toBe("string");
+    expect(invoke).toHaveBeenCalledWith("log_append", { entry: seen[0] });
+    expect(warn).toHaveBeenCalled(); // the throwing listener did not stop the others or the write
+    saveSettings({ ...loadSettings(), perfLog: false });
+    await logEvent({ kind: "app", event: "start" });
+    expect(seen).toHaveLength(2);
+    off();
+    bad();
+    await logEvent({ kind: "app", event: "start" });
+    expect(seen).toHaveLength(2);
+    warn.mockRestore();
   });
 
   it("swallows backend errors", async () => {

@@ -19,6 +19,8 @@ import { CHAT_CHANGED, CHAT_CLEAR, activeSession, sessionHasMemory, setSessionMo
 import { listModels } from "../chat/providers";
 import { isConfigured, loadSettings, presetFor } from "../settings/settings";
 import { scheduleProjectSave } from "../project/persist";
+import { logCounts } from "../diag/log-pane";
+import { isPerfLogEnabled } from "../diag/perf";
 import { debounce } from "./debounce";
 import { control, el, withAttrs } from "./taco";
 
@@ -80,6 +82,17 @@ function documentSection(tab: Tab, md: string): Taco {
     row("Lines", n(st.lines)),
     row("Reading time", st.readingMinutes ? `${st.readingMinutes} min` : "—"),
     row("Headings", n(headings)),
+  ]);
+}
+
+function logSection(): Taco {
+  const c = logCounts();
+  return section("Performance log", [
+    row("Entries", `${c.total} in view`),
+    row("LLM requests", String(c.llm)),
+    row("Tool calls", String(c.tool)),
+    row("Turns", String(c.turn)),
+    row("Writing", isPerfLogEnabled() ? "on" : "off (Settings → Diagnostics)"),
   ]);
 }
 
@@ -176,8 +189,8 @@ export function refreshInfo(md?: string): void {
   const tab = activeTab();
   const session = activeSession();
   if (!body || !tab || !session) return;
-  const parts: Taco[] = tab.kind === "project" ? [projectSection()] : [documentSection(tab, md ?? getMarkdown())];
-  parts.push(chatSection(tab, session));
+  const parts: Taco[] = tab.kind === "project" ? [projectSection()] : tab.kind === "log" ? [logSection()] : [documentSection(tab, md ?? getMarkdown())];
+  if (tab.kind !== "log") parts.push(chatSection(tab, session));
   bw.patch(body, parts);
   // The option's `selected` attribute is not reliable once the select is live; set the value directly.
   const select = el<HTMLSelectElement>("info-model");

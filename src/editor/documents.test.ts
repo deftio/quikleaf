@@ -21,6 +21,7 @@ import {
   openDocument,
   openFileDialog,
   openPath,
+  openLogTab,
   openProjectChat,
   saveActiveDocument,
   setDocumentsProjectMode,
@@ -480,6 +481,15 @@ describe("handleKeydown", () => {
 });
 
 describe("the project chat tab", () => {
+  it("openLogTab opens the log tab, empties the editor and says so in the status bar", async () => {
+    await openPath("/x/y.md");
+    const tab = await openLogTab();
+    expect(tab).toMatchObject({ id: tabs.LOG_TAB_ID, kind: "log" });
+    expect(getEditor().setMarkdown).toHaveBeenLastCalledWith("");
+    expect(status()).toBe("Performance log");
+    expect(await openLogTab()).toMatchObject({ id: tabs.LOG_TAB_ID });
+  });
+
   it("openProjectChat is a no-op outside project mode", async () => {
     expect(await openProjectChat()).toBeNull();
     expect(listTabs().every((t) => t.kind === "document")).toBe(true);

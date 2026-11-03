@@ -27,6 +27,7 @@ import {
   updateStatus,
 } from "./settings";
 import type { LLMSettings } from "./settings";
+import { LOG_OPEN } from "../diag/perf";
 
 const mockInvoke = vi.mocked(invoke);
 
@@ -179,10 +180,12 @@ describe("makeSettingsModal", () => {
       "set-perf-log",
       "set-edit-approval",
       "set-chat-side",
+      "set-theme",
       "set-ui-font",
       "set-editor-font",
       "set-preview-style",
       "set-preview-css",
+      "settings-view-log",
       "settings-open-log",
       "settings-clear-log",
       "settings-cancel",
@@ -363,6 +366,7 @@ describe("open / close and the form round-trip", () => {
       perfLog: true,
       editApproval: "always",
       chatSide: "right",
+      theme: "system",
       uiFontSize: 14,
       editorFontSize: 16,
       previewStyle: "default",
@@ -704,5 +708,42 @@ describe("applyLiveSettings / Appearance", () => {
     byId("settings-save").click();
     expect(loadSettings().uiFontSize).toBe(16);
     expect(byId("app").style.getPropertyValue("--ui-font-size")).toBe("16px");
+  });
+});
+
+describe("theme and View Log", () => {
+  beforeEach(async () => {
+    saveSettings(saved);
+    initSettingsUI();
+    await flush();
+  });
+
+  it("the Theme picker previews live and is saved; Cancel goes back to what was saved", () => {
+    openSettings();
+    const theme = byId<HTMLSelectElement>("set-theme");
+    expect(theme.value).toBe("system");
+    theme.value = "dark";
+    theme.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(byId("app").classList.contains("dark")).toBe(true);
+    byId("settings-cancel").click();
+    expect(byId("app").classList.contains("dark")).toBe(false); // happy-dom: no OS dark preference
+    openSettings();
+    theme.value = "dark";
+    theme.dispatchEvent(new Event("change", { bubbles: true }));
+    byId("settings-save").click();
+    expect(loadSettings().theme).toBe("dark");
+    expect(byId("app").classList.contains("dark")).toBe(true);
+    applyLiveSettings({ ...saved, theme: "light" });
+    expect(byId("app").classList.contains("dark")).toBe(false);
+  });
+
+  it("View Log closes the dialog and publishes log:open", () => {
+    const seen = vi.fn();
+    const off = bw.sub(LOG_OPEN, seen);
+    openSettings();
+    byId("settings-view-log").click();
+    expect(byId("settings-overlay").classList.contains(SHOW)).toBe(false);
+    expect(seen).toHaveBeenCalledTimes(1);
+    off();
   });
 });

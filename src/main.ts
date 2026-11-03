@@ -1,8 +1,10 @@
 import bw from "bitwrench";
 import { invoke } from "@tauri-apps/api/core";
 import "./ui/theme"; // generates and injects all CSS at import
-import { setDarkMode } from "./ui/theme";
+import { isDarkMode } from "./ui/theme";
 import { el } from "./ui/taco";
+import { initLogPane, makeLogPanel } from "./diag/log-pane";
+import { LOG_OPEN } from "./diag/perf";
 import { initMenus, makeChatDrawerPull, makeMain, makeStatusbar, makeTitlebar, setStatusFile, setToggleState } from "./ui/shell";
 import { initTabBar, makeTabBar } from "./ui/tabbar";
 import { activeEditorMode, handlePanesKeydown, initPanes, isChatPaneOpen, isInfoPaneOpen, setActiveEditorMode, toggleChatPane, toggleInfoPane } from "./ui/panes";
@@ -21,13 +23,14 @@ import { listTabs,
   initDocuments,
   newDocument,
   openFileDialog,
+  openLogTab,
   openPath,
   openProjectChat,
   saveActiveDocument,
   setDocumentsProjectMode,
   showTab,
 } from "./editor/documents";
-import { applyLiveSettings, initSettingsUI, loadSettings, openSettings } from "./settings/settings";
+import { applyLiveSettings, initSettingsUI, loadSettings, openSettings, saveSettings } from "./settings/settings";
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import { ISSUES_URL, SITE_URL } from "./ui/about";
 import { logEvent } from "./diag/perf";
@@ -89,6 +92,7 @@ bw.mount("#app", [
     onInstallCli: () => installCli(),
     onOpenDocs: () => shellOpen(SITE_URL).catch(console.error),
     onReportIssue: () => shellOpen(ISSUES_URL).catch(console.error),
+    onToggleTheme: () => toggleTheme(),
     state: {
       chat: isChatPaneOpen,
       info: isInfoPaneOpen,
@@ -98,12 +102,11 @@ bw.mount("#app", [
     },
   }),
   // Rows: [menus … Settings Help About] / [tabs +] / [Files Outline Chat |
-  // editor controls … | Info] / the tab body. Window-wide panels (files,
-  // outline) are to the left of the editor column; the chat and info panes
-  // live inside the tab column, because they belong to the tab:
-  // [chat | quikdown view | info]. The chat is a drawer: Settings → Chat
-  // drawer side moves it to the right edge (CSS order), and a pull on that
-  // edge opens it while it is closed.
+  // editor controls … | Info] / the body: [files | outline | chat | editor |
+  // info]. Every panel opens in the body row, under its toggle, so the rows
+  // above never move. The chat is a drawer: Settings → Chat drawer side moves
+  // it to the right edge (CSS order), and a pull on the editor's edge opens
+  // it while it is closed.
   makeMain(
     [makeFileTreePanel(), makeOutlinePanel()],
     [
@@ -125,7 +128,10 @@ bw.mount("#app", [
       }),
       makeFindBar(),
     ],
-    { left: [makeChatPanel(), makeChatDrawerPull(() => toggleChatPane())], right: [makeInfoPanel()] },
+    // The log viewer sits where the editor is and shows instead of it on the log tab.
+    { left: [makeChatPanel()], right: [makeLogPanel(), makeInfoPanel()] },
+    // The drawer pull hugs the editor's edge (not the outline's) while the chat is closed.
+    [makeChatDrawerPull(() => toggleChatPane())],
   ),
   makeStatusbar(),
   makeFocusExitPill(),
@@ -142,8 +148,10 @@ initSettingsUI();
 initChat();
 initInfoPane();
 initPanes();
+initLogPane();
 applyLiveSettings(loadSettings());
 openAbout = initAbout();
+bw.sub(LOG_OPEN, () => void openLogTab());
 setOnFileClick((path) => loadFileIntoEditor(path));
 logEvent({ kind: "app", event: "start", version: __APP_VERSION__ });
 
@@ -154,12 +162,11 @@ function toggleFiles() {
   setToggleState("btn-toggle-files", show);
 }
 
-// --- Dark mode follows the OS ---
-function initDarkMode() {
-  const query = window.matchMedia("(prefers-color-scheme: dark)");
-  const apply = (e: MediaQueryList | MediaQueryListEvent) => setDarkMode(e.matches);
-  apply(query);
-  query.addEventListener("change", apply);
+// --- Theme: the title bar toggle picks the opposite of what is showing and remembers it ---
+function toggleTheme() {
+  const s = { ...loadSettings(), theme: isDarkMode() ? ("light" as const) : ("dark" as const) };
+  saveSettings(s);
+  applyLiveSettings(s);
 }
 
 // --- Keyboard shortcuts ---
@@ -191,7 +198,6 @@ const persistenceProviders = { openFile: projectOpenFile, openTabs: projectOpenT
 
 // --- Startup ---
 async function init() {
-  initDarkMode();
   await initDocuments();
 
   try {
@@ -243,6 +249,9 @@ async function init() {
       const active = activeTab();
       if (active?.projectRelative) highlightFile(active.path);
     }
+    // `quikleaf --log` (with or without a file or project): start on the log tab.
+    const flags = await invoke<{ open_log?: boolean }>("get_launch_flags").catch(() => null);
+    if (flags?.open_log) await openLogTab();
   } catch (e) {
     console.error("Startup failed:", e);
     setStatusFile("No file open");

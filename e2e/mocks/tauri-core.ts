@@ -78,6 +78,8 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
   switch (cmd) {
     case "get_launch_info":
       return state.launchInfo as T;
+    case "get_launch_flags":
+      return ((state as any).launchFlags ?? { open_log: false }) as T;
 
     case "get_cli_file":
       return null as T;

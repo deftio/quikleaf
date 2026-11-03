@@ -9,11 +9,15 @@ import {
   DEFAULT_APPEARANCE,
   EDITOR_FONT_SIZES,
   isPreviewStyle,
+  isThemeChoice,
   PREVIEW_STYLES,
+  THEME_OPTIONS,
   UI_FONT_SIZES,
   type Appearance,
   type PreviewStyle,
+  type ThemeChoice,
 } from "../ui/appearance";
+import { LOG_OPEN } from "../diag/perf";
 import { notify } from "../ui/toast";
 
 export interface LLMSettings {
@@ -36,6 +40,7 @@ export interface LLMSettings {
   /** Which edge of the tab the chat drawer slides out of. Default left. */
   chatSide?: ChatSide;
   /** Appearance (see `ui/appearance.ts`); `appearanceOf()` applies the defaults. */
+  theme?: ThemeChoice;
   uiFontSize?: number;
   editorFontSize?: number;
   previewStyle?: PreviewStyle;
@@ -115,6 +120,7 @@ export function applyChatSettings(s: LLMSettings): void {
 export function appearanceOf(s: LLMSettings): Appearance {
   const size = (v: unknown, allowed: number[], def: number) => (typeof v === "number" && allowed.includes(v) ? v : def);
   return {
+    theme: isThemeChoice(s.theme) ? s.theme : DEFAULT_APPEARANCE.theme,
     uiFontSize: size(s.uiFontSize, UI_FONT_SIZES, DEFAULT_APPEARANCE.uiFontSize),
     editorFontSize: size(s.editorFontSize, EDITOR_FONT_SIZES, DEFAULT_APPEARANCE.editorFontSize),
     previewStyle: isPreviewStyle(s.previewStyle) ? s.previewStyle : DEFAULT_APPEARANCE.previewStyle,
@@ -213,6 +219,7 @@ function readForm(): LLMSettings {
     perfLog: field<HTMLInputElement>("set-perf-log").checked,
     editApproval: field<HTMLSelectElement>("set-edit-approval").value as EditApproval,
     chatSide: field<HTMLSelectElement>("set-chat-side").value as ChatSide,
+    theme: field<HTMLSelectElement>("set-theme").value as ThemeChoice,
     uiFontSize: Number(field<HTMLSelectElement>("set-ui-font").value),
     editorFontSize: Number(field<HTMLSelectElement>("set-editor-font").value),
     previewStyle: field<HTMLSelectElement>("set-preview-style").value as PreviewStyle,
@@ -234,6 +241,7 @@ function writeForm(s: LLMSettings): void {
   field<HTMLSelectElement>("set-edit-approval").value = editApprovalOf(s);
   field<HTMLSelectElement>("set-chat-side").value = chatSideOf(s);
   const a = appearanceOf(s);
+  field<HTMLSelectElement>("set-theme").value = a.theme;
   field<HTMLSelectElement>("set-ui-font").value = String(a.uiFontSize);
   field<HTMLSelectElement>("set-editor-font").value = String(a.editorFontSize);
   field<HTMLSelectElement>("set-preview-style").value = a.previewStyle;
@@ -350,6 +358,12 @@ function onRevealLog(): void {
   invoke("log_reveal").catch((e: any) => notify("Cannot open log folder", String(e?.message || e), "danger"));
 }
 
+/** View Log: close the dialog (reverting unsaved previews) and ask the app for the log tab. */
+function onViewLog(): void {
+  onCancel();
+  bw.pub(LOG_OPEN, {});
+}
+
 function sectionTitle(text: string): Taco {
   return { t: "h4", a: { class: "settings-section-title" }, c: text };
 }
@@ -410,6 +424,12 @@ export function makeSettingsModal(): Taco {
 
       sectionTitle("Appearance"),
       bw.makeFormGroup({
+        id: "set-theme",
+        label: "Theme",
+        input: bw.makeSelect({ id: "set-theme", options: THEME_OPTIONS, value: defaults.theme, onchange: onDisplayToggle }),
+        help: "The sun/moon button in the title bar switches between light and dark; pick \"Follow the system\" to go back to the OS setting.",
+      }),
+      bw.makeFormGroup({
         id: "set-ui-font",
         label: "Interface font size",
         input: bw.makeSelect({ id: "set-ui-font", options: UI_FONT_OPTIONS, value: String(defaults.uiFontSize), onchange: onDisplayToggle }),
@@ -462,6 +482,7 @@ export function makeSettingsModal(): Taco {
         t: "div",
         a: { class: "settings-actions" },
         c: [
+          withAttrs(bw.makeButton({ text: "View Log", variant: "secondary", size: "sm", onclick: onViewLog }), { id: "settings-view-log" }),
           withAttrs(bw.makeButton({ text: "Open Log Folder", variant: "secondary", size: "sm", onclick: onRevealLog }), {
             id: "settings-open-log",
           }),

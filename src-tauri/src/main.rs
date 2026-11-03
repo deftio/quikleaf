@@ -3,7 +3,7 @@
 
 mod commands;
 
-use commands::project::{ProjectState, LaunchMode};
+use commands::project::{launch_flags_from, ProjectState, LaunchMode};
 use std::path::{Path, PathBuf};
 use tauri::Manager;
 use tauri_plugin_fs::FsExt;
@@ -92,6 +92,7 @@ fn main() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .manage(LaunchInfo(launch_mode))
+        .manage(launch_flags_from(&std::env::args().collect::<Vec<_>>()))
         .manage(project_state)
         .register_asynchronous_uri_scheme_protocol("asset".to_string(), move |ctx, request, responder| {
             let state = ctx.app_handle().state::<ProjectState>();
@@ -167,6 +168,7 @@ fn main() {
             commands::llm::llm_chat_stream,
             commands::llm::llm_list_models,
             get_launch_info,
+            commands::project::get_launch_flags,
             commands::project::project_init,
             commands::project::project_load,
             commands::project::project_save,

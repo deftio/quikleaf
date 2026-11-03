@@ -7,6 +7,7 @@ import bw from "bitwrench";
 import { invoke } from "@tauri-apps/api/core";
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import { initAbout, installCli, makeAboutModal } from "./about";
+import { LOG_OPEN } from "../diag/perf";
 import type { CliStatus } from "./about";
 
 const mockInvoke = vi.mocked(invoke);
@@ -281,6 +282,18 @@ describe("initAbout", () => {
     expect(byId("about-overlay").classList.contains(SHOW)).toBe(true);
     expect(calls("log_get_path")).toHaveLength(0);
     expect(calls("cli_status")).toHaveLength(0);
+  });
+
+  it("View Log closes the dialog and asks for the log tab", async () => {
+    const seen = vi.fn();
+    const off = bw.sub(LOG_OPEN, seen);
+    initAbout()();
+    await flush();
+    expect(byId("about-overlay").classList.contains(SHOW)).toBe(true);
+    byId("diag-view-log").click();
+    expect(byId("about-overlay").classList.contains(SHOW)).toBe(false);
+    expect(seen).toHaveBeenCalledTimes(1);
+    off();
   });
 
   it("Open Log Folder invokes log_reveal and only toasts on failure", async () => {

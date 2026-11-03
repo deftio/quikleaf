@@ -4,7 +4,9 @@
  */
 import { afterEach, describe, expect, it } from "vitest";
 import bw from "bitwrench";
-import { applyAppearance, DEFAULT_APPEARANCE, isPreviewStyle, PREVIEW_STYLES, USER_CSS_ID } from "./appearance";
+import { applyAppearance, applyTheme, DEFAULT_APPEARANCE, isPreviewStyle, PREVIEW_STYLES, resolveDark, USER_CSS_ID } from "./appearance";
+import { getEditor, initEditor } from "../editor/editor";
+import { makeThemeToggle } from "./shell";
 
 function app(): HTMLElement {
   return document.getElementById("app")!;
@@ -39,6 +41,24 @@ describe("applyAppearance", () => {
     expect(style.textContent).toContain("p { margin: 0 }");
     applyAppearance({ ...DEFAULT_APPEARANCE, previewCss: "   " });
     expect(style.textContent).toBe("");
+  });
+
+  it("applyTheme flips #app.dark, quikdown's own theme and the toggle's label", () => {
+    initEditor(document.createElement("div"));
+    bw.append(app(), makeThemeToggle(() => {}));
+    applyTheme("dark");
+    expect(app().classList.contains("dark")).toBe(true);
+    expect(getEditor().setTheme).toHaveBeenLastCalledWith("dark");
+    expect(document.getElementById("btn-theme")!.getAttribute("aria-label")).toBe("Switch to light mode");
+    applyTheme("light");
+    expect(app().classList.contains("dark")).toBe(false);
+    expect(getEditor().setTheme).toHaveBeenLastCalledWith("light");
+    expect(document.getElementById("btn-theme")!.getAttribute("aria-label")).toBe("Switch to dark mode");
+    // system: happy-dom has no dark preference, so light; and resolveDark agrees.
+    applyTheme("system");
+    expect(app().classList.contains("dark")).toBe(false);
+    expect(resolveDark("system")).toBe(false);
+    expect(resolveDark("dark")).toBe(true);
   });
 
   it("is a no-op before #app exists", () => {

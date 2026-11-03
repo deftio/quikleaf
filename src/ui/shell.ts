@@ -50,6 +50,8 @@ export interface ShellHandlers {
   /** Help → Documentation / Report an Issue: open the site or the issue tracker in the system browser. */
   onOpenDocs: () => void;
   onReportIssue: () => void;
+  /** The sun/moon button at the far right: switch between light and dark. */
+  onToggleTheme: () => void;
   /** Current pane states, read when the View menu opens to tick its items. */
   state?: {
     chat: () => boolean;
@@ -235,10 +237,33 @@ export function makeTitlebar(h: ShellHandlers): Taco {
             { id: "btn-install-cli", label: "Install Command Line Tool", onclick: h.onInstallCli },
           ]),
           { t: "button", a: { id: "btn-about", class: "titlebar-btn", type: "button", onclick: h.onAbout }, c: "About" },
+          makeThemeToggle(h.onToggleTheme),
         ],
       },
     ],
   };
+}
+
+/**
+ * The theme toggle: a moon while the app is light (click for dark), a sun
+ * while dark. `setThemeToggleState` keeps the label right; the glyph swap is
+ * CSS on `#app.dark`.
+ */
+export function makeThemeToggle(onclick: () => void): Taco {
+  return {
+    t: "button",
+    a: { id: "btn-theme", class: "titlebar-btn theme-toggle", type: "button", "aria-label": "Switch to dark mode", title: "Switch to dark mode", onclick },
+    c: [
+      { t: "span", a: { class: "theme-moon", "aria-hidden": "true" }, c: "☾" },
+      { t: "span", a: { class: "theme-sun", "aria-hidden": "true" }, c: "☀︎" },
+    ],
+  };
+}
+
+/** Relabel the theme toggle for the mode the app is in. */
+export function setThemeToggleState(dark: boolean): void {
+  const label = dark ? "Switch to light mode" : "Switch to dark mode";
+  if (bw.el("btn-theme")) bw.patch("btn-theme", { "aria-label": label, title: label } as unknown as TacoContent);
 }
 
 export function makeStatusbar(): Taco {
@@ -262,24 +287,42 @@ export function makeStatusbar(): Taco {
  * `beside.right` (the info pane). Putting the chat and info panes under the
  * tab bar is what makes the tab, not the window, the unit a chat belongs to.
  * The DOM order is the left-side layout; `setChatSide("right")` reorders the
- * panes with CSS `order`, so the markup never changes.
+ * panes with CSS `order`, so the markup never changes. `panels` (file tree,
+ * outline) sit in the body too, at its left, so toggling them moves nothing
+ * above. `inEditor` goes beside `#editor-container` inside `#editor-frame`
+ * (the drawer pull); the frame is `position: relative` so the pull hugs the
+ * editor's edge, not the body's. quikdown empties `#editor-container` when it
+ * mounts, which is why the pull cannot live inside it.
  */
 export function makeMain(
   panels: TacoContent[],
   aboveEditor: TacoContent[] = [],
   beside: { left?: TacoContent[]; right?: TacoContent[] } = {},
+  inEditor: TacoContent[] = [],
 ): Taco {
   return {
     t: "div",
     a: { id: "main" },
     c: [
-      ...panels,
       {
         t: "div",
         a: { id: "editor-column" },
         c: [
           ...aboveEditor,
-          { t: "div", a: { id: "tab-body" }, c: [...(beside.left ?? []), { t: "div", a: { id: "editor-container" } }, ...(beside.right ?? [])] },
+          // Everything that opens and closes lives in the body row, so the
+          // rows above never move: [files | outline | chat | editor | info].
+          {
+            t: "div",
+            a: { id: "tab-body" },
+            c: [
+              ...panels,
+              ...(beside.left ?? []),
+              // quikdown empties #editor-container when it mounts, so the pull
+              // sits beside it in a frame that is the editor's box.
+              { t: "div", a: { id: "editor-frame" }, c: [{ t: "div", a: { id: "editor-container" } }, ...inEditor] },
+              ...(beside.right ?? []),
+            ],
+          },
         ],
       },
     ],

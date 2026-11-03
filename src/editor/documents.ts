@@ -76,7 +76,7 @@ function projectTabStatus(): string {
 
 function refreshChrome(): void {
   const active = tabs.activeTab();
-  setStatusFile(active?.kind === "project" ? projectTabStatus() : statusLabel(active));
+  setStatusFile(active?.kind === "project" ? projectTabStatus() : active?.kind === "log" ? "Performance log" : statusLabel(active));
   const title = active?.title ?? "Untitled";
   document.title = `${active?.dirty ? "• " : ""}quikleaf — ${title}`;
   highlightFile(active?.projectRelative ? active.path : null);
@@ -98,9 +98,9 @@ export async function showTab(id: string): Promise<Tab | null> {
   tabs.setActive(incoming.id);
   loading = true;
   try {
-    // The project tab shows no document: the editor is hidden and emptied so
-    // the outline and stats do not keep describing the previous tab.
-    await setMarkdown(incoming.kind === "project" ? "" : tabs.getTab(incoming.id)!.content);
+    // The project and log tabs show no document: the editor is hidden and
+    // emptied so the outline and stats do not keep describing the previous tab.
+    await setMarkdown(incoming.kind === "document" ? tabs.getTab(incoming.id)!.content : "");
   } finally {
     loading = false;
   }
@@ -158,6 +158,13 @@ export async function newDocument(): Promise<Tab> {
 export async function openProjectChat(): Promise<Tab | null> {
   if (!projectMode) return null;
   const tab = tabs.openProjectTab();
+  await showTab(tab.id);
+  return tabs.getTab(tab.id);
+}
+
+/** About → Diagnostics → View Log, Settings → View Log, `quikleaf --log`: open (or focus) the log viewer tab. */
+export async function openLogTab(): Promise<Tab | null> {
+  const tab = tabs.openLogTab();
   await showTab(tab.id);
   return tabs.getTab(tab.id);
 }

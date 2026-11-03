@@ -17,7 +17,8 @@ import bw from "bitwrench";
  * What a tab is: a markdown document, or the project chat — a tab with no
  * document whose chat sees the project root instead of one file.
  */
-export type TabKind = "document" | "project";
+/** `document`: a markdown file or untitled text. `project`: the project chat. `log`: the performance log viewer. */
+export type TabKind = "document" | "project" | "log";
 
 export type EditorMode = "source" | "split" | "preview";
 
@@ -35,6 +36,8 @@ export const DEFAULT_VIEW: TabView = { chat: false, info: false, mode: "split" }
 
 /** The single project chat tab's id; there is at most one such tab. */
 export const PROJECT_TAB_ID = "tab-project";
+/** The single log viewer tab's id; there is at most one such tab. */
+export const LOG_TAB_ID = "tab-log";
 
 export interface Tab {
   id: string;
@@ -197,12 +200,38 @@ export function openProjectTab(): Tab {
   return pub(rec);
 }
 
+/**
+ * Open (or focus) the log viewer tab. It has no document and no chat: the
+ * tab body shows the performance log (`diag/log-pane.ts`). Only one exists.
+ */
+export function openLogTab(): Tab {
+  let rec = find(LOG_TAB_ID);
+  if (!rec) {
+    rec = {
+      id: LOG_TAB_ID,
+      kind: "log",
+      path: null,
+      title: "Log",
+      content: "",
+      saved: "",
+      dirty: false,
+      projectRelative: false,
+      view: { ...inheritView(), chat: false },
+    };
+    records.push(rec);
+  }
+  activeId = rec.id;
+  notify();
+  return pub(rec);
+}
+
 /** Change which panes a tab shows (or its editor mode). Notifies only when something changed. */
 export function setView(id: string, patch: Partial<TabView>): Tab | null {
   const rec = find(id);
   if (!rec) return null;
   const next = { ...rec.view, ...patch };
   if (rec.kind === "project") next.chat = true; // the project tab is its chat
+  if (rec.kind === "log") next.chat = false; // the log tab has nothing to chat about
   const changed = next.chat !== rec.view.chat || next.info !== rec.view.info || next.mode !== rec.view.mode;
   rec.view = next;
   if (changed) notify();

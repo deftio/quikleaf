@@ -192,6 +192,7 @@ describe("makeTitlebar", () => {
       onInstallCli: vi.fn(),
       onOpenDocs: vi.fn(),
       onReportIssue: vi.fn(),
+      onToggleTheme: vi.fn(),
     };
     mount(makeTitlebar(h));
     expect(document.getElementById("titlebar")).not.toBeNull();
@@ -205,7 +206,8 @@ describe("makeTitlebar", () => {
     const leftIds = Array.from(document.querySelectorAll("#titlebar-left > button, #titlebar-left > .titlebar-menu > button")).map((b) => b.id);
     expect(leftIds).toEqual(["btn-file-menu", "btn-view-menu"]);
     const rightIds = Array.from(document.querySelectorAll("#titlebar-right > button, #titlebar-right > .titlebar-menu > button")).map((b) => b.id);
-    expect(rightIds).toEqual(["btn-settings", "btn-help-menu", "btn-about"]);
+    expect(rightIds).toEqual(["btn-settings", "btn-help-menu", "btn-about", "btn-theme"]);
+    expect(document.getElementById("btn-theme")!.getAttribute("aria-label")).toBe("Switch to dark mode");
     expect(document.getElementById("btn-about")!.textContent).toBe("About");
     const helpItems = Array.from(document.querySelectorAll("#help-menu-dropdown .dropdown-item")).map((i) => i.id);
     expect(helpItems).toEqual(["btn-docs", "btn-report-issue", "btn-install-cli"]);
@@ -245,6 +247,7 @@ describe("makeTitlebar", () => {
     click("btn-project-chat");
     click("btn-docs");
     click("btn-report-issue");
+    click("btn-theme");
     click("btn-mode-preview");
     click("btn-settings");
     click("btn-about");
@@ -277,11 +280,18 @@ describe("statusbar and main", () => {
   it("makeMain puts the panels before the editor column, whose tab body holds the editor container", () => {
     mount(makeMain([{ t: "div", a: { id: "p1" } }, { t: "div", a: { id: "p2" } }]));
     const main = document.getElementById("main")!;
-    const ids = Array.from(main.children).map((c) => c.id);
-    expect(ids).toEqual(["p1", "p2", "editor-column"]);
+    expect(Array.from(main.children).map((c) => c.id)).toEqual(["editor-column"]);
     const column = document.getElementById("editor-column")!;
     expect(Array.from(column.children).map((c) => c.id)).toEqual(["tab-body"]);
-    expect(Array.from(document.getElementById("tab-body")!.children).map((c) => c.id)).toEqual(["editor-container"]);
+    expect(Array.from(document.getElementById("tab-body")!.children).map((c) => c.id)).toEqual(["p1", "p2", "editor-frame"]);
+    expect(Array.from(document.getElementById("editor-frame")!.children).map((c) => c.id)).toEqual(["editor-container"]);
+  });
+
+  it("makeMain puts the window panels inside the tab body, before the editor, and inEditor beside the editor container in its frame", () => {
+    mount(makeMain([{ t: "div", a: { id: "file-tree" } }, { t: "div", a: { id: "outline" } }], [], { left: [{ t: "div", a: { id: "chat-panel" } }] }, [{ t: "button", a: { id: "chat-drawer-pull" } }]));
+    expect(Array.from(document.getElementById("main")!.children).map((c) => c.id)).toEqual(["editor-column"]);
+    expect(Array.from(document.getElementById("tab-body")!.children).map((c) => c.id)).toEqual(["file-tree", "outline", "chat-panel", "editor-frame"]);
+    expect(Array.from(document.getElementById("editor-frame")!.children).map((c) => c.id)).toEqual(["editor-container", "chat-drawer-pull"]);
   });
 
   it("makeMain stacks the given chrome (tab bar, control row, find bar) above the tab body and puts side panes around the editor", () => {
@@ -294,7 +304,7 @@ describe("statusbar and main", () => {
     );
     const column = document.getElementById("editor-column")!;
     expect(Array.from(column.children).map((c) => c.id)).toEqual(["tab-bar", "editor-toolbar", "tab-body"]);
-    expect(Array.from(document.getElementById("tab-body")!.children).map((c) => c.id)).toEqual(["chat-panel", "editor-container", "info-panel"]);
+    expect(Array.from(document.getElementById("tab-body")!.children).map((c) => c.id)).toEqual(["chat-panel", "editor-frame", "info-panel"]);
   });
 });
 

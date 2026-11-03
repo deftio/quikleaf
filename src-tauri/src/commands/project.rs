@@ -28,6 +28,22 @@ pub enum LaunchMode {
     Project { project_root: String, project_file: String, exists: bool },
 }
 
+/// Flags that ride alongside the launch mode: `--log` opens the log viewer tab.
+#[derive(Clone, Default, Serialize, Deserialize)]
+pub struct LaunchFlags {
+    pub open_log: bool,
+}
+
+/// Read the flags from the command line (testable without std::env::args).
+pub fn launch_flags_from(args: &[String]) -> LaunchFlags {
+    LaunchFlags { open_log: args.iter().skip(1).any(|a| a == "--log") }
+}
+
+#[tauri::command]
+pub async fn get_launch_flags(state: tauri::State<'_, LaunchFlags>) -> Result<LaunchFlags, String> {
+    Ok(state.inner().clone())
+}
+
 #[derive(Default)]
 pub struct ProjectState {
     pub project_root: Mutex<Option<String>>,
@@ -1302,5 +1318,24 @@ mod tests {
         let ok = project_search_inner(&state, "markdown", Some("docs".into()), None, Some(0)).unwrap();
         assert_eq!(ok.matches.len(), 1); // max_results clamped to 1
         assert!(ok.truncated);
+    }
+}
+
+#[cfg(test)]
+mod launch_flag_tests {
+    use super::*;
+
+    fn args(strs: &[&str]) -> Vec<String> {
+        strs.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn log_flag_is_read_from_anywhere_after_the_binary() {
+        assert!(!launch_flags_from(&args(&["quikleaf"])).open_log);
+        assert!(launch_flags_from(&args(&["quikleaf", "--log"])).open_log);
+        assert!(launch_flags_from(&args(&["quikleaf", "notes.md", "--log"])).open_log);
+        assert!(launch_flags_from(&args(&["quikleaf", "--project", ".", "--log"])).open_log);
+        // The binary's own path never counts.
+        assert!(!launch_flags_from(&args(&["--log"])).open_log);
     }
 }

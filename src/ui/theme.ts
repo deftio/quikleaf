@@ -52,6 +52,7 @@ export const darkTheme = bw.loadStyles(
 interface Neutrals {
   bgTertiary: string;
   borderSecondary: string;
+  textSecondary: string;
   textTertiary: string;
   shadow: number; // rgba alpha base for shadows
 }
@@ -64,7 +65,10 @@ function tokens(p: Palette, n: Neutrals, accentHover: string, accentActive: stri
     "--border-primary": p.light.base,
     "--border-secondary": n.borderSecondary,
     "--text-primary": p.dark.base,
-    "--text-secondary": p.secondary.base,
+    // Secondary carries real text in bars and menus (≥ 4.5:1 on every bg,
+    // light secondary is ~7:1 on white); tertiary is for de-emphasised but
+    // still readable text (≥ 4.5:1 on the primary and secondary backgrounds).
+    "--text-secondary": n.textSecondary,
     "--text-tertiary": n.textTertiary,
     "--accent-primary": p.primary.base,
     "--accent-hover": accentHover,
@@ -88,13 +92,13 @@ const dp = darkTheme.palette;
 
 const lightTokens = tokens(
   lp,
-  { bgTertiary: "#f0f2f5", borderSecondary: "#d1d5da", textTertiary: "#9ca3af", shadow: 0.05 },
+  { bgTertiary: "#f0f2f5", borderSecondary: "#d1d5da", textSecondary: "#4b5563", textTertiary: "#64707f", shadow: 0.05 },
   lp.primary.hover,
   lp.primary.active,
 );
 const darkTokens = tokens(
   dp,
-  { bgTertiary: "#242b38", borderSecondary: "#3d4556", textTertiary: "#718096", shadow: 0.2 },
+  { bgTertiary: "#242b38", borderSecondary: "#3d4556", textSecondary: "#b4c0d3", textTertiary: "#8e9bb0", shadow: 0.2 },
   bw.adjustLightness(dp.primary.base, 8),
   bw.adjustLightness(dp.primary.base, 16),
 );
@@ -119,6 +123,16 @@ const shell: CssRules = {
     "--editor-font-size": "16px",
   },
   ".hidden": { display: "none !important" },
+  // Native controls (selects, scrollbars, the date picker) follow the theme.
+  "#app.dark": { "color-scheme": "dark" },
+  /* quikdown's dark theme has its own greys; use ours so the panes sit flush with the app. */
+  "#app.dark #editor-container .qde-container, #app.dark #editor-container .qde-source, #app.dark #editor-container .qde-textarea, #app.dark #editor-container .qde-preview": {
+    background: "var(--bg-primary)",
+    color: "var(--text-primary)",
+    "border-color": "var(--border-primary)",
+  },
+  "#app.dark #editor-container .qde-preview pre, #app.dark #editor-container .qde-preview code": { background: "var(--bg-tertiary)", color: "var(--text-primary)" },
+  "#app.dark #editor-container .qde-preview pre code": { background: "transparent" },
 
   /* ── Title bar ───────────────────────────────────────────── */
   "#titlebar": {
@@ -175,7 +189,7 @@ const shell: CssRules = {
   ".titlebar-btn.active:hover": { background: "var(--text-secondary)", color: "var(--bg-primary)" },
   "#llm-status": {
     "font-size": "calc(var(--ui-font-size) - 2px)",
-    color: "var(--text-tertiary)",
+    color: "var(--text-secondary)",
     "font-weight": "500",
     padding: "4px 8px",
     "border-radius": "var(--radius-sm)",
@@ -217,7 +231,7 @@ const shell: CssRules = {
   },
   ".dropdown-item:hover": { background: "var(--bg-tertiary)" },
   ".dropdown-label": { "font-weight": "500", flex: "1", "text-align": "left", "white-space": "nowrap" },
-  ".dropdown-shortcut": { "font-size": "11px", color: "var(--text-tertiary)", "margin-left": "24px" },
+  ".dropdown-shortcut": { "font-size": "calc(var(--ui-font-size) - 2px)", color: "var(--text-tertiary)", "margin-left": "24px" },
   ".dropdown-check": { width: "16px", "flex-shrink": "0", color: "var(--accent-primary)", visibility: "hidden", "font-size": "11px", "text-align": "left" },
   ".dropdown-item.checked .dropdown-check": { visibility: "visible" },
   ".dropdown-separator": { height: "1px", margin: "4px 8px", background: "var(--border-secondary)" },
@@ -227,7 +241,9 @@ const shell: CssRules = {
   "#editor-column": { flex: "1", "min-width": "0", display: "flex", "flex-direction": "column", overflow: "hidden" },
   /* The active tab's panes: [chat | quikdown view | info] */
   "#tab-body": { position: "relative", flex: "1", "min-height": "0", display: "flex", overflow: "hidden" },
-  "#editor-container": { order: "2", flex: "1", "min-width": "0", "min-height": "0", overflow: "hidden", background: "var(--bg-primary)" },
+  /* Order inside #tab-body: files 1, outline 2, chat 3, editor/log 5, info 7 (chat-right: info 3, chat 7). */
+  "#editor-frame": { position: "relative", order: "5", flex: "1", "min-width": "0", "min-height": "0", display: "flex", overflow: "hidden" },
+  "#editor-container": { flex: "1", "min-width": "0", "min-height": "0", overflow: "hidden", background: "var(--bg-primary)" },
   // quikdown draws its own box; the pane already has edges from the control row and the drawers.
   "#editor-container .qde-container": { border: "none", "border-radius": "0" },
   // Settings → Appearance → Editor font size; the source pane follows at 7/8.
@@ -354,9 +370,61 @@ const shell: CssRules = {
   ".tool-btn:disabled:hover": { background: "transparent", color: "var(--text-secondary)" },
   ".tool-btn.copied": { color: "var(--success)" },
   /* The project tab has no document: the chat takes the whole body, the editor controls go, the toggles stay. */
-  "#editor-column.project-tab #editor-container, #editor-column.project-tab #btn-toggle-chat, #editor-column.project-tab #editor-toolbar .editor-only": {
+  "#editor-column.project-tab #editor-frame, #editor-column.project-tab #btn-toggle-chat, #editor-column.project-tab #editor-toolbar .editor-only": {
     display: "none",
   },
+  /* The log tab shows the log viewer where the editor was; no chat, no editor controls. */
+  "#log-panel": { display: "none", order: "5", flex: "1", "min-width": "0", "min-height": "0", "flex-direction": "column", background: "var(--bg-primary)" },
+  "#editor-column.log-tab #log-panel": { display: "flex" },
+  "#editor-column.log-tab #editor-frame, #editor-column.log-tab #btn-toggle-chat, #editor-column.log-tab #editor-toolbar .editor-only": {
+    display: "none",
+  },
+  ".log-head": {
+    display: "flex",
+    "align-items": "center",
+    gap: "8px",
+    height: "32px",
+    "flex-shrink": "0",
+    padding: "0 6px",
+    "border-bottom": "1px solid var(--border-primary)",
+    background: "var(--bg-secondary)",
+  },
+  ".log-head .tool-group": { display: "flex", gap: "2px" },
+  ".log-head .tool-spacer": { flex: "1" },
+  ".log-path": {
+    "font-family": MONO,
+    "font-size": "calc(var(--ui-font-size) - 3px)",
+    color: "var(--text-tertiary)",
+    "white-space": "nowrap",
+    overflow: "hidden",
+    "text-overflow": "ellipsis",
+    "min-width": "0",
+    "margin-left": "6px",
+  },
+  ".log-head .tool-btn[aria-pressed=\"true\"]": { background: "var(--text-primary)", color: "var(--bg-primary)" },
+  ".log-list": {
+    flex: "1",
+    "overflow-y": "auto",
+    padding: "8px 12px",
+    "font-family": MONO,
+    "font-size": "calc(var(--ui-font-size) - 1px)",
+    "line-height": "1.6",
+    color: "var(--text-primary)",
+    "user-select": "text",
+    "-webkit-user-select": "text",
+  },
+  ".log-row": { "white-space": "pre-wrap", "word-break": "break-word", padding: "1px 0" },
+  ".log-row[data-kind=\"app\"]": { color: "var(--text-secondary)" },
+  ".log-row[data-kind=\"tool\"]": { color: "var(--text-secondary)" },
+  ".log-list.filter-llm .log-row:not([data-kind=\"llm\"]), .log-list.filter-tool .log-row:not([data-kind=\"tool\"]), .log-list.filter-turn .log-row:not([data-kind=\"turn\"]), .log-list.filter-app .log-row:not([data-kind=\"app\"])": {
+    display: "none",
+  },
+
+  /* The theme toggle: moon while light, sun while dark. */
+  ".theme-toggle": { width: "32px", padding: "0", "font-size": "17px", "line-height": "1" },
+  ".theme-toggle .theme-sun": { display: "none" },
+  "#app.dark .theme-toggle .theme-sun": { display: "inline" },
+  "#app.dark .theme-toggle .theme-moon": { display: "none" },
   "#editor-column.project-tab #chat-panel": { flex: "1", width: "auto", "max-width": "none", border: "none", animation: "none" },
   "#editor-column.project-tab .chat-resize-handle, #editor-column.project-tab .chat-drawer-pull": { display: "none" },
 
@@ -368,12 +436,12 @@ const shell: CssRules = {
    * is closed (`#tab-body.chat-closed`) a small pull sits on that edge.
    */
   "#tab-body.chat-right #chat-panel": {
-    order: "3",
+    order: "7",
     "border-right": "none",
     "border-left": "1px solid var(--border-primary)",
     animation: "chat-slide-in-right 0.2s ease-out",
   },
-  "#tab-body.chat-right #info-panel": { order: "1", "border-left": "none", "border-right": "1px solid var(--border-primary)" },
+  "#tab-body.chat-right #info-panel": { order: "3", "border-left": "none", "border-right": "1px solid var(--border-primary)" },
   "@keyframes chat-slide-in": { from: { transform: "translateX(-100%)" }, to: { transform: "none" } },
   "@keyframes chat-slide-in-right": { from: { transform: "translateX(100%)" }, to: { transform: "none" } },
   "@media (prefers-reduced-motion: reduce)": {
@@ -503,7 +571,7 @@ const shell: CssRules = {
     background: "var(--bg-secondary)",
     "border-top": "1px solid var(--border-primary)",
     "font-size": "calc(var(--ui-font-size) - 2px)",
-    color: "var(--text-tertiary)",
+    color: "var(--text-secondary)",
     gap: "16px",
     "font-weight": "500",
   },
@@ -511,7 +579,7 @@ const shell: CssRules = {
   /* ── Chat panel ──────────────────────────────────────────── */
   "#chat-panel": {
     position: "relative",
-    order: "1",
+    order: "3",
     width: "400px",
     "min-width": "300px",
     "max-width": "600px",
@@ -563,7 +631,7 @@ const shell: CssRules = {
 
   /* ── Info pane ───────────────────────────────────────────── */
   "#info-panel": {
-    order: "3",
+    order: "7",
     width: "280px",
     "min-width": "240px",
     display: "flex",
@@ -598,7 +666,17 @@ const shell: CssRules = {
   ".info-val": { color: "var(--text-primary)", "text-align": "right", "font-variant-numeric": "tabular-nums", "min-width": "0", overflow: "hidden", "text-overflow": "ellipsis", "white-space": "nowrap" },
   ".info-path .info-val": { "font-family": "ui-monospace, SFMono-Regular, Menlo, monospace", "font-size": "11px" },
   ".info-model-row": { "align-items": "center" },
-  ".info-model-row select": { flex: "1", "min-width": "0", "font-size": "12px" },
+  ".info-model-row select": {
+    flex: "1",
+    "min-width": "0",
+    "font-size": "12px",
+    "font-family": "inherit",
+    padding: "2px 4px",
+    background: "var(--bg-primary)",
+    color: "var(--text-primary)",
+    border: "1px solid var(--border-secondary)",
+    "border-radius": "var(--radius-sm)",
+  },
   ".info-actions": { "margin-top": "8px", display: "flex", "justify-content": "flex-end" },
   "#chat-input-area": {
     display: "flex",
@@ -826,6 +904,7 @@ const shell: CssRules = {
 
   /* ── File tree ───────────────────────────────────────────── */
   "#file-tree": {
+    order: "1",
     width: "200px",
     "min-width": "160px",
     "max-width": "320px",
@@ -1034,6 +1113,7 @@ const writing: CssRules = {
 
   /* Outline panel (mirrors the file tree) */
   "#outline": {
+    order: "2",
     width: "220px",
     "min-width": "160px",
     "max-width": "320px",
@@ -1171,4 +1251,8 @@ bw.injectCSS(bw.css([{ ":root": lightTokens }, { "#app.dark": darkTokens }, shel
 /** Flip the whole app between the light and dark bitwrench themes. */
 export function setDarkMode(dark: boolean): void {
   bw.toggleClass("app", "dark", dark);
+}
+
+export function isDarkMode(): boolean {
+  return bw.hasClass("app", "dark");
 }

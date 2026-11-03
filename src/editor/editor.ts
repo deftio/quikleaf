@@ -98,6 +98,14 @@ export function redo(): void {
   editorInstance?.redo();
 }
 
+/**
+ * Match quikdown's own theme to the app's. Its `theme: "auto"` follows the
+ * OS, not our `#app.dark`, so the toggle and Settings → Theme call this.
+ */
+export function setEditorTheme(dark: boolean): void {
+  editorInstance?.setTheme?.(dark ? "dark" : "light");
+}
+
 export function canUndo(): boolean {
   return !!editorInstance?.canUndo?.();
 }

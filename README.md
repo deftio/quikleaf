@@ -194,7 +194,7 @@ Model: meta-llama/llama-3.1-70b-instruct
 
 ## Timestamps and the performance log
 
-Settings → **Appearance** sets the interface font size (menus, tabs, toolbars, status bar), the editor font size, one of four preview styles (quikdown's default, Book, Plain, Mono) and a box for your own preview CSS, written as if the preview were the page (`h1 { … }`, `p { … }`). Settings → **Chat display** toggles timestamps/timings and tool-call entries, and picks which edge the chat drawer slides out of. All of these apply on the spot and Cancel puts them back. Settings → **Diagnostics** toggles the performance log. When on, quikleaf appends one JSON object per LLM request (`kind: "llm"`: `ttft_ms`, `total_ms`, `est_tokens`, `tok_per_s`, model, host), per tool call (`kind: "tool"`: name, `ms`) and per chat turn to:
+Settings → **Appearance** picks the theme (light, dark, or follow the system; the sun/moon button at the right of the title bar flips it too), the interface font size (menus, tabs, toolbars, status bar), the editor font size, one of four preview styles (quikdown's default, Book, Plain, Mono) and a box for your own preview CSS, written as if the preview were the page (`h1 { … }`, `p { … }`). Settings → **Chat display** toggles timestamps/timings and tool-call entries, and picks which edge the chat drawer slides out of. All of these apply on the spot and Cancel puts them back. Settings → **Diagnostics** toggles the performance log. When on, quikleaf appends one JSON object per LLM request (`kind: "llm"`: `ttft_ms`, `total_ms`, `est_tokens`, `tok_per_s`, model, host), per tool call (`kind: "tool"`: name, `ms`) and per chat turn to:
 
 | Platform | File |
 |----------|------|
@@ -202,7 +202,7 @@ Settings → **Appearance** sets the interface font size (menus, tabs, toolbars,
 | Linux | `~/.local/share/com.deftio.quikleaf/logs/quikleaf-perf.jsonl` |
 | Windows | `%LOCALAPPDATA%\com.deftio.quikleaf\logs\quikleaf-perf.jsonl` |
 
-`/log` in the chat and **About → Diagnostics** show the path and the latest entries; "Open Log Folder" and "Clear Log" are in Settings. Nothing is written while the toggle is off.
+`/log` in the chat and **About → Diagnostics** show the path and the latest entries; "Open Log Folder" and "Clear Log" are in Settings. Nothing is written while the toggle is off. **View Log** (in Diagnostics or Settings) or `quikleaf --log` opens the log in a tab that follows the running app live, with a filter by kind, Follow, Clear and Open Folder; it works whether or not the file is being written.
 
 ## Command line from the macOS app
 

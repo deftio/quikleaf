@@ -43,6 +43,34 @@ the maintainer.
   choice of four preview styles for the rendered markdown (quikdown's
   Default, Book, Plain, Mono) and a box for your own preview CSS. All preview
   live and Cancel puts them back.
+- **Contrast.** The secondary and tertiary text colours were below 4.5:1 on
+  most backgrounds in the light theme (tertiary was 2.3:1) and the tertiary
+  colour was in the dark theme too. Both are now at or above 4.5:1 on every
+  background in both themes, and the status bar and LLM pill use the
+  secondary colour.
+- **Light / dark toggle.** A sun/moon button at the far right of the title
+  bar switches themes and remembers the choice. Settings → Appearance →
+  Theme offers Light, Dark or Follow the system (the default, as before).
+- **Dark mode fixes.** The editor followed the OS, not the app, so with the
+  OS light and the app dark the panes kept light-theme text on a dark
+  background; quikdown's theme is now set with the app's. Its dark greys are
+  replaced by the app's palette so the panes sit flush, native controls
+  (selects, scrollbars) follow the theme (`color-scheme`), and the info
+  pane's model picker is styled.
+- **Panels open under their buttons.** The file tree and the outline now
+  open inside the body row, `[files | outline | chat | editor | info]`,
+  instead of beside the whole editor column, so toggling them no longer
+  shifts the control row; the mouse can stay on the button. The chat pull
+  sits on the editor's edge, to the right of an open outline.
+
+### Added
+- **A log tab.** About → Diagnostics → View Log, Settings → Diagnostics →
+  View Log, or `quikleaf --log` opens the performance log in a tab: one line
+  per entry (as `/log` prints them), a filter by kind (llm, tool, turn,
+  app), Follow to keep the newest in view, Clear, Open Folder. It follows the
+  running app live, in-process, so new entries appear the instant they are
+  logged, even while the log file is switched off; the file's tail is read
+  the first time the tab is shown. The info pane counts the entries in view.
 - GitHub Pages site: left-justified, more compact layout with the install
   strip above the fold; the hero shows a real screenshot of the app (document
   chat proposing a reviewed diff, source, rendered preview) instead of the

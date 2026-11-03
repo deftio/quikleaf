@@ -109,17 +109,19 @@ describe("appearanceOf", () => {
   const base: LLMSettings = { provider: "openai-compatible", host: "http://localhost", apiKey: "", model: "m", showToolCalls: false };
 
   it("applies the defaults when nothing is stored", () => {
-    expect(appearanceOf(base)).toEqual({ uiFontSize: 14, editorFontSize: 16, previewStyle: "default", previewCss: "" });
+    expect(appearanceOf(base)).toEqual({ theme: "system", uiFontSize: 14, editorFontSize: 16, previewStyle: "default", previewCss: "" });
   });
 
   it("keeps chosen values and drops sizes and styles it does not offer", () => {
-    expect(appearanceOf({ ...base, uiFontSize: 16, editorFontSize: 20, previewStyle: "book", previewCss: "h1 { color: red }" })).toEqual({
+    expect(appearanceOf({ ...base, theme: "dark", uiFontSize: 16, editorFontSize: 20, previewStyle: "book", previewCss: "h1 { color: red }" })).toEqual({
+      theme: "dark",
       uiFontSize: 16,
       editorFontSize: 20,
       previewStyle: "book",
       previewCss: "h1 { color: red }",
     });
-    expect(appearanceOf({ ...base, uiFontSize: 9, editorFontSize: 99, previewStyle: "comic" as any, previewCss: 7 as any })).toEqual({
+    expect(appearanceOf({ ...base, theme: "sepia" as any, uiFontSize: 9, editorFontSize: 99, previewStyle: "comic" as any, previewCss: 7 as any })).toEqual({
+      theme: "system",
       uiFontSize: 14,
       editorFontSize: 16,
       previewStyle: "default",

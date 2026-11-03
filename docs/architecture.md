@@ -65,7 +65,9 @@ Located in `src/`. Built with Vite, runs in Tauri's webview. `index.html` is an 
 | `main.ts` | Mounts the shell, file operations, project mode detection, keyboard shortcuts |
 | `ui/theme.ts` | Two bitwrench themes (`bw.loadStyles()` light, and dark scoped under `.dark`) plus app CSS written with `bw.css()` over CSS custom properties |
 | `ui/shell.ts` | Title bar, File/View/Help menus, panel toggles, main row (`#editor-pane` = toolbar + editor), status bar as TACO |
-| `ui/editor-toolbar.ts` | quikleaf's toolbar over the headless quikdown editor: Source/Split/Rendered, Undo/Redo, Copy MD/HTML/Rendered |
+| `ui/editor-toolbar.ts` | The tab's control row: Files/Outline/Chat toggles, the headless quikdown editor's controls (Source/Split/Rendered, Undo/Redo, Copy MD/HTML/Rendered), Info toggle |
+| `ui/appearance.ts` | Theme (light/dark/system), font sizes, preview style class and the user's preview CSS |
+| `diag/log-pane.ts` | The log tab's viewer: live entries via `onLogEvent`, the file's tail on first show, filter, Follow, Clear |
 | `ui/about.ts` | About dialog (`bw.makeModal`) with system-browser links |
 | `ui/taco.ts` | Helpers: `withAttrs()` to add ids to factory output, typed `makeModal()`, element lookups |
 | `ui/toast.ts` | Notifications via `bw.makeToast` in a lazily created container |
