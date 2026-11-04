@@ -9,7 +9,7 @@ quikleaf --project ./mydir               # a folder
 quikleaf --project ./mydir/quikleaf.prj  # or the project file itself
 ```
 
-This creates (or loads) a `quikleaf.prj` file in the specified directory. The file is rewritten a few hundred milliseconds after every change to the open tabs, the active file, the scratchpad or the key-value store, and flushed when the window closes. On the next launch every project tab is reopened and the active one focused.
+This loads the folder's project file, or creates one: `.quikleaf/quikleaf.prj` by default, so the project root stays clean (Settings → Project → Project file location can put `quikleaf.prj` in the root instead; a folder that already has either is used as is, and a file named on the command line is used as named). Add `.quikleaf/` to `.gitignore` if the chats should not travel with the repository. The file is rewritten a few hundred milliseconds after every change to the open tabs, the active file, the scratchpad or the key-value store, and flushed when the window closes. On the next launch every project tab is reopened and the active one focused.
 
 ## Features
 
@@ -18,10 +18,10 @@ This creates (or loads) a `quikleaf.prj` file in the specified directory. The fi
 A collapsible sidebar shows the project's directory structure:
 
 - Folders listed first, then files
-- Hidden files (dotfiles) are filtered out
+- Hidden files and folders (dotfiles, including `.quikleaf/`) are filtered out
 - `quikleaf.prj` is hidden from the tree
 - Click a file to open it in a tab (an open tab is focused instead of duplicated); the highlight follows the active tab
-- Toggle visibility with the "Files" toggle button in the title bar (it stays highlighted while the tree is shown)
+- Toggle visibility with the "Files" button at the left end of the tab's control row (pressed while the tree is shown); the tree opens in the body row under it
 - Cmd/Ctrl+S saves the open file back through the project-scoped file tools
 
 ### The Project Chat
@@ -56,7 +56,7 @@ Every project file's chat (the visible transcript, that chat's model override an
 
 ## Project File Format
 
-`quikleaf.prj` is a JSON file with camelCase keys (written by the Rust backend):
+The project file (`.quikleaf/quikleaf.prj`, or `quikleaf.prj` in the root) is JSON with camelCase keys (written by the Rust backend):
 
 ```json
 {

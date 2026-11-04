@@ -1,17 +1,26 @@
 # quikleaf
 
-[![License](https://img.shields.io/badge/license-BSD--2--Clause-blue.svg)](LICENSE)
-[![npm version](https://img.shields.io/npm/v/quikleaf.svg)](https://www.npmjs.com/package/quikleaf)
+[![Release](https://img.shields.io/github/v/release/deftio/quikleaf?label=release)](https://github.com/deftio/quikleaf/releases)
+[![npm](https://img.shields.io/npm/v/quikleaf.svg)](https://www.npmjs.com/package/quikleaf)
 [![CI](https://github.com/deftio/quikleaf/actions/workflows/ci.yml/badge.svg)](https://github.com/deftio/quikleaf/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-BSD--2--Clause-blue.svg)](LICENSE)
+![Platforms](https://img.shields.io/badge/macOS%20%7C%20Windows%20%7C%20Linux-desktop-9550bb)
 
 A local markdown editor with two things most editors leave out: a chat that
-can only see the document it belongs to, and a preview that renders diagrams,
-math, maps, charts and 3D models without leaving your machine.
+can only see the document it belongs to, and a preview that renders
+diagrams, math, maps, charts and 3D models without leaving your machine.
 
 ![A document chat proposes a Risks table as a reviewable diff; the markdown source and the rendered preview, with a Mermaid diagram and a math block, sit beside it](docs/assets/quikleaf-demo.gif)
 
+```bash
+npx quikleaf notes.md        # or grab an installer from the Releases page
+```
+
 Files stay on disk. The only network traffic is to the LLM host you pick,
-which can be a local Ollama.
+which can be a local Ollama. [Website](https://deftio.github.io/quikleaf/) ·
+[Releases](https://github.com/deftio/quikleaf/releases) ·
+[Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md) ·
+[Security](SECURITY.md)
 
 ## Why quikleaf
 
@@ -31,9 +40,9 @@ Mermaid, LaTeX, GeoJSON maps, STL models, CSV/TSV tables, Vega and
 Vega-Lite charts, ABC music notation, SVG and syntax-highlighted code, all
 bundled, no CDN. This is rare in a desktop markdown editor.
 
-**Nothing phones home.** Bring your own key or run a local model. The
-performance log, if you turn it on, is a file in your log folder that you
-can watch inside the app.
+**Nothing phones home.** Bring your own key or run a local model. No
+telemetry, no update check. The performance log, if you turn it on, is a
+file in your log folder that you can watch inside the app.
 
 ## Features
 
@@ -203,24 +212,26 @@ npm install && npm run setup
 npm run tauri:dev           # dev mode with hot reload
 npm run tauri:build         # installer in src-tauri/target/release/bundle/
 npm run check               # TypeScript
-npm test                    # unit tests (vitest, 700+)
+npm test                    # unit tests (vitest, 750+)
 npm run test:coverage       # with the coverage gate (90/90/90 lines/statements/functions, 85 branches)
-npm run test:e2e            # Playwright (130+), Tauri mocked
+npm run test:e2e            # Playwright (140+), Tauri mocked
 cd src-tauri && cargo test  # Rust (lib and bin targets)
+npm run release:dry         # every release gate, nothing pushed
 ```
 
 Releases are the maintainer's: `npm run feature -- "name"` starts a branch
 and bumps every version file, `npm run release:dry` runs every gate without
 pushing, `npm run release` opens the PR whose merge has CI tag, build the
 installers and publish the npm launcher. [docs/publishing.md](docs/publishing.md)
-has the trust path.
+has the trust path. [CONTRIBUTING.md](CONTRIBUTING.md) has the rest.
 
 ## How it is built
 
 - **Rust backend (Tauri v2)**, `src-tauri/`: file I/O, the command line,
-  the project store, the performance log, the CLI shim, and a small proxy
-  that forwards LLM calls so keys never sit in the webview and CORS does not
-  apply. An `asset://` handler serves image files to the preview.
+  the project store, the performance log, the file watcher, the CLI shim,
+  and a small proxy that forwards LLM calls so keys never sit in the webview
+  and CORS does not apply. An `asset://` handler serves image files to the
+  preview.
 - **TypeScript frontend**, `src/`: the whole interface is
   [bitwrench.js](https://github.com/deftio/bitwrench) TACO objects mounted
   into one empty `div`; styles are generated from two palettes. The editor is
@@ -230,8 +241,10 @@ has the trust path.
 
 [docs/architecture.md](docs/architecture.md) goes module by module;
 [docs/llm-integration.md](docs/llm-integration.md) covers providers, tools
-and the system prompt; the original plan is in
-[dev/quikleaf-spec.md](dev/quikleaf-spec.md).
+and the system prompt; [docs/project-mode.md](docs/project-mode.md) the
+project file; [agents.md](agents.md) is for agents and external tools;
+[llms.txt](llms.txt) is the short form for language models. The original
+plan is in [dev/quikleaf-spec.md](dev/quikleaf-spec.md).
 
 ## Troubleshooting
 
@@ -243,6 +256,9 @@ and the system prompt; the original plan is in
 - **A file will not open.** The fs scope allows files you picked, named on
   the command line or dropped on the window. `/log` or the log tab shows an
   `open-failed` entry with the reason.
+- **An image does not show.** Paths are relative to the document's folder;
+  an unsaved document has no folder yet. The `asset://` handler serves
+  `png`, `jpg`, `gif`, `svg`, `webp`, `bmp` and `avif`.
 
 ## License
 

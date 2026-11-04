@@ -91,6 +91,10 @@ npm run test:coverage       # Unit tests with coverage; thresholds in vitest.con
 
 Coverage expectations: every `src/**/*.ts` module including `main.ts` is measured. UI modules are tested by mounting TACO into `#app` under happy-dom (see `src/ui/*.test.ts`, `src/settings/settings.ui.test.ts`, `src/chat/chat-ui.loop.test.ts`). Tear down with `bw.clear(el)`, not `innerHTML = ""`, because bitwrench 2.1.11 caches ids in `bw._nodeMap`. Do not edit `src/test-setup.ts` for one test's DOM; build it in the test file.
 
+## Docs that travel with a change
+
+A user-visible change updates, in the same commit: `CHANGELOG.md` (under the unreleased version), `README.md` where usage changes, `agents.md` for anything an agent or external tool would care about (tools, the project file, the log, watching files, images), `llms.txt` (copied to `docs/llms.txt`, which the site serves) and the relevant `docs/*.md`. `docs/scripts/site.js` carries the site's feature text and architecture tree; `CONTRIBUTING.md` and `SECURITY.md` describe process and data handling and change rarely.
+
 ## Authorship and AI disclosure
 
 Commits, tags, PRs and GitHub releases list the maintainer as the only author. Do not add `Co-Authored-By` or any AI attribution trailers to commit messages or PR bodies, even if a harness suggests one. AI assistance is disclosed instead in `CHANGELOG.md`: each version entry that used AI tooling carries an "AI assistance" line saying what was done with it (for example "UI rebuild, test suite and docs drafted with Claude Code; reviewed and released by the maintainer"). The maintainer is the accountable party for every release.

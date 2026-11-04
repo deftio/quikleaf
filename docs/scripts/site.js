@@ -396,14 +396,14 @@
       features: [
         { icon: 'Q', title: 'Rich Markdown Rendering', description: 'quikdown standalone with syntax highlighting, Mermaid, LaTeX math, GeoJSON maps, 3D STL, CSV tables, Vega charts, ABC music notation and SVG, all rendered locally.' },
         { icon: 'AI', title: 'A Chat Per Tab', description: 'Every document tab has its own QD chat, sealed to that document: it sees and edits only that file, and the header says so. Each chat can run a different model. OpenAI-compatible APIs and Anthropic.' },
-        { icon: '⊕', title: 'Project Mode', description: 'Open a folder for a file tree sidebar, project-scoped file tools, persistent memory and key-value store, and automatic project state saving.' },
+        { icon: '⊕', title: 'Project Mode', description: 'Open a folder for a file tree, project-scoped file tools and search, a scratchpad and key-value store, and a project file (in .quikleaf/ by default) that remembers open tabs and each file\u2019s chat.' },
         { icon: '↔', title: 'Local LLM Auto-Detect', description: 'Finds Ollama, LM Studio or Docker Model Runner running locally. No configuration, works fully offline.' },
         { icon: '</>', title: 'Project Chat', description: 'Cross-file work lives in one explicit project chat that reads, writes and searches files under the project root by path. Files from other projects never leak between chats.' },
         { icon: '±', title: 'Edits You Can Review', description: 'Edits show up as diff cards. Review everything, only project file writes, or nothing. Reject and it asks instead of retrying.' },
         { icon: '▤', title: 'Tabs With Panes', description: 'Each tab shows [chat | quikdown view | info] and remembers its layout and editor mode. The info pane has document stats, chat stats and the model picker.' },
-        { icon: '¶', title: 'Writing Tools', description: 'Outline panel, find & replace with regex, live word count and reading time, focus mode, Export HTML and Print / PDF.' },
-        { icon: '◆', title: 'Native Desktop App', description: 'Fast startup, low memory, native file dialogs, keyboard shortcuts, auto dark mode, resizable panels. Built with Tauri v2.' },
-        { icon: '⌚', title: 'Timing You Can See', description: 'Timestamps under every message, time-to-first-token and tokens/s under every reply, tool durations, and an optional JSON-lines performance log.' },
+        { icon: '¶', title: 'Writing Tools', description: 'Outline, find & replace with regex, word count and reading time, focus mode, four preview styles plus your own CSS, Export HTML and Print / PDF. Paste an image and it is saved beside the document; drop files to open them.' },
+        { icon: '◆', title: 'Native Desktop App', description: 'Fast startup, low memory, native file dialogs, keyboard shortcuts, light and dark themes with a toggle, resizable panels. Watch a tab\u2019s file and it reloads when something else writes it. Built with Tauri v2.' },
+        { icon: '⌚', title: 'Timing You Can See', description: 'Timestamps under every message, time-to-first-token and tokens/s under every reply, tool durations, and an optional JSON-lines performance log with a live log tab in the app.' },
         { icon: '{ }', title: 'UI as Data', description: { t: 'span', c: ['The whole interface, and this page, is built from ', ext('bitwrench.js', 'https://github.com/deftio/bitwrench'), ' TACO objects with themes generated from seed palettes. No hand-written HTML or CSS.'] } },
         { icon: 'BSD', title: 'Free and Open Source', description: 'BSD-2-Clause licensed. Your documents and API keys never leave your machine except to the LLM host you configure.' }
       ]
@@ -490,22 +490,26 @@
 '    llm.rs                  LLM API proxy with streaming\n' +
 '    project.rs              Project state, memory, KV, file tools, search\n' +
 '    diag.rs                 Performance log + CLI shim installer\n' +
-'  src/main.rs               CLI parsing, app setup\n' +
+'    watch.rs                File watcher behind the Watch toggle and --watch\n' +
+'  src/main.rs               CLI parsing, app setup, asset:// image handler\n' +
 '\n' +
 'src/                        TypeScript frontend (Vite + bitwrench)\n' +
 '  ui/theme.ts               Light + dark themes, app CSS via bw.css()\n' +
 '  ui/shell.ts               Title bar, menus, toggle buttons, status bar\n' +
+'  ui/editor-toolbar.ts      The tab\u2019s control row over the headless editor\n' +
+'  ui/appearance.ts          Theme, font sizes, preview styles, user CSS\n' +
 '  ui/about.ts               About / How it works / Diagnostics tabs\n' +
 '  ui/tabbar.ts, findbar.ts, outline.ts, focus.ts\n' +
-'  editor/editor.ts          quikdown editor wrapper\n' +
+'  editor/editor.ts          quikdown editor wrapper (headless)\n' +
 '  editor/tabs.ts, documents.ts   Tab model and session controller\n' +
+'  editor/images.ts, dropzone.ts, watch.ts   Images, dropped files, Watch\n' +
 '  chat/chat-ui.ts           Chat pane, scoped tool dispatch, slash commands\n' +
 '  chat/session.ts           One sealed chat session per tab\n' +
 '  ui/panes.ts, ui/infopane.ts  Per-tab panes [chat | view | info]\n' +
 '  chat/chat-utils.ts        Tool schemas + system prompt\n' +
 '  chat/providers.ts         LLM provider adapters (OpenAI, Anthropic)\n' +
 '  chat/review.ts, plan.ts   Edit review cards, plan card\n' +
-'  diag/perf.ts              Timing math + performance-log client\n' +
+'  diag/perf.ts, log-pane.ts Timing math, performance-log client, the log tab\n' +
 '  settings/settings.ts      LLM config UI, auto-detect\n' +
 '  project/file-tree.ts      Project mode file tree sidebar\n' +
 '  main.ts                   App init, shortcuts, project mode\n' +

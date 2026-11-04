@@ -5,11 +5,12 @@ All notable changes to quikleaf are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.3] - 2026-11-02
+## [1.2.3] - 2026-11-03
 
-AI assistance: the chat drawer, the site changes and this entry were drafted
-with Claude Code under the maintainer's direction; reviewed and released by
-the maintainer.
+AI assistance: the chat drawer, the three-row layout and headless editor
+controls, Appearance settings, the log tab, Watch, file drop and image paste,
+the README demo, the tests and this entry were drafted with Claude Code under
+the maintainer's direction; reviewed and released by the maintainer.
 
 ### Changed
 - **The chat is a drawer.** It slides out of the left edge of the tab instead
@@ -93,7 +94,8 @@ the maintainer.
   file keep it where it is, and `--project ./x.prj` is used as named.
 - A README that leads with what is different (the sealed chat per document,
   the rich fences rendered offline), and an animated demo in place of the
-  static screenshot.
+  static screenshot. `CONTRIBUTING.md` and `SECURITY.md`; `agents.md`,
+  `llms.txt` and the site brought up to date.
 - **A log tab.** About → Diagnostics → View Log, Settings → Diagnostics →
   View Log, or `quikleaf --log` opens the performance log in a tab: one line
   per entry (as `/log` prints them), a filter by kind (llm, tool, turn,

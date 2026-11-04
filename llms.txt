@@ -1,77 +1,71 @@
 # quikleaf
 
-> A standalone, cross-platform desktop markdown editor with rich rendering and LLM chat integration.
+> A local, cross-platform desktop markdown editor (Tauri v2) with a preview that renders diagrams, math, maps, charts and 3D offline (quikdown), and an LLM chat per document that can see and edit only that document. Files stay on the machine; the only network traffic is to the LLM host the user configures.
 
-## What is quikleaf?
+Version 1.2.3. BSD-2-Clause. Source: https://github.com/deftio/quikleaf. Site: https://deftio.github.io/quikleaf/. npm: `quikleaf` (a launcher that downloads the release binary on first run).
 
-quikleaf is a native desktop application built with Tauri v2 (Rust backend + webview frontend) and powered by quikdown for markdown rendering. It provides:
+## What it does
 
-- Rich markdown editing with live preview
-- Built-in LLM chat assistant ("QD"): one sealed chat per document tab (sees and edits only that document), plus a project chat for cross-file work by path; reviewable edits, plan card, per-chat model
-- Multiple documents in tabs (Cmd/Ctrl+N, Cmd/Ctrl+W, Ctrl+Tab)
-- Writing tools: outline panel, find & replace (case / regex), word count and reading time, focus mode, Export HTML, Print / PDF
-- Support for Mermaid diagrams, LaTeX math, GeoJSON maps, 3D STL, CSV tables, Vega charts, ABC music notation, SVG
-- Project mode with file tree, the project chat, and a scratchpad + key-value store saved to `quikleaf.prj` along with each project file's chat and pane layout
-- Auto-detection of local LLM servers (Ollama, LM Studio, Docker Model Runner)
-- Support for OpenAI-compatible APIs (Ollama, LM Studio, Docker Model Runner, OpenRouter, Groq) and Anthropic Claude, with presets in Settings
+- Markdown editing with source, split and rendered views per tab; outline; find and replace (regex); word count and reading time; focus mode; four preview styles plus user CSS; Export HTML; Print / PDF.
+- Rendering by quikdown's standalone bundle, all offline: syntax highlighting, Mermaid, LaTeX (```math fences), GeoJSON maps, STL 3D, CSV/TSV tables, Vega and Vega-Lite, ABC music notation, SVG, sanitized HTML.
+- A chat per document tab ("QD"), sealed to that document: the model is shown that file and that conversation, nothing else; its tools can change only that file. The seal is enforced in the tool dispatcher, not the prompt. A separate project chat (project mode) works on files under the project root by path. Per-chat model choice.
+- Edits arrive as diff cards: review every edit, only project file writes (default), or none. Plan card for multi-step work. Streaming, slash commands, a tool loop capped at 10 rounds with a Stop button, timings under every reply.
+- Providers: any OpenAI-compatible API (Ollama, LM Studio, Docker Model Runner, OpenRouter, Groq, vLLM) and Anthropic. Local servers are auto-detected on first launch. Calls are proxied by the Rust backend; keys never sit in the webview.
+- Files: open by dialog, command line, or drag and drop onto the window. Paste an image into the source pane and it is saved to `images/<document>-<timestamp>.<ext>` beside the document and linked; relative images render in the preview.
+- Watch: a per-tab toggle (off by default) reloads the tab when its file changes on disk; `quikleaf --watch file.md` starts with it on. Unsaved edits are asked about first.
+- Project mode (`quikleaf --project ./dir`): file tree, the project chat with file read/write/list/stat/search and tab tools, a scratchpad and key-value store shared by the project's chats, and a project file (`.quikleaf/quikleaf.prj` by default, or `quikleaf.prj` in the root per Settings → Project) that remembers open tabs and each file's chat.
+- Diagnostics: a JSON-lines performance log (one line per LLM request, tool call and chat turn; off by a setting) and a log tab that follows it live (`quikleaf --log`, or View Log in About → Diagnostics or Settings).
+- Appearance: light, dark or system theme with a title-bar toggle; interface and editor font sizes.
 
-## Install options
+## Command line
 
-- Pre-built installers (.dmg, .msi/.exe, .deb/.rpm/.AppImage, portable .tar.gz/.zip) from https://github.com/deftio/quikleaf/releases, built automatically for every tagged release from v1.1.0 on.
-- npm: `npm install -g quikleaf` (or `npx quikleaf file.md`) — a launcher that downloads the platform binary from the GitHub release of the same version at install time (published via npm trusted publishing / OIDC).
-- Build from source: `npm install && npm run setup && npm run tauri:build` (Node 18+, Rust stable, platform webkit deps).
-- From the installed macOS app: Help → Install Command Line Tool writes a `quikleaf` shim so `quikleaf file.md` and `quikleaf --project ./dir` work from a terminal.
+```
+quikleaf                     # empty editor
+quikleaf notes.md            # open a file
+quikleaf --watch notes.md    # open and reload when it changes on disk
+quikleaf --project ./dir     # project mode
+quikleaf --project ./x.prj   # a project file by name
+quikleaf --log               # start on the log tab
+```
+
+## Layout
+
+Three rows over the tab body. Title bar: File and View menus, LLM status, Settings, Help, About, theme toggle. Tab bar: tabs. Control row for the active tab: `[Files Outline Chat | Source Split Rendered · Undo Redo … Copy MD/HTML/Rendered · Watch | Info]`. Body: `[files | outline | chat | editor | info]`; each panel opens under its button. The chat is a drawer on the left edge (or right, by setting) with a pull while closed. Keyboard: Cmd/Ctrl+N/O/S/W, Ctrl+Tab, Cmd/Ctrl+F/H, Cmd/Ctrl+Shift+C/I/O (chat, info, outline), Cmd/Ctrl+Shift+D (focus), Cmd/Ctrl+P (print).
+
+## Chat scopes and tools
+
+Document chat: document_read, document_write, document_replace, document_insert, document_undo, document_redo, document_get_selection, document_outline; plan_set, plan_update; memory_* and kv_* only when the document is a file under the project root.
+Project chat: file_read, file_write, file_list, file_stat, project_search, tabs_list (project files only), tab_open; plan_set, plan_update; memory_read, memory_write, memory_append, memory_clear; kv_get, kv_set, kv_delete, kv_list.
+Slash commands: /help, /clear, /model [name|default], /memory, /tools, /log.
+Edit approval (Settings → Agent): always | files (default) | never. A rejected edit returns `{success:false, rejected:true}` and the model is told to ask rather than retry.
+
+Full detail for agents and external tools, including the project file format and the log format: https://github.com/deftio/quikleaf/blob/main/agents.md
 
 ## Architecture
 
-- Backend: Rust (Tauri v2) — handles file I/O, CLI parsing, LLM API proxying
-- Frontend: TypeScript (Vite) — runs in Tauri's webview; UI built with bitwrench.js TACO objects (src/ui/)
-- Rendering: quikdown standalone bundle (~8 MB) with all fence renderers included
-- LLM: Tool-calling loop; tools are scoped per chat (document chat: 8 document + 2 plan tools, +8 memory/KV for project files; project chat: 5 file, project_search, tabs_list, tab_open, 2 plan, 8 memory/KV); optional review of edits as diff cards (Settings > Agent); a plan card for multi-step work
-- Layout: each tab shows [chat | quikdown view | info]; panes and editor mode are remembered per tab
+- `src-tauri/` Rust (Tauri v2): file I/O and fs-scope widening (`fs.rs`: `allow_path`, `image_save`), LLM proxy with streaming (`llm.rs`), project state, memory, KV, file tools, search and launch parsing (`project.rs`), performance log and CLI shim (`diag.rs`), file watcher (`watch.rs`, notify crate, emits `file-changed`). `main.rs`/`lib.rs` register commands and an `asset://` scheme that serves image files to the preview.
+- `src/` TypeScript (Vite): the whole interface is bitwrench.js TACO objects mounted into one empty div, styles generated from two palettes (`ui/theme.ts`). quikdown runs headless; `ui/editor-toolbar.ts` draws the controls. `editor/tabs.ts` is the tab model, `editor/documents.ts` the session controller, `editor/images.ts`, `dropzone.ts`, `watch.ts` the image, drop and watch features. `chat/` holds the session per tab, the chat UI with scoped tool dispatch, tool schemas and the system prompt, provider adapters, diff and review cards, the plan card. `settings/settings.ts` is the settings dialog and localStorage. `project/` the file tree and the debounced project-file writer. `diag/` timing math, the log client and the log tab.
+- Data flow: the model works on raw markdown only and never sees or produces HTML. User message → Rust proxy → provider → tool calls dispatched in the webview (scoped) → results back to the model → loop until a text reply.
 
-## Key Files
+## Docs
 
-- src-tauri/src/commands/llm.rs — LLM API proxy with streaming
-- src-tauri/src/commands/project.rs — Project state, memory, KV, file tools
-- src-tauri/src/commands/fs.rs — File I/O commands
-- src/ui/theme.ts — bitwrench light/dark themes and app CSS
-- src/ui/shell.ts — Title bar, menus, toggle buttons, status bar (TACO)
-- src/editor/tabs.ts, src/editor/documents.ts — tab model and session controller
-- src/chat/review.ts, src/chat/plan.ts, src/chat/diff.ts — edit review cards, plan card, line diff
-- src/ui/findbar.ts, src/ui/outline.ts, src/ui/focus.ts — find & replace, outline panel, focus mode
-- src/diag/perf.ts — Timing math and performance-log client
-- src-tauri/src/commands/diag.rs — Performance log file + CLI shim installer
-- src/chat/chat-ui.ts — Chat pane, scoped tool dispatch, slash commands
-- src/chat/session.ts — One chat session per tab (scope, transcript, model, log); quikleaf.prj chat history
-- src/ui/panes.ts, src/ui/infopane.ts — Per-tab pane layout and the info pane
-- src/chat/providers.ts — LLM provider adapters (OpenAI, Anthropic)
-- src/editor/editor.ts — quikdown editor wrapper
-- src/settings/settings.ts — LLM configuration UI
-- src/project/persist.ts — Debounced quikleaf.prj writer (project_save)
-- src/main.ts — Mounts the shell, wires modules, launch mode (file or project)
+- README: https://github.com/deftio/quikleaf/blob/main/README.md
+- Architecture: https://github.com/deftio/quikleaf/blob/main/docs/architecture.md
+- LLM integration (providers, tools, system prompt, settings): https://github.com/deftio/quikleaf/blob/main/docs/llm-integration.md
+- Project mode and the project file: https://github.com/deftio/quikleaf/blob/main/docs/project-mode.md
+- Agents and external tools: https://github.com/deftio/quikleaf/blob/main/agents.md
+- Publishing pipeline (CI, releases, npm trusted publishing): https://github.com/deftio/quikleaf/blob/main/docs/publishing.md
+- Contributing: https://github.com/deftio/quikleaf/blob/main/CONTRIBUTING.md
+- Security: https://github.com/deftio/quikleaf/blob/main/SECURITY.md
+- Changelog: https://github.com/deftio/quikleaf/blob/main/CHANGELOG.md
+- quikdown (rendering): https://github.com/deftio/quikdown
+- bitwrench (UI): https://github.com/deftio/bitwrench
 
-## LLM Integration Details
+## Install
 
-The LLM operates on raw markdown only — it never sees or produces HTML. API calls are proxied through the Rust backend to avoid CORS and protect API keys. The tool-calling loop runs at most 10 rounds per turn and can be aborted with the Stop button; there is no per-call timeout.
+- Installers (`.dmg`, `.msi`/`.exe`, `.deb`/`.rpm`/`.AppImage`, portable archives): https://github.com/deftio/quikleaf/releases
+- npm: `npm install -g quikleaf` or `npx quikleaf file.md` (Node 18+; downloads the release build of the same version on first run; published with npm provenance)
+- Source: `npm install && npm run setup && npm run tauri:build` (Node 18+, Rust stable, platform webview dependencies)
+- macOS builds are not notarized yet: `xattr -cr /Applications/quikleaf.app` if Gatekeeper refuses the `.dmg`. Help → Install Command Line Tool puts `quikleaf` on PATH.
 
-### Chat scopes and tools
-
-Every tab has its own chat. A document chat is bound to one document: the model sees that document and the conversation only, and its tools can change only that document. Files from unrelated projects open side by side can never reach each other's chats. The project chat (View → Project Chat, project mode) is the only cross-file scope and works on files under the project root by path. The dispatcher enforces the scope: out-of-scope tools return an error.
-
-Document chat: document_read, document_write, document_replace, document_insert, document_undo, document_redo, document_get_selection, document_outline; plan_set, plan_update; memory_* and kv_* only when the document is a file under the project root
-Project chat: file_read, file_write, file_list, file_stat, project_search, tabs_list (project files only), tab_open; plan_set, plan_update; memory_read, memory_write, memory_append, memory_clear; kv_get, kv_set, kv_delete, kv_list
-Per-chat model: /model <name> (same host/provider as Settings), /model default; also the info pane picker
-
-Edit approval (Settings > Agent): "always" reviews every document and file edit, "files" (default) reviews project file writes only, "never" applies directly. Reviewed edits render as a diff card with Accept/Reject; a rejected tool returns {success:false, rejected:true} and the model is told to ask rather than retry.
-
-## Diagnostics
-
-Timestamps and per-request timing (time to first token, total, ≈tokens, tok/s) show under chat messages; tool calls show their duration. A JSON-lines performance log is written to the OS log dir (macOS: ~/Library/Logs/com.deftio.quikleaf/quikleaf-perf.jsonl) unless disabled in Settings. `/log` shows the path and recent entries. Help → Install Command Line Tool writes a `quikleaf` shim so the macOS app is usable from a terminal.
-
-## Links
-
-- Source: https://github.com/deftio/quikleaf
-- quikdown: https://github.com/deftio/quikdown
-- License: BSD-2-Clause
-- Author: deftio (deftio@deftio.com)
+Author: deftio (deftio@deftio.com).
