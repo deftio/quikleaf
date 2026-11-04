@@ -1,6 +1,6 @@
 /**
- * About dialog: three bitwrench tabs — About, How it works, Diagnostics.
- * Also owns the "Install Command Line Tool" action, since the Diagnostics
+ * About dialog: a masthead (logo, name, version) over three bitwrench tabs —
+ * About, How it works, Diagnostics. Also owns the "Install Command Line Tool" action, since the Diagnostics
  * tab and the Help menu both trigger it.
  */
 import bw from "bitwrench";
@@ -55,26 +55,25 @@ function lib(name: string, href: string, version: string): TacoContent {
   return [externalLink(name, href), { t: "span", a: { class: "about-ver" }, c: version }];
 }
 
+/** The masthead above the tabs: logo, name, version, tagline. Shared by all three panes. */
+function masthead(): Taco {
+  return {
+    t: "div",
+    a: { class: "about-head" },
+    c: [
+      { t: "img", a: { class: "about-logo", src: "/icon.png", alt: "quikleaf" } },
+      { t: "div", a: { class: "about-name" }, c: "quikleaf" },
+      { t: "div", a: { class: "about-version" }, c: `Version ${__APP_VERSION__}` },
+      { t: "div", a: { class: "about-tagline" }, c: "A local markdown editor with a chat per document." },
+    ],
+  };
+}
+
 function aboutTab(): Taco {
   return {
     t: "div",
     a: { class: "about-pane" },
     c: [
-      {
-        t: "div",
-        a: { class: "about-head" },
-        c: [
-          { t: "img", a: { class: "about-logo", src: "/icon.png", alt: "quikleaf" } },
-          {
-            t: "div",
-            c: [
-              { t: "div", a: { class: "about-name" }, c: "quikleaf" },
-              { t: "div", a: { class: "about-version" }, c: `Version ${__APP_VERSION__}` },
-              { t: "div", a: { class: "about-tagline" }, c: "A local markdown editor with a chat per document." },
-            ],
-          },
-        ],
-      },
       {
         t: "p",
         a: { class: "about-desc" },
@@ -233,16 +232,19 @@ export function makeAboutModal(): Taco {
   const content: Taco = {
     t: "div",
     a: { id: "about-modal" },
-    c: bw.makeTabs({
-      tabs: [
-        { label: "About", content: aboutTab() },
-        { label: "How it works", content: howItWorksTab() },
-        { label: "Diagnostics", content: diagnosticsTab() },
-      ],
-      onTabChange: (index: number) => {
-        if (index === 2) refreshDiagnostics();
-      },
-    }),
+    c: [
+      masthead(),
+      bw.makeTabs({
+        tabs: [
+          { label: "About", content: aboutTab() },
+          { label: "How it works", content: howItWorksTab() },
+          { label: "Diagnostics", content: diagnosticsTab() },
+        ],
+        onTabChange: (index: number) => {
+          if (index === 2) refreshDiagnostics();
+        },
+      }),
+    ],
   };
   return withAttrs(makeModal({ content, closeButton: true }), { id: "about-overlay" });
 }

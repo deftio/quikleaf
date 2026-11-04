@@ -185,6 +185,7 @@ describe("makeSettingsModal", () => {
       "set-editor-font",
       "set-preview-style",
       "set-preview-css",
+      "set-project-file",
       "settings-view-log",
       "settings-open-log",
       "settings-clear-log",
@@ -219,10 +220,20 @@ describe("makeSettingsModal", () => {
   it("offers the three edit-approval policies under an Agent section, defaulting to files", () => {
     const node = bw.append(byId("app"), makeSettingsModal());
     const titles = Array.from(node.querySelectorAll(".settings-section-title")).map((h) => h.textContent);
-    expect(titles).toEqual(["LLM provider", "Appearance", "Chat display", "Agent", "Diagnostics"]);
+    expect(titles).toEqual(["LLM provider", "Appearance", "Chat display", "Agent", "Project", "Diagnostics"]);
     const sel = byId<HTMLSelectElement>("set-edit-approval");
     expect(Array.from(sel.options).map((o) => o.value)).toEqual(EDIT_APPROVAL_OPTIONS.map((o) => o.value));
     expect(sel.value).toBe("files");
+  });
+
+  it("offers the project file location under Project, between Agent and Diagnostics, defaulting to the .quikleaf folder", () => {
+    const node = bw.append(byId("app"), makeSettingsModal());
+    const sel = byId<HTMLSelectElement>("set-project-file");
+    expect(Array.from(sel.options).map((o) => o.value)).toEqual(["dotdir", "root"]);
+    expect(sel.value).toBe("dotdir");
+    const titles = Array.from(node.querySelectorAll(".settings-section-title")).map((h) => h.textContent);
+    expect(titles.indexOf("Project")).toBe(titles.indexOf("Agent") + 1);
+    expect(titles.indexOf("Diagnostics")).toBe(titles.indexOf("Project") + 1);
   });
 
   it("offers the drawer side under Chat display, defaulting to left", () => {
@@ -371,6 +382,7 @@ describe("open / close and the form round-trip", () => {
       editorFontSize: 16,
       previewStyle: "default",
       previewCss: "",
+      projectFileLocation: "dotdir",
     });
     const panel = byId("chat-panel");
     expect(panel.classList.contains("show-timestamps")).toBe(true);

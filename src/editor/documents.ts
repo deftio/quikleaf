@@ -20,6 +20,7 @@ import type { Tab } from "./tabs";
 import { setStatusFile } from "../ui/shell";
 import { highlightFile } from "../project/file-tree";
 import { logEvent } from "../diag/perf";
+import { joinPath } from "./paths";
 
 const FILE_FILTERS = [
   { name: "Markdown", extensions: ["md", "markdown", "txt"] },
@@ -60,6 +61,21 @@ export function setDocumentsProjectMode(on: boolean, root: string | null = null)
 
 export function isProjectMode(): boolean {
   return projectMode;
+}
+
+export function projectRootPath(): string | null {
+  return projectRoot;
+}
+
+/** The absolute path of `tab`'s file (project paths joined to the root), or null for an unsaved document. */
+export function absolutePathOf(tab: Tab | null): string | null {
+  if (!tab || tab.kind !== "document" || !tab.path) return null;
+  return tab.projectRelative && projectRoot ? joinPath(projectRoot, tab.path) : tab.path;
+}
+
+/** The active document's absolute path, for images saved or resolved beside it. */
+export function activeDocumentPath(): string | null {
+  return absolutePathOf(tabs.activeTab());
 }
 
 // --- Status bar and window title ---
@@ -118,9 +134,15 @@ export async function openDocument(path: string, content: string, projectRelativ
   return tabs.getTab(tab.id)!;
 }
 
-/** Read a path from disk and open it: absolute paths via the fs plugin, project paths via `file_read`. */
+/**
+ * Read a path from disk and open it: absolute paths via the fs plugin, project
+ * paths via `file_read`. The fs plugin only reads paths in its scope (the
+ * dialog's picks, the command-line file); `allow_path` adds this one first so
+ * a dropped file opens too.
+ */
 export async function openPath(path: string, projectRelative = false): Promise<Tab | null> {
   try {
+    if (!projectRelative) await invoke("allow_path", { path }).catch(() => {});
     const content = projectRelative ? await invoke<string>("file_read", { path }) : await readTextFile(path);
     return await openDocument(path, content, projectRelative);
   } catch (e) {
@@ -167,6 +189,27 @@ export async function openLogTab(): Promise<Tab | null> {
   const tab = tabs.openLogTab();
   await showTab(tab.id);
   return tabs.getTab(tab.id);
+}
+
+// --- Reloading (Watch) ---
+
+/**
+ * Replace a tab's text with what is on disk and mark it clean. The active
+ * tab's editor is reloaded too (not a user edit, so `loading` is set).
+ */
+export async function reloadDocument(id: string, content: string): Promise<void> {
+  const tab = tabs.getTab(id);
+  if (!tab || tab.kind !== "document") return;
+  tabs.updateContent(id, content);
+  tabs.markSaved(id);
+  if (tabs.activeTab()?.id === id) {
+    loading = true;
+    try {
+      await setMarkdown(content);
+    } finally {
+      loading = false;
+    }
+  }
 }
 
 // --- Saving ---

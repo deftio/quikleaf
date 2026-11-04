@@ -26,6 +26,9 @@ import {
   saveActiveDocument,
   setDocumentsProjectMode,
   showTab,
+  activeDocumentPath,
+  absolutePathOf,
+  projectRootPath,
 } from "./documents";
 import { makeFileTreePanel, loadTree } from "../project/file-tree";
 
@@ -519,5 +522,45 @@ describe("the project chat tab", () => {
     expect(listTabs().filter((t) => t.kind === "project")).toHaveLength(1);
     expect(await closeDocument()).toBe(true);
     expect(tabs.getTab(tabs.PROJECT_TAB_ID)).toBeNull();
+  });
+});
+
+describe("openPath and the fs scope", () => {
+  it("asks Rust to allow an absolute path before reading it, and not for project paths", async () => {
+    mockRead.mockResolvedValue("# x");
+    await openPath("/dropped/a.md");
+    expect(mockInvoke).toHaveBeenCalledWith("allow_path", { path: "/dropped/a.md" });
+    mockInvoke.mockClear();
+    mockInvoke.mockImplementation(async (cmd) => (cmd === "file_read" ? "# p" : null));
+    await openPath("notes/p.md", true);
+    expect(mockInvoke).not.toHaveBeenCalledWith("allow_path", expect.anything());
+  });
+
+  it("still opens when allow_path fails (the dialog or setup may have allowed it already)", async () => {
+    mockInvoke.mockImplementation(async (cmd) => {
+      if (cmd === "allow_path") throw new Error("nope");
+      return null;
+    });
+    mockRead.mockResolvedValue("# y");
+    expect(await openPath("/x/y.md")).toMatchObject({ path: "/x/y.md" });
+  });
+});
+
+describe("activeDocumentPath", () => {
+  it("is null for untitled, project and log tabs, the path for a file, and root-joined for project files", async () => {
+    expect(activeDocumentPath()).toBeNull();
+    mockRead.mockResolvedValue("");
+    await openPath("/abs/a.md");
+    expect(activeDocumentPath()).toBe("/abs/a.md");
+    setDocumentsProjectMode(true, "/proj");
+    expect(projectRootPath()).toBe("/proj");
+    mockInvoke.mockImplementation(async (cmd) => (cmd === "file_read" ? "" : null));
+    await openPath("docs/b.md", true);
+    expect(activeDocumentPath()).toBe("/proj/docs/b.md");
+    await openProjectChat();
+    expect(activeDocumentPath()).toBeNull();
+    await openLogTab();
+    expect(activeDocumentPath()).toBeNull();
+    expect(absolutePathOf(null)).toBeNull();
   });
 });

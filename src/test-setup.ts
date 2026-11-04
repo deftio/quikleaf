@@ -3,6 +3,12 @@ import { vi } from "vitest";
 // Stub @tauri-apps/api/core — invoke is the main IPC function
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(async () => null),
+  convertFileSrc: vi.fn((path: string, protocol = "asset") => `${protocol}://localhost/${encodeURIComponent(path)}`),
+}));
+
+// Stub @tauri-apps/api/webview — native drag and drop (editor/dropzone.ts)
+vi.mock("@tauri-apps/api/webview", () => ({
+  getCurrentWebview: vi.fn(() => ({ onDragDropEvent: vi.fn(async () => () => {}) })),
 }));
 
 // Stub @tauri-apps/api/event

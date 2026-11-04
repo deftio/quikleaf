@@ -57,6 +57,10 @@ the maintainer.
   replaced by the app's palette so the panes sit flush, native controls
   (selects, scrollbars) follow the theme (`color-scheme`), and the info
   pane's model picker is styled.
+- **About** puts the logo, name and version above the tabs, with the version
+  in a pill and underline tabs, so the header stays while the tabs change.
+- **The chat no longer slides in.** It appears in place like the other
+  panels; the animation drew the eye every time.
 - **Panels open under their buttons.** The file tree and the outline now
   open inside the body row, `[files | outline | chat | editor | info]`,
   instead of beside the whole editor column, so toggling them no longer
@@ -64,6 +68,32 @@ the maintainer.
   sits on the editor's edge, to the right of an open outline.
 
 ### Added
+- **Watch.** A toggle at the right end of the tab's control row (off by
+  default) reloads the tab whenever its file changes on disk, for files
+  written by another editor, a build, or an agent. A tab with unsaved edits
+  asks before its text is replaced; a removed file is reported once and the
+  tab keeps its text; closing the tab stops the watch. `quikleaf --watch
+  notes.md` starts with it on. Rust watches the file's folder (the `notify`
+  crate), so editors that save by rename keep working, and sends
+  `file-changed` events to the webview.
+- **Drop files on the window.** Markdown and text files open as tabs, image
+  files are linked into the active document, and an outline shows while the
+  drag hovers. Rust widens the fs scope to each dropped file (`allow_path`),
+  the same way the Open dialog and the command line already did.
+- **Paste images.** An image on the clipboard pasted into the source pane is
+  saved as `images/<document>-<timestamp>.png` beside the document and a
+  relative link is inserted at the caret. An unsaved document says so instead
+  (there is nowhere to put the file).
+- **Relative images render.** `![a](images/a.png)` beside the document now
+  shows in the preview: the app's `asset://` handler serves image files (and
+  only image files) to the webview, resolved against the active document.
+- **Settings → Project → Project file location.** A new project's file goes
+  in a `.quikleaf` folder by default, keeping the root clean; the setting
+  can put `quikleaf.prj` in the root instead. Projects that already have a
+  file keep it where it is, and `--project ./x.prj` is used as named.
+- A README that leads with what is different (the sealed chat per document,
+  the rich fences rendered offline), and an animated demo in place of the
+  static screenshot.
 - **A log tab.** About → Diagnostics → View Log, Settings → Diagnostics →
   View Log, or `quikleaf --log` opens the performance log in a tab: one line
   per entry (as `/log` prints them), a filter by kind (llm, tool, turn,

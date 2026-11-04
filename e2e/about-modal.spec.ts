@@ -18,6 +18,10 @@ test.describe("About modal", () => {
     await page.click("#btn-about");
     const modal = page.locator("#about-modal");
     await expect(modal.locator(".about-version")).toContainText(/\d+\.\d+\.\d+/);
+    // The masthead (logo, name, version) sits above the tabs and stays while the tabs change.
+    await expect(modal.locator("> .about-head + .bw_bccl_tabs")).toHaveCount(1);
+    await modal.getByRole("tab", { name: "Diagnostics" }).click();
+    await expect(modal.locator(".about-name")).toBeVisible();
     await expect(modal.locator(".about-desc")).toContainText("markdown editor");
     await expect(modal.locator(".about-facts dt")).toHaveText(["Source", "Website", "Rendering", "Interface", "Shell", "License"]);
     await expect(modal.locator(".about-facts .about-ver")).toHaveCount(3);

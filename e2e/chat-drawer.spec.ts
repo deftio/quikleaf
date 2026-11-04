@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
 /**
- * The chat is a drawer: it slides out of one edge of the tab body, a pull on
+ * The chat is a drawer: it opens on one edge of the tab body, a pull on
  * that edge opens it while it is closed, and Settings → Chat display → Chat
  * drawer side moves it (and the pull, and the resize handle) to the other edge.
  */
@@ -18,7 +18,7 @@ async function setSide(page: Page, side: "left" | "right") {
   await expect(page.locator("#settings-overlay")).not.toHaveClass(/bw_bccl_modal_show/);
 }
 
-/** Open the drawer with the pull and wait for the slide-in to finish before measuring. */
+/** Open the drawer with the pull and let layout settle before measuring. */
 async function pullOpen(page: Page) {
   await page.click("#chat-drawer-pull");
   await expect(page.locator("#chat-panel")).toBeVisible();

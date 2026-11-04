@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { appearanceOf, chatSideOf, loadSettings, saveSettings, isConfigured } from "./settings";
+import { appearanceOf, chatSideOf, loadSettings, projectFileLocationOf, saveSettings, isConfigured } from "./settings";
 import type { LLMSettings } from "./settings";
 
 describe("isConfigured", () => {
@@ -134,5 +134,17 @@ describe("appearanceOf", () => {
     saveSettings({ ...base, previewStyle: "mono", editorFontSize: 18 });
     expect(appearanceOf(loadSettings())).toMatchObject({ previewStyle: "mono", editorFontSize: 18 });
     localStorage.clear();
+  });
+});
+
+describe("projectFileLocationOf", () => {
+  const base = loadSettings();
+  it("defaults to the .quikleaf folder and ignores bad stored values", () => {
+    expect(projectFileLocationOf(base)).toBe("dotdir");
+    expect(projectFileLocationOf({ ...base, projectFileLocation: "dotdir" })).toBe("dotdir");
+    expect(projectFileLocationOf({ ...base, projectFileLocation: "elsewhere" as any })).toBe("dotdir");
+  });
+  it("honours root", () => {
+    expect(projectFileLocationOf({ ...base, projectFileLocation: "root" })).toBe("root");
   });
 });

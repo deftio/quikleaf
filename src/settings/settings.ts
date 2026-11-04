@@ -45,9 +45,17 @@ export interface LLMSettings {
   editorFontSize?: number;
   previewStyle?: PreviewStyle;
   previewCss?: string;
+  /** Where `--project <dir>` keeps its project file when none exists yet. Default the `.quikleaf` folder. */
+  projectFileLocation?: ProjectFileLocation;
 }
 
 export type EditApproval = "always" | "files" | "never";
+export type ProjectFileLocation = "dotdir" | "root";
+
+export const PROJECT_FILE_OPTIONS: { value: ProjectFileLocation; text: string }[] = [
+  { value: "dotdir", text: "In a .quikleaf folder — keeps the project root clean" },
+  { value: "root", text: "In the project root — quikleaf.prj beside your files" },
+];
 
 export const CHAT_SIDE_OPTIONS: { value: ChatSide; text: string }[] = [
   { value: "left", text: "Left — chat slides out beside the file tree" },
@@ -72,6 +80,7 @@ const defaults: LLMSettings = {
   perfLog: true,
   editApproval: "files",
   chatSide: "left",
+  projectFileLocation: "dotdir",
   ...DEFAULT_APPEARANCE,
 };
 
@@ -103,6 +112,11 @@ export function chatDisplayOf(s: LLMSettings) {
 /** The edit-approval policy with the default applied (and bad stored values ignored). */
 export function editApprovalOf(s: LLMSettings): EditApproval {
   return s.editApproval === "always" || s.editApproval === "never" ? s.editApproval : "files";
+}
+
+/** Where a new project's file goes, with the default applied (and bad stored values ignored). */
+export function projectFileLocationOf(s: LLMSettings): ProjectFileLocation {
+  return s.projectFileLocation === "root" ? "root" : "dotdir";
 }
 
 /** The chat drawer's side with the default applied (and bad stored values ignored). */
@@ -224,6 +238,7 @@ function readForm(): LLMSettings {
     editorFontSize: Number(field<HTMLSelectElement>("set-editor-font").value),
     previewStyle: field<HTMLSelectElement>("set-preview-style").value as PreviewStyle,
     previewCss: field<HTMLTextAreaElement>("set-preview-css").value,
+    projectFileLocation: field<HTMLSelectElement>("set-project-file").value as ProjectFileLocation,
   };
 }
 
@@ -246,6 +261,7 @@ function writeForm(s: LLMSettings): void {
   field<HTMLSelectElement>("set-editor-font").value = String(a.editorFontSize);
   field<HTMLSelectElement>("set-preview-style").value = a.previewStyle;
   field<HTMLTextAreaElement>("set-preview-css").value = a.previewCss;
+  field<HTMLSelectElement>("set-project-file").value = projectFileLocationOf(s);
   bw.clear("models-list");
 }
 
@@ -474,6 +490,14 @@ export function makeSettingsModal(): Taco {
         label: "Review QD's edits before applying",
         input: bw.makeSelect({ id: "set-edit-approval", options: EDIT_APPROVAL_OPTIONS, value: defaults.editApproval }),
         help: "Reviewed edits appear in the chat as a diff with Accept and Reject. Stop cancels any pending review.",
+      }),
+
+      sectionTitle("Project"),
+      bw.makeFormGroup({
+        id: "set-project-file",
+        label: "Project file location",
+        input: bw.makeSelect({ id: "set-project-file", options: PROJECT_FILE_OPTIONS, value: defaults.projectFileLocation }),
+        help: "Where quikleaf.prj (open tabs, chats, scratchpad) is created when a folder is opened with --project. A project that already has one keeps it where it is.",
       }),
 
       sectionTitle("Diagnostics"),

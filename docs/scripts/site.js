@@ -353,7 +353,7 @@
     var shot = [
       { t: 'div', a: { class: 'site-shot' }, c: [
         { t: 'div', a: { class: 'site-shot-bar' }, c: [{ t: 'span' }, { t: 'span' }, { t: 'span' }, { t: 'em', c: 'quikleaf — launch-plan.md' }] },
-        { t: 'img', a: { src: 'assets/quikleaf-app.png', width: '1440', height: '960', alt: 'quikleaf with a document chat on the left that proposed a Risks table as a reviewable diff, the markdown source in the middle, and the rendered preview with a Mermaid diagram and tables on the right' } }
+        { t: 'img', a: { src: 'assets/quikleaf-app.png', width: '1440', height: '900', alt: 'quikleaf with a document chat on the left that proposed a Risks table as a reviewable diff, the markdown source in the middle, and the rendered preview with tables, a Mermaid diagram and a math block on the right' } }
       ] },
       { t: 'p', a: { class: 'site-shot-caption' }, c: 'A document chat on a local model proposes a new section as a diff, you accept it, the source and the rendered preview update. Timings under every reply.' }
     ];

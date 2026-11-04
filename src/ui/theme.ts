@@ -123,6 +123,22 @@ const shell: CssRules = {
     "--editor-font-size": "16px",
   },
   ".hidden": { display: "none !important" },
+  // A file dragged over the window (editor/dropzone.ts): an outline and a hint, nothing moves.
+  "#app.drag-over::after": {
+    content: '"Drop to open"',
+    position: "fixed",
+    inset: "6px",
+    border: "2px dashed var(--accent)",
+    "border-radius": "8px",
+    background: "color-mix(in srgb, var(--bg-primary) 70%, transparent)",
+    color: "var(--text-primary)",
+    display: "flex",
+    "align-items": "center",
+    "justify-content": "center",
+    "font-size": "calc(var(--ui-font-size) + 4px)",
+    "pointer-events": "none",
+    "z-index": "2000",
+  },
   // Native controls (selects, scrollbars, the date picker) follow the theme.
   "#app.dark": { "color-scheme": "dark" },
   /* quikdown's dark theme has its own greys; use ours so the panes sit flush with the app. */
@@ -425,28 +441,23 @@ const shell: CssRules = {
   ".theme-toggle .theme-sun": { display: "none" },
   "#app.dark .theme-toggle .theme-sun": { display: "inline" },
   "#app.dark .theme-toggle .theme-moon": { display: "none" },
-  "#editor-column.project-tab #chat-panel": { flex: "1", width: "auto", "max-width": "none", border: "none", animation: "none" },
+  "#editor-column.project-tab #chat-panel": { flex: "1", width: "auto", "max-width": "none", border: "none" },
   "#editor-column.project-tab .chat-resize-handle, #editor-column.project-tab .chat-drawer-pull": { display: "none" },
 
   /*
-   * The chat is a drawer. It slides out of one edge of the tab body (left by
-   * default; Settings → Chat display → Chat drawer side), pushing the editor
-   * rather than covering it. `#tab-body.chat-right` moves it to the other
-   * edge with flex `order` and swaps the info pane across. While the drawer
-   * is closed (`#tab-body.chat-closed`) a small pull sits on that edge.
+   * The chat is a drawer on one edge of the tab body (left by default;
+   * Settings → Chat display → Chat drawer side), pushing the editor rather
+   * than covering it. `#tab-body.chat-right` moves it to the other edge with
+   * flex `order` and swaps the info pane across. While the drawer is closed
+   * (`#tab-body.chat-closed`) a small pull sits on that edge. It appears in
+   * place like the other panels: no slide animation.
    */
   "#tab-body.chat-right #chat-panel": {
     order: "7",
     "border-right": "none",
     "border-left": "1px solid var(--border-primary)",
-    animation: "chat-slide-in-right 0.2s ease-out",
   },
   "#tab-body.chat-right #info-panel": { order: "3", "border-left": "none", "border-right": "1px solid var(--border-primary)" },
-  "@keyframes chat-slide-in": { from: { transform: "translateX(-100%)" }, to: { transform: "none" } },
-  "@keyframes chat-slide-in-right": { from: { transform: "translateX(100%)" }, to: { transform: "none" } },
-  "@media (prefers-reduced-motion: reduce)": {
-    "#chat-panel, #tab-body.chat-right #chat-panel": { animation: "none" },
-  },
   ".chat-drawer-pull": {
     display: "none",
     position: "absolute",
@@ -588,7 +599,6 @@ const shell: CssRules = {
     "flex-direction": "column",
     "border-right": "1px solid var(--border-primary)",
     background: "var(--bg-secondary)",
-    animation: "chat-slide-in 0.2s ease-out",
   },
   "#chat-header": {
     display: "flex",
@@ -982,13 +992,25 @@ const shell: CssRules = {
   },
   "#models-list a:hover": { background: "var(--bg-tertiary)" },
 
-  /* About: a header row (logo, name, version, tagline), a short paragraph, a facts grid with links. */
-  "#about-modal": { padding: "4px 4px 0" },
-  "#about-modal .about-head": { display: "flex", "align-items": "center", gap: "18px", "margin-bottom": "16px" },
-  "#about-modal .about-logo": { width: "64px", height: "64px", "border-radius": "14px", "box-shadow": "var(--shadow-md)", "flex-shrink": "0" },
-  "#about-modal .about-name": { "font-size": "22px", "font-weight": "700", "letter-spacing": "-0.02em", color: "var(--text-primary)", "line-height": "1.2" },
-  "#about-modal .about-version": { "font-size": "13px", color: "var(--text-tertiary)", "font-weight": "500", "margin-top": "2px" },
-  "#about-modal .about-tagline": { "font-size": "14px", color: "var(--text-secondary)", "margin-top": "6px" },
+  /* About: a centred masthead (logo, name, version pill, tagline) over the tabs; each pane is left-aligned. */
+  "#about-overlay .bw_bccl_modal_header": { position: "absolute", top: "10px", right: "10px", padding: "0", border: "none", background: "transparent", "z-index": "1" },
+  "#about-overlay .bw_bccl_modal_body": { padding: "28px 28px 20px" },
+  "#about-modal": { padding: "0" },
+  "#about-modal .about-head": { display: "flex", "flex-direction": "column", "align-items": "center", "text-align": "center", padding: "4px 0 18px" },
+  "#about-modal .about-logo": { width: "72px", height: "72px", "border-radius": "16px", "box-shadow": "var(--shadow-md)", "margin-bottom": "12px" },
+  "#about-modal .about-name": { "font-size": "24px", "font-weight": "700", "letter-spacing": "-0.02em", color: "var(--text-primary)", "line-height": "1.2" },
+  "#about-modal .about-version": {
+    display: "inline-block",
+    "margin-top": "8px",
+    padding: "2px 10px",
+    "border-radius": "999px",
+    background: "var(--bg-tertiary)",
+    color: "var(--text-secondary)",
+    "font-size": "12px",
+    "font-weight": "600",
+    "font-variant-numeric": "tabular-nums",
+  },
+  "#about-modal .about-tagline": { "font-size": "14px", color: "var(--text-secondary)", "margin-top": "10px" },
   "#about-modal .about-desc": { "font-size": "14px", color: "var(--text-secondary)", "line-height": "1.6", margin: "0 0 16px" },
   "#about-modal .about-facts": {
     display: "grid",
@@ -1048,8 +1070,26 @@ const shell: CssRules = {
   ".settings-actions": { display: "flex", gap: "8px", "margin-top": "12px" },
 
   /* ── About tabs, How it works, Diagnostics ───────────────── */
-  "#about-modal .bw_nav_tabs": { "justify-content": "center", "margin-bottom": "16px" },
-  ".about-pane": { "text-align": "left", padding: "4px 4px 0" },
+  "#about-modal .bw_nav_tabs": { display: "flex", "justify-content": "center", gap: "4px", margin: "0 0 18px", padding: "0", "list-style": "none", "border-bottom": "1px solid var(--border-primary)" },
+  "#about-modal .bw_nav_item": { margin: "0" },
+  "#about-modal .bw_nav_link": {
+    border: "none",
+    "border-bottom": "2px solid transparent",
+    "border-radius": "0",
+    background: "transparent",
+    color: "var(--text-secondary)",
+    "font-size": "14px",
+    "font-weight": "500",
+    padding: "8px 14px 10px",
+    "margin-bottom": "-1px",
+    cursor: "pointer",
+    "font-family": "inherit",
+    transition: "color 0.1s ease, border-color 0.1s ease",
+  },
+  "#about-modal .bw_nav_link:hover": { color: "var(--text-primary)", background: "transparent" },
+  "#about-modal .bw_nav_link.active": { color: "var(--text-primary)", "font-weight": "600", "border-bottom-color": "var(--accent-primary)", background: "transparent" },
+  "#about-modal .bw_nav_link:focus-visible": { outline: "2px solid var(--accent-primary)", "outline-offset": "-2px" },
+  ".about-pane": { "text-align": "left", padding: "0" },
   ".about-how": { "text-align": "left", "font-size": "13px", "line-height": "1.55", color: "var(--text-secondary)", "max-height": "55vh", "overflow-y": "auto", padding: "0 4px" },
   ".about-how h4": {
     margin: "18px 0 6px",

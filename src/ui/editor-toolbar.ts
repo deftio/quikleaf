@@ -1,7 +1,7 @@
 /**
  * The tab's control row, under the tab bar and above `#tab-body`:
  *
- *   [Files] [Outline] [Chat] | Source Split Rendered · Undo Redo … Copy MD/HTML/Rendered | [Info]
+ *   [Files] [Outline] [Chat] | Source Split Rendered · Undo Redo … Copy MD/HTML/Rendered · [Watch] | [Info]
  *
  * Panel toggles sit at the end their panel opens on: Files and Outline (the
  * window's left-hand panels) and the chat drawer on the left, the info pane
@@ -34,6 +34,8 @@ export interface EditorToolbarHandlers {
   onToggleOutline?: () => void;
   onToggleChat?: () => void;
   onToggleInfo?: () => void;
+  /** Watch: reload the tab when its file changes on disk (`editor/watch.ts`). */
+  onToggleWatch?: () => void;
 }
 
 const MODE_LABELS: Record<EditorMode, string> = { source: "Source", split: "Split", preview: "Rendered" };
@@ -100,6 +102,9 @@ export function makeEditorToolbar(h: EditorToolbarHandlers): Taco {
         a: { class: "tool-group editor-only" },
         c: COPY_BUTTONS.map((b) => toolButton(b.id, b.label, b.title, () => h.onCopy(b.kind))),
       },
+      ...(h.onToggleWatch
+        ? [sep(), makeToggleButton("tool-watch", "Watch", h.onToggleWatch, "editor-only", "toolbar")]
+        : []),
       ...right,
     ],
   };
@@ -120,6 +125,32 @@ export function setEditorToolbarHistory(undo: boolean, redo: boolean): void {
   const r = bw.el("tool-redo") as HTMLButtonElement | null;
   if (u) u.disabled = !undo;
   if (r) r.disabled = !redo;
+}
+
+/** The Watch toggle: pressed while the tab is watched; disabled when the tab has no file to watch. */
+export function setEditorToolbarWatch(on: boolean, enabled: boolean): void {
+  const node = bw.el("tool-watch") as HTMLButtonElement | null;
+  if (!node) return;
+  patchAttrs(node, { "aria-pressed": on ? "true" : "false" });
+  bw.toggleClass(node, "active", on);
+  node.disabled = !enabled;
+  node.title = !enabled
+    ? "Save the document first to watch it"
+    : on
+      ? "Watching: the tab reloads when the file changes on disk"
+      : "Reload this tab when its file changes on disk";
+}
+
+/** Show "Reloaded" on the Watch button for a moment after a watched file was read back. */
+export function flashWatchReloaded(ms = 1200): void {
+  const node = bw.el("tool-watch");
+  if (!node) return;
+  bw.patch(node, "Reloaded");
+  bw.addClass(node, "copied");
+  setTimeout(() => {
+    bw.patch(node, "Watch");
+    bw.removeClass(node, "copied");
+  }, ms);
 }
 
 /** Show "Copied" on a copy button for a moment, then put its label back. */

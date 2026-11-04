@@ -30,7 +30,11 @@ import { listTabs,
   setDocumentsProjectMode,
   showTab,
 } from "./editor/documents";
-import { applyLiveSettings, initSettingsUI, loadSettings, openSettings, saveSettings } from "./settings/settings";
+import { applyLiveSettings, initSettingsUI, loadSettings, openSettings, projectFileLocationOf, saveSettings } from "./settings/settings";
+import { initPreviewImages, initImagePaste } from "./editor/images";
+import { initDropZone } from "./editor/dropzone";
+import { initWatch, setWatched, toggleWatch } from "./editor/watch";
+import { joinPath } from "./editor/paths";
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import { ISSUES_URL, SITE_URL } from "./ui/about";
 import { logEvent } from "./diag/perf";
@@ -62,6 +66,8 @@ interface LaunchModeProject {
   project_root: string;
   project_file: string;
   exists: boolean;
+  /** True when the command line named the project file itself, so Settings → Project does not move it. */
+  explicit?: boolean;
 }
 type LaunchMode = LaunchModeSimple | LaunchModeProject;
 
@@ -125,6 +131,7 @@ bw.mount("#app", [
         onToggleOutline: () => toggleOutline(),
         onToggleChat: () => toggleChatPane(),
         onToggleInfo: () => toggleInfoPane(),
+        onToggleWatch: () => void toggleWatch(),
       }),
       makeFindBar(),
     ],
@@ -149,6 +156,10 @@ initChat();
 initInfoPane();
 initPanes();
 initLogPane();
+initPreviewImages();
+initImagePaste();
+void initDropZone();
+void initWatch();
 applyLiveSettings(loadSettings());
 openAbout = initAbout();
 bw.sub(LOG_OPEN, () => void openLogTab());
@@ -203,11 +214,12 @@ async function init() {
   try {
     const launchMode = await invoke<LaunchMode>("get_launch_info");
 
+    let launchTab: { id: string } | null = null;
     if (launchMode.type === "Simple") {
       if (launchMode.file_path) {
-        const tab = await openPath(launchMode.file_path);
+        launchTab = await openPath(launchMode.file_path);
         // openPath logged the reason; the user gets told instead of an empty window.
-        if (!tab) notify("Could not open file", launchMode.file_path, "danger", 10000);
+        if (!launchTab) notify("Could not open file", launchMode.file_path, "danger", 10000);
       }
     } else if (launchMode.type === "Project") {
       setDocumentsProjectMode(true, launchMode.project_root);
@@ -230,12 +242,16 @@ async function init() {
         // Each reopened file gets its chat (and pane layout) back; the project chat too.
         importChatHistory(data?.chatHistory);
       } else {
-        await invoke("project_init", {
-          root: launchMode.project_root,
-          file: launchMode.project_file,
-        });
+        // No project file yet: Rust proposes `.quikleaf/quikleaf.prj`; Settings →
+        // Project can put it in the root instead. A file named on the command
+        // line stays where the user said.
+        const file =
+          !launchMode.explicit && projectFileLocationOf(loadSettings()) === "root"
+            ? joinPath(launchMode.project_root, "quikleaf.prj")
+            : launchMode.project_file;
+        await invoke("project_init", { root: launchMode.project_root, file });
         initProjectPersistence(persistenceProviders);
-        await saveProjectNow(); // create quikleaf.prj right away
+        await saveProjectNow(); // create the project file right away
       }
       flushProjectSaveOnUnload();
 
@@ -249,8 +265,10 @@ async function init() {
       const active = activeTab();
       if (active?.projectRelative) highlightFile(active.path);
     }
+    // `quikleaf --watch file.md`: watch the file named on the command line.
     // `quikleaf --log` (with or without a file or project): start on the log tab.
-    const flags = await invoke<{ open_log?: boolean }>("get_launch_flags").catch(() => null);
+    const flags = await invoke<{ open_log?: boolean; watch?: boolean }>("get_launch_flags").catch(() => null);
+    if (flags?.watch && launchTab) await setWatched(launchTab.id, true);
     if (flags?.open_log) await openLogTab();
   } catch (e) {
     console.error("Startup failed:", e);
