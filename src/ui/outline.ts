@@ -1,6 +1,6 @@
 /**
  * Outline side panel: the document's headings as a clickable list. Sits in
- * `#main` after the file tree, hidden by default.
+ * `#tab-body` after the file tree (left of the chat and the editor), hidden by default.
  *
  * The list is a view over `parseOutline(getMarkdown())`, reconciled with
  * `syncChildren` keyed by `line:text`. It re-parses (debounced) on every

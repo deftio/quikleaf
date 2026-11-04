@@ -71,6 +71,11 @@ function getE2E(): E2EState {
 // Initialize immediately
 getE2E();
 
+/** `asset://localhost/<encoded path>`, what the real API gives on macOS and Linux. */
+export function convertFileSrc(filePath: string, protocol = "asset"): string {
+  return `${protocol}://localhost/${encodeURIComponent(filePath)}`;
+}
+
 export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
   const state = getE2E();
   state.invokeLog.push({ cmd, args });
@@ -78,9 +83,33 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
   switch (cmd) {
     case "get_launch_info":
       return state.launchInfo as T;
+    case "get_launch_flags":
+      return ((state as any).launchFlags ?? { open_log: false }) as T;
 
     case "get_cli_file":
       return null as T;
+
+    // --- Watch (the toggle, --watch): the test emits "file-changed" on the event bus itself ---
+    case "watch_start":
+      ((state as any).watching ??= []).push(args?.path);
+      return undefined as T;
+    case "watch_stop":
+      (state as any).watching = ((state as any).watching ?? []).filter((p: string) => p !== args?.path);
+      return undefined as T;
+
+    // --- Dropped files and pasted images ---
+    case "allow_path":
+      ((state as any).allowedPaths ??= []).push(args?.path);
+      return undefined as T;
+    case "image_save": {
+      const images = ((state as any).images ??= []);
+      const doc = String(args?.docPath ?? "");
+      const dir = doc.slice(0, doc.lastIndexOf("/"));
+      const stem = doc.slice(doc.lastIndexOf("/") + 1).replace(/\.[^.]+$/, "");
+      const relative = `images/${stem}-${String(images.length + 1).padStart(2, "0")}.${args?.ext}`;
+      images.push({ docPath: doc, ext: args?.ext, bytes: String(args?.data ?? "").length });
+      return { relative, absolute: `${dir}/${relative}` } as T;
+    }
 
     // --- Memory ---
     case "memory_read":

@@ -37,6 +37,12 @@ describe("editor wrapper functions (without init)", () => {
     expect(() => editor.redo()).not.toThrow();
   });
 
+  it("canUndo / canRedo are false and copyToClipboard resolves false when editor not initialized", async () => {
+    expect(editor.canUndo()).toBe(false);
+    expect(editor.canRedo()).toBe(false);
+    await expect(editor.copyToClipboard("markdown")).resolves.toBe(false);
+  });
+
   it("insertAtCursor does not throw when editor not initialized", () => {
     expect(() => editor.insertAtCursor("text")).not.toThrow();
   });
@@ -88,6 +94,51 @@ describe("editor wrapper functions (with init)", () => {
     const instance = editor.getEditor();
     editor.redo();
     expect(instance.redo).toHaveBeenCalled();
+  });
+
+  it("runs quikdown headless: no built-in toolbar", () => {
+    expect(editor.getEditor().options.showToolbar).toBe(false);
+  });
+
+  it("canUndo / canRedo read the instance's history", () => {
+    const instance = editor.getEditor();
+    instance.canUndo.mockReturnValue(true);
+    instance.canRedo.mockReturnValue(false);
+    expect(editor.canUndo()).toBe(true);
+    expect(editor.canRedo()).toBe(false);
+  });
+
+  describe("copyToClipboard", () => {
+    const writeText = vi.fn(async () => {});
+    beforeEach(() => {
+      writeText.mockClear();
+      Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    });
+
+    it("writes the markdown or the HTML as text", async () => {
+      const instance = editor.getEditor();
+      instance.getMarkdown.mockReturnValue("# md");
+      instance.getHTML.mockReturnValue("<h1>md</h1>");
+      await expect(editor.copyToClipboard("markdown")).resolves.toBe(true);
+      expect(writeText).toHaveBeenLastCalledWith("# md");
+      await expect(editor.copyToClipboard("html")).resolves.toBe(true);
+      expect(writeText).toHaveBeenLastCalledWith("<h1>md</h1>");
+    });
+
+    it("hands rich text to quikdown's copyRendered", async () => {
+      const instance = editor.getEditor();
+      await expect(editor.copyToClipboard("rendered")).resolves.toBe(true);
+      expect(instance.copyRendered).toHaveBeenCalledTimes(1);
+      expect(writeText).not.toHaveBeenCalled();
+    });
+
+    it("resolves false (and does not throw) when the clipboard refuses", async () => {
+      writeText.mockRejectedValueOnce(new Error("denied"));
+      const err = vi.spyOn(console, "error").mockImplementation(() => {});
+      await expect(editor.copyToClipboard("markdown")).resolves.toBe(false);
+      expect(err).toHaveBeenCalled();
+      err.mockRestore();
+    });
   });
 
   it("insertAtCursor splices text into the source textarea at the caret", () => {

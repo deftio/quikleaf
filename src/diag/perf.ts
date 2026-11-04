@@ -92,11 +92,37 @@ export function isPerfLogEnabled(): boolean {
   return loadSettings().perfLog !== false;
 }
 
+/** A log entry as recorded: the caller's fields plus the timestamp. */
+export type LoggedEntry = PerfEntry & { ts: string };
+
+/** Topic published (bitwrench pub/sub) to ask the app to open the log tab. */
+export const LOG_OPEN = "log:open";
+
+const listeners = new Set<(e: LoggedEntry) => void>();
+
+/**
+ * Watch the log in-process: every entry passes through here before it is
+ * written, whether or not writing is on. The log tab follows live this way.
+ * Returns the unsubscribe function.
+ */
+export function onLogEvent(fn: (e: LoggedEntry) => void): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
 /** Append an entry to the performance log. Never throws; logging must not break chat. */
 export async function logEvent(entry: PerfEntry): Promise<void> {
+  const logged: LoggedEntry = { ts: new Date().toISOString(), ...entry };
+  for (const fn of listeners) {
+    try {
+      fn(logged);
+    } catch (e) {
+      console.warn("log listener failed:", e);
+    }
+  }
   if (!isPerfLogEnabled()) return;
   try {
-    await invoke("log_append", { entry: { ts: new Date().toISOString(), ...entry } });
+    await invoke("log_append", { entry: logged });
   } catch (e) {
     console.warn("perf log write failed:", e);
   }

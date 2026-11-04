@@ -21,10 +21,12 @@ export function applyPanes(s: TabsSnapshot = snapshot()): void {
   const tab = s.active;
   if (!tab) return;
   const project = tab.kind === "project";
-  setChatPanelVisible(project || tab.view.chat);
+  const log = tab.kind === "log";
+  setChatPanelVisible(project || (tab.view.chat && !log));
   setInfoPanelVisible(tab.view.info);
   bw.toggleClass("editor-column", "project-tab", project);
-  if (!project) setEditorMode(tab.view.mode);
+  bw.toggleClass("editor-column", "log-tab", log);
+  if (tab.kind === "document") setEditorMode(tab.view.mode);
   if (tab.view.info) refreshInfo();
 }
 
@@ -50,7 +52,7 @@ export function initPanes(): () => void {
 
 export function isChatPaneOpen(): boolean {
   const tab = activeTab();
-  return !!tab && (tab.kind === "project" || tab.view.chat);
+  return !!tab && tab.kind !== "log" && (tab.kind === "project" || tab.view.chat);
 }
 
 export function isInfoPaneOpen(): boolean {
@@ -61,11 +63,12 @@ export function activeEditorMode(): EditorMode {
   return activeTab()?.view.mode ?? "split";
 }
 
-/** Show or hide the active tab's chat. Returns the new state. The project tab's chat stays open. */
+/** Show or hide the active tab's chat. Returns the new state. The project tab's chat stays open; the log tab has none. */
 export function toggleChatPane(): boolean {
   const tab = activeTab();
   if (!tab) return false;
   if (tab.kind === "project") return true;
+  if (tab.kind === "log") return false;
   const on = !tab.view.chat;
   setView(tab.id, { chat: on });
   return on;

@@ -3,9 +3,10 @@
 
 mod commands;
 
-use commands::project::{ProjectState, LaunchMode};
+use commands::project::{launch_flags_from, locate_project_file, ProjectState, LaunchMode};
 use std::path::{Path, PathBuf};
 use tauri::Manager;
+use tauri_plugin_fs::FsExt;
 use tauri::menu::{Menu, Submenu, PredefinedMenuItem};
 
 pub struct LaunchInfo(pub LaunchMode);
@@ -25,12 +26,12 @@ pub fn parse_cli_args_from(args: &[String], cwd: &Path) -> LaunchMode {
 
             // Check if it's a directory
             if absolute_path.is_dir() {
-                let prj_file = absolute_path.join("quikleaf.prj");
-                let exists = prj_file.exists();
+                let (prj_file, exists) = locate_project_file(&absolute_path);
                 return LaunchMode::Project {
                     project_root: absolute_path.to_string_lossy().to_string(),
                     project_file: prj_file.to_string_lossy().to_string(),
                     exists,
+                    explicit: false,
                 };
             } else {
                 // Assume it's a project file
@@ -41,6 +42,7 @@ pub fn parse_cli_args_from(args: &[String], cwd: &Path) -> LaunchMode {
                     project_root: parent.to_string_lossy().to_string(),
                     project_file: prj_file.to_string_lossy().to_string(),
                     exists,
+                    explicit: true,
                 };
             }
         }
@@ -91,6 +93,7 @@ fn main() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .manage(LaunchInfo(launch_mode))
+        .manage(launch_flags_from(&std::env::args().collect::<Vec<_>>()))
         .manage(project_state)
         .register_asynchronous_uri_scheme_protocol("asset".to_string(), move |ctx, request, responder| {
             let state = ctx.app_handle().state::<ProjectState>();
@@ -114,7 +117,18 @@ fn main() {
                 decoded_path.push(c);
             }
             
-            let resolved_path = {
+            // `asset://localhost/<absolute path>` (what the preview asks for,
+            // via convertFileSrc) serves that file if it is an image; relative
+            // paths resolve against the project root or the open file.
+            let trimmed = decoded_path.trim_start_matches('/');
+            let absolute = std::path::PathBuf::from(format!("/{}", trimmed));
+            let absolute = if absolute.is_file() { Some(absolute) } else {
+                let p = std::path::PathBuf::from(trimmed); // Windows: C:\...
+                if p.is_absolute() && p.is_file() { Some(p) } else { None }
+            };
+            let resolved_path = if let Some(abs) = absolute {
+                abs
+            } else {
                 let root_lock = state.project_root.lock().unwrap();
                 let file_lock = state.open_file.lock().unwrap();
                 if let Some(root) = &*root_lock {
@@ -134,13 +148,13 @@ fn main() {
             std::thread::spawn(move || {
                 match std::fs::read(&resolved_path) {
                     Ok(content) => {
-                        let mime = match resolved_path.extension().and_then(|s| s.to_str()) {
-                            Some("png") => "image/png",
-                            Some("jpg") | Some("jpeg") => "image/jpeg",
-                            Some("gif") => "image/gif",
-                            Some("svg") => "image/svg+xml",
-                            Some("webp") => "image/webp",
-                            _ => "application/octet-stream",
+                        let mime = match commands::fs::image_mime(&resolved_path) {
+                            Some(m) => m,
+                            None => {
+                                // Only images are served: the preview never needs anything else.
+                                responder.respond(tauri::http::Response::builder().status(403).body(Vec::<u8>::new()).unwrap());
+                                return;
+                            }
                         };
                         let response = tauri::http::Response::builder()
                             .header(tauri::http::header::CONTENT_TYPE, mime)
@@ -162,10 +176,15 @@ fn main() {
             commands::fs::save_file,
             commands::fs::read_file,
             commands::fs::get_cli_file,
+            commands::fs::allow_path,
+            commands::fs::image_save,
+            commands::watch::watch_start,
+            commands::watch::watch_stop,
             commands::llm::llm_chat,
             commands::llm::llm_chat_stream,
             commands::llm::llm_list_models,
             get_launch_info,
+            commands::project::get_launch_flags,
             commands::project::project_init,
             commands::project::project_load,
             commands::project::project_save,
@@ -194,6 +213,22 @@ fn main() {
             commands::diag::cli_install,
         ])
         .setup(|app| {
+            // File watching (the Watch toggle, `--watch`): changes arrive in the
+            // webview as `file-changed` events.
+            {
+                use tauri::Emitter;
+                let handle = app.handle().clone();
+                app.manage(commands::watch::WatchHub::new(move |change| {
+                    let _ = handle.emit(commands::watch::FILE_CHANGED, change);
+                }));
+            }
+            // The file named on the command line is read and saved through
+            // the fs plugin, whose default scope covers only the app's own
+            // directories (the Open dialog widens it for files picked there).
+            // Allow this one path, or `quikleaf notes.md` opens nothing.
+            if let LaunchMode::Simple { file_path: Some(path) } = &app.state::<LaunchInfo>().0 {
+                app.fs_scope().allow_file(path)?;
+            }
             let handle = app.handle();
             let app_menu = Submenu::with_items(handle, "quikleaf", true, &[
                 &PredefinedMenuItem::about(handle, Some("About quikleaf"), None)?,
@@ -278,9 +313,9 @@ mod tests {
         let cwd = PathBuf::from("/tmp");
         let mode = parse_cli_args_from(&args(&["quikleaf", "--project", &dir_str]), &cwd);
         match mode {
-            LaunchMode::Project { project_root, project_file, exists } => {
+            LaunchMode::Project { project_root, project_file, exists, .. } => {
                 assert!(project_root.contains(&dir_str) || project_root.contains(tmp.path().file_name().unwrap().to_str().unwrap()));
-                assert!(project_file.contains("quikleaf.prj"));
+                assert!(project_file.ends_with(&format!(".quikleaf{}quikleaf.prj", std::path::MAIN_SEPARATOR)));
                 assert!(!exists); // No prj file created yet
             }
             _ => panic!("Expected Project"),
@@ -296,7 +331,7 @@ mod tests {
         let cwd = PathBuf::from("/tmp");
         let mode = parse_cli_args_from(&args(&["quikleaf", "--project", &prj_str]), &cwd);
         match mode {
-            LaunchMode::Project { project_root, project_file, exists } => {
+            LaunchMode::Project { project_root, project_file, exists, .. } => {
                 assert!(project_root.contains(tmp.path().file_name().unwrap().to_str().unwrap()));
                 assert!(project_file.contains("myproject.prj"));
                 assert!(exists);

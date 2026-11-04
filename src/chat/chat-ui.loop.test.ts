@@ -811,6 +811,24 @@ describe("resize handle", () => {
     expect(() => mouse("mouseup", 100)).not.toThrow();
   });
 
+  it("with the drawer on the right, dragging left grows the panel and dragging right shrinks it", () => {
+    const panel = document.getElementById("chat-panel")!;
+    const body = document.createElement("div");
+    body.id = "tab-body";
+    body.className = "chat-right";
+    document.getElementById("app")!.appendChild(body);
+    try {
+      mouse("mousedown", 500, handle());
+      mouse("mousemove", 100); // 400px toward the left: width = clamp(0 + 400)
+      expect(panel.style.width).toBe("400px");
+      mouse("mousemove", 450); // back toward the editor: clamp(0 + 50) = min
+      expect(panel.style.width).toBe("300px");
+      mouse("mouseup", 450);
+    } finally {
+      body.remove();
+    }
+  });
+
   it("ignores mousedown and mousemove when the panel is not in the document", () => {
     const app = document.getElementById("app")!;
     const panel = document.getElementById("chat-panel")!;

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { loadSettings, saveSettings, isConfigured } from "./settings";
+import { appearanceOf, chatSideOf, loadSettings, projectFileLocationOf, saveSettings, isConfigured } from "./settings";
 import type { LLMSettings } from "./settings";
 
 describe("isConfigured", () => {
@@ -80,5 +80,71 @@ describe("loadSettings / saveSettings", () => {
     const s = loadSettings();
     expect(s.model).toBe("custom");
     expect(s.host).toBe("http://localhost:11434"); // from defaults
+  });
+});
+
+describe("chatSideOf", () => {
+  const base: LLMSettings = { provider: "openai-compatible", host: "http://localhost", apiKey: "", model: "m", showToolCalls: false };
+
+  it("defaults to left, including for unknown stored values", () => {
+    expect(chatSideOf(base)).toBe("left");
+    expect(chatSideOf({ ...base, chatSide: "left" })).toBe("left");
+    expect(chatSideOf({ ...base, chatSide: "top" as any })).toBe("left");
+  });
+
+  it("returns right when chosen", () => {
+    expect(chatSideOf({ ...base, chatSide: "right" })).toBe("right");
+  });
+
+  it("is stored and loaded with the rest of the settings", () => {
+    localStorage.clear();
+    saveSettings({ ...base, chatSide: "right" });
+    expect(loadSettings().chatSide).toBe("right");
+    localStorage.clear();
+    expect(loadSettings().chatSide).toBe("left");
+  });
+});
+
+describe("appearanceOf", () => {
+  const base: LLMSettings = { provider: "openai-compatible", host: "http://localhost", apiKey: "", model: "m", showToolCalls: false };
+
+  it("applies the defaults when nothing is stored", () => {
+    expect(appearanceOf(base)).toEqual({ theme: "system", uiFontSize: 14, editorFontSize: 16, previewStyle: "default", previewCss: "" });
+  });
+
+  it("keeps chosen values and drops sizes and styles it does not offer", () => {
+    expect(appearanceOf({ ...base, theme: "dark", uiFontSize: 16, editorFontSize: 20, previewStyle: "book", previewCss: "h1 { color: red }" })).toEqual({
+      theme: "dark",
+      uiFontSize: 16,
+      editorFontSize: 20,
+      previewStyle: "book",
+      previewCss: "h1 { color: red }",
+    });
+    expect(appearanceOf({ ...base, theme: "sepia" as any, uiFontSize: 9, editorFontSize: 99, previewStyle: "comic" as any, previewCss: 7 as any })).toEqual({
+      theme: "system",
+      uiFontSize: 14,
+      editorFontSize: 16,
+      previewStyle: "default",
+      previewCss: "",
+    });
+  });
+
+  it("is stored and loaded with the rest of the settings", () => {
+    localStorage.clear();
+    saveSettings({ ...base, previewStyle: "mono", editorFontSize: 18 });
+    expect(appearanceOf(loadSettings())).toMatchObject({ previewStyle: "mono", editorFontSize: 18 });
+    localStorage.clear();
+  });
+});
+
+describe("projectFileLocationOf", () => {
+  const base = loadSettings();
+  it("defaults to the .quikleaf folder and ignores bad stored values", () => {
+    expect(projectFileLocationOf(base)).toBe("dotdir");
+    expect(projectFileLocationOf({ ...base, projectFileLocation: "dotdir" })).toBe("dotdir");
+    expect(projectFileLocationOf({ ...base, projectFileLocation: "elsewhere" as any })).toBe("dotdir");
+  });
+  it("honours root", () => {
+    expect(projectFileLocationOf({ ...base, projectFileLocation: "root" })).toBe("root");
   });
 });

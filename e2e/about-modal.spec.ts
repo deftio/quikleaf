@@ -6,23 +6,37 @@ test.describe("About modal", () => {
     await page.waitForSelector("#editor-container", { state: "visible" });
   });
 
-  test("About button opens overlay", async ({ page }) => {
-    await page.click("#btn-help-menu");
+  test("the About button in the title bar (its own, not a Help item) opens the overlay", async ({ page }) => {
+    await expect(page.locator("#titlebar-right #btn-about")).toBeVisible();
+    await expect(page.locator("#help-menu-dropdown #btn-about")).toHaveCount(0);
     await page.click("#btn-about");
     const overlay = page.locator("#about-overlay");
     await expect(overlay).toHaveClass(/bw_bccl_modal_show/);
   });
 
-  test("version and description visible", async ({ page }) => {
-    await page.click("#btn-help-menu");
+  test("version, description and the library versions are visible", async ({ page }) => {
     await page.click("#btn-about");
     const modal = page.locator("#about-modal");
     await expect(modal.locator(".about-version")).toContainText(/\d+\.\d+\.\d+/);
+    // The masthead (logo, name, version) sits above the tabs and stays while the tabs change.
+    await expect(modal.locator("> .about-head + .bw_bccl_tabs")).toHaveCount(1);
+    await modal.getByRole("tab", { name: "Diagnostics" }).click();
+    await expect(modal.locator(".about-name")).toBeVisible();
     await expect(modal.locator(".about-desc")).toContainText("markdown editor");
+    await expect(modal.locator(".about-facts dt")).toHaveText(["Source", "Website", "Rendering", "Interface", "Shell", "License"]);
+    await expect(modal.locator(".about-facts .about-ver")).toHaveCount(3);
+  });
+
+  test("Help holds Documentation and Report an Issue, which open in the system browser", async ({ page }) => {
+    await page.click("#btn-help-menu");
+    await page.click("#btn-docs");
+    await page.click("#btn-help-menu");
+    await page.click("#btn-report-issue");
+    const opened = await page.evaluate(() => (window as any).__E2E__.shellOpened);
+    expect(opened).toEqual(["https://deftio.github.io/quikleaf/", "https://github.com/deftio/quikleaf/issues"]);
   });
 
   test("Escape closes about modal", async ({ page }) => {
-    await page.click("#btn-help-menu");
     await page.click("#btn-about");
     const overlay = page.locator("#about-overlay");
     await expect(overlay).toHaveClass(/bw_bccl_modal_show/);
@@ -32,7 +46,6 @@ test.describe("About modal", () => {
   });
 
   test("Backdrop click closes about modal", async ({ page }) => {
-    await page.click("#btn-help-menu");
     await page.click("#btn-about");
     const overlay = page.locator("#about-overlay");
     await expect(overlay).toHaveClass(/bw_bccl_modal_show/);
@@ -42,7 +55,6 @@ test.describe("About modal", () => {
   });
 
   test("links recorded in shell mock", async ({ page }) => {
-    await page.click("#btn-help-menu");
     await page.click("#btn-about");
 
     // Click the first link in about modal

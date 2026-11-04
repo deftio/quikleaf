@@ -12,9 +12,12 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   EDIT_APPROVAL_OPTIONS,
   HOST_PRESETS,
+  CHAT_SIDE_OPTIONS,
+  applyChatSettings,
   chatDisplayOf,
   editApprovalOf,
   closeSettings,
+  applyLiveSettings,
   initSettingsUI,
   loadSettings,
   makeSettingsModal,
@@ -24,6 +27,7 @@ import {
   updateStatus,
 } from "./settings";
 import type { LLMSettings } from "./settings";
+import { LOG_OPEN } from "../diag/perf";
 
 const mockInvoke = vi.mocked(invoke);
 
@@ -85,6 +89,7 @@ beforeEach(() => {
   localStorage.clear();
   mockInvoke.mockReset();
   mockInvoke.mockImplementation(async () => null);
+  addDiv("tab-body");
   addDiv("chat-panel");
   addDiv("llm-status");
   addDiv("status-provider");
@@ -94,7 +99,7 @@ afterEach(async () => {
   await flush();
   // bw.clear deregisters ids from bitwrench's lookup cache; innerHTML = "" would not.
   bw.clear(byId("app"));
-  for (const id of ["chat-panel", "llm-status", "status-provider"]) document.getElementById(id)?.remove();
+  for (const id of ["tab-body", "chat-panel", "llm-status", "status-provider"]) document.getElementById(id)?.remove();
   document.body.style.overflow = "";
 });
 
@@ -174,6 +179,14 @@ describe("makeSettingsModal", () => {
       "set-show-tools",
       "set-perf-log",
       "set-edit-approval",
+      "set-chat-side",
+      "set-theme",
+      "set-ui-font",
+      "set-editor-font",
+      "set-preview-style",
+      "set-preview-css",
+      "set-project-file",
+      "settings-view-log",
       "settings-open-log",
       "settings-clear-log",
       "settings-cancel",
@@ -207,10 +220,31 @@ describe("makeSettingsModal", () => {
   it("offers the three edit-approval policies under an Agent section, defaulting to files", () => {
     const node = bw.append(byId("app"), makeSettingsModal());
     const titles = Array.from(node.querySelectorAll(".settings-section-title")).map((h) => h.textContent);
-    expect(titles).toEqual(["LLM provider", "Chat display", "Agent", "Diagnostics"]);
+    expect(titles).toEqual(["LLM provider", "Appearance", "Chat display", "Agent", "Project", "Diagnostics"]);
     const sel = byId<HTMLSelectElement>("set-edit-approval");
     expect(Array.from(sel.options).map((o) => o.value)).toEqual(EDIT_APPROVAL_OPTIONS.map((o) => o.value));
     expect(sel.value).toBe("files");
+  });
+
+  it("offers the project file location under Project, between Agent and Diagnostics, defaulting to the .quikleaf folder", () => {
+    const node = bw.append(byId("app"), makeSettingsModal());
+    const sel = byId<HTMLSelectElement>("set-project-file");
+    expect(Array.from(sel.options).map((o) => o.value)).toEqual(["dotdir", "root"]);
+    expect(sel.value).toBe("dotdir");
+    const titles = Array.from(node.querySelectorAll(".settings-section-title")).map((h) => h.textContent);
+    expect(titles.indexOf("Project")).toBe(titles.indexOf("Agent") + 1);
+    expect(titles.indexOf("Diagnostics")).toBe(titles.indexOf("Project") + 1);
+  });
+
+  it("offers the drawer side under Chat display, defaulting to left", () => {
+    const node = bw.append(byId("app"), makeSettingsModal());
+    const sel = byId<HTMLSelectElement>("set-chat-side");
+    expect(Array.from(sel.options).map((o) => o.value)).toEqual(CHAT_SIDE_OPTIONS.map((o) => o.value));
+    expect(sel.value).toBe("left");
+    const section = Array.from(node.querySelectorAll(".settings-section-title")).find((h) => h.textContent === "Chat display")!;
+    // The picker's form group comes after the Chat display title and before the Agent title.
+    const order = Array.from(node.querySelectorAll(".settings-section-title, #set-chat-side"));
+    expect(order.indexOf(sel) - order.indexOf(section)).toBe(1);
   });
 });
 
@@ -298,6 +332,7 @@ describe("open / close and the form round-trip", () => {
     expect(byId<HTMLInputElement>("set-show-timestamps").checked).toBe(false);
     expect(byId<HTMLInputElement>("set-perf-log").checked).toBe(false);
     expect(byId<HTMLSelectElement>("set-edit-approval").value).toBe("never");
+    expect(byId<HTMLSelectElement>("set-chat-side").value).toBe("left");
 
     closeSettings();
     expect(overlay.classList.contains(SHOW)).toBe(false);
@@ -328,6 +363,7 @@ describe("open / close and the form round-trip", () => {
     setChecked("set-show-timestamps", true);
     setChecked("set-perf-log", true);
     byId<HTMLSelectElement>("set-edit-approval").value = "always";
+    byId<HTMLSelectElement>("set-chat-side").value = "right";
 
     byId("settings-save").click();
 
@@ -340,10 +376,18 @@ describe("open / close and the form round-trip", () => {
       showTimestamps: true,
       perfLog: true,
       editApproval: "always",
+      chatSide: "right",
+      theme: "system",
+      uiFontSize: 14,
+      editorFontSize: 16,
+      previewStyle: "default",
+      previewCss: "",
+      projectFileLocation: "dotdir",
     });
     const panel = byId("chat-panel");
     expect(panel.classList.contains("show-timestamps")).toBe(true);
     expect(panel.classList.contains("show-tools")).toBe(false);
+    expect(byId("tab-body").classList.contains("chat-right")).toBe(true);
     expect(text("llm-status")).toBe("claude-x @ api.anthropic.com");
     expect(text("status-provider")).toBe("LLM: Anthropic · claude-x");
     expect(byId("settings-overlay").classList.contains(SHOW)).toBe(false);
@@ -357,13 +401,19 @@ describe("open / close and the form round-trip", () => {
     setChecked("set-show-timestamps", true, true);
     expect(panel.classList.contains("show-tools")).toBe(false);
     expect(panel.classList.contains("show-timestamps")).toBe(true);
+    const side = byId<HTMLSelectElement>("set-chat-side");
+    side.value = "right";
+    side.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(byId("tab-body").classList.contains("chat-right")).toBe(true);
     setValue("set-model", "unsaved-model");
 
     byId("settings-cancel").click();
 
     expect(panel.classList.contains("show-tools")).toBe(true);
     expect(panel.classList.contains("show-timestamps")).toBe(false);
+    expect(byId("tab-body").classList.contains("chat-right")).toBe(false);
     expect(loadSettings().model).toBe("llama3");
+    expect(loadSettings().chatSide).toBe("left"); // the saved default, not the previewed "right"
     expect(byId("settings-overlay").classList.contains(SHOW)).toBe(false);
   });
 
@@ -615,5 +665,97 @@ describe("autoDetect on first launch", () => {
     await flush();
     expect(listCalls()).toEqual([]);
     expect(loadSettings()).toMatchObject(saved);
+  });
+});
+
+describe("applyChatSettings", () => {
+  it("restyles the chat on the spot: display classes on #chat-panel, side on #tab-body", () => {
+    applyChatSettings({ ...saved, showToolCalls: true, showTimestamps: false, chatSide: "right" });
+    expect(byId("chat-panel").classList.contains("show-tools")).toBe(true);
+    expect(byId("chat-panel").classList.contains("show-timestamps")).toBe(false);
+    expect(byId("tab-body").classList.contains("chat-right")).toBe(true);
+    applyChatSettings(saved);
+    expect(byId("chat-panel").classList.contains("show-tools")).toBe(false);
+    expect(byId("chat-panel").classList.contains("show-timestamps")).toBe(true);
+    expect(byId("tab-body").classList.contains("chat-right")).toBe(false);
+  });
+});
+
+describe("applyLiveSettings / Appearance", () => {
+  it("sets the font sizes and preview style on #app and installs the user's CSS", () => {
+    applyLiveSettings({ ...saved, uiFontSize: 16, editorFontSize: 20, previewStyle: "book", previewCss: "h1 { color: red }" });
+    const app = byId("app");
+    expect(app.style.getPropertyValue("--ui-font-size")).toBe("16px");
+    expect(app.style.getPropertyValue("--editor-font-size")).toBe("20px");
+    expect(app.classList.contains("preview-book")).toBe(true);
+    expect(document.getElementById("quikleaf_user_css")!.textContent).toBe("#editor-container .qde-preview {\nh1 { color: red }\n}");
+    applyLiveSettings(saved);
+    expect(app.style.getPropertyValue("--ui-font-size")).toBe("14px");
+    expect(app.classList.contains("preview-book")).toBe(false);
+    expect(app.classList.contains("preview-default")).toBe(true);
+    expect(document.getElementById("quikleaf_user_css")!.textContent).toBe("");
+  });
+
+  it("the Appearance pickers preview live, Save keeps them, Cancel puts them back", async () => {
+    saveSettings(saved);
+    initSettingsUI();
+    await flush();
+    openSettings();
+    const style = byId<HTMLSelectElement>("set-preview-style");
+    style.value = "mono";
+    style.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(byId("app").classList.contains("preview-mono")).toBe(true);
+    const css = byId<HTMLTextAreaElement>("set-preview-css");
+    css.value = "p { margin: 0 }";
+    css.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(document.getElementById("quikleaf_user_css")!.textContent).toContain("p { margin: 0 }");
+    byId("settings-cancel").click();
+    expect(byId("app").classList.contains("preview-mono")).toBe(false);
+    expect(document.getElementById("quikleaf_user_css")!.textContent).toBe("");
+
+    openSettings();
+    const font = byId<HTMLSelectElement>("set-ui-font");
+    font.value = "16";
+    font.dispatchEvent(new Event("change", { bubbles: true }));
+    byId("settings-save").click();
+    expect(loadSettings().uiFontSize).toBe(16);
+    expect(byId("app").style.getPropertyValue("--ui-font-size")).toBe("16px");
+  });
+});
+
+describe("theme and View Log", () => {
+  beforeEach(async () => {
+    saveSettings(saved);
+    initSettingsUI();
+    await flush();
+  });
+
+  it("the Theme picker previews live and is saved; Cancel goes back to what was saved", () => {
+    openSettings();
+    const theme = byId<HTMLSelectElement>("set-theme");
+    expect(theme.value).toBe("system");
+    theme.value = "dark";
+    theme.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(byId("app").classList.contains("dark")).toBe(true);
+    byId("settings-cancel").click();
+    expect(byId("app").classList.contains("dark")).toBe(false); // happy-dom: no OS dark preference
+    openSettings();
+    theme.value = "dark";
+    theme.dispatchEvent(new Event("change", { bubbles: true }));
+    byId("settings-save").click();
+    expect(loadSettings().theme).toBe("dark");
+    expect(byId("app").classList.contains("dark")).toBe(true);
+    applyLiveSettings({ ...saved, theme: "light" });
+    expect(byId("app").classList.contains("dark")).toBe(false);
+  });
+
+  it("View Log closes the dialog and publishes log:open", () => {
+    const seen = vi.fn();
+    const off = bw.sub(LOG_OPEN, seen);
+    openSettings();
+    byId("settings-view-log").click();
+    expect(byId("settings-overlay").classList.contains(SHOW)).toBe(false);
+    expect(seen).toHaveBeenCalledTimes(1);
+    off();
   });
 });

@@ -3,7 +3,21 @@ import type { Taco } from "bitwrench";
 import { invoke } from "@tauri-apps/api/core";
 import { buildModelsUrl, listModels } from "../chat/providers";
 import { control, el, makeModal, modalHandle, withAttrs } from "../ui/taco";
-import { setChatDisplay, setStatusProvider } from "../ui/shell";
+import { setChatDisplay, setChatSide, setStatusProvider, type ChatSide } from "../ui/shell";
+import {
+  applyAppearance,
+  DEFAULT_APPEARANCE,
+  EDITOR_FONT_SIZES,
+  isPreviewStyle,
+  isThemeChoice,
+  PREVIEW_STYLES,
+  THEME_OPTIONS,
+  UI_FONT_SIZES,
+  type Appearance,
+  type PreviewStyle,
+  type ThemeChoice,
+} from "../ui/appearance";
+import { LOG_OPEN } from "../diag/perf";
 import { notify } from "../ui/toast";
 
 export interface LLMSettings {
@@ -23,9 +37,30 @@ export interface LLMSettings {
    * only (default); "never" — apply directly and just show the diff.
    */
   editApproval?: EditApproval;
+  /** Which edge of the tab the chat drawer slides out of. Default left. */
+  chatSide?: ChatSide;
+  /** Appearance (see `ui/appearance.ts`); `appearanceOf()` applies the defaults. */
+  theme?: ThemeChoice;
+  uiFontSize?: number;
+  editorFontSize?: number;
+  previewStyle?: PreviewStyle;
+  previewCss?: string;
+  /** Where `--project <dir>` keeps its project file when none exists yet. Default the `.quikleaf` folder. */
+  projectFileLocation?: ProjectFileLocation;
 }
 
 export type EditApproval = "always" | "files" | "never";
+export type ProjectFileLocation = "dotdir" | "root";
+
+export const PROJECT_FILE_OPTIONS: { value: ProjectFileLocation; text: string }[] = [
+  { value: "dotdir", text: "In a .quikleaf folder — keeps the project root clean" },
+  { value: "root", text: "In the project root — quikleaf.prj beside your files" },
+];
+
+export const CHAT_SIDE_OPTIONS: { value: ChatSide; text: string }[] = [
+  { value: "left", text: "Left — chat slides out beside the file tree" },
+  { value: "right", text: "Right — chat slides out from the right edge" },
+];
 
 export const EDIT_APPROVAL_OPTIONS: { value: EditApproval; text: string }[] = [
   { value: "always", text: "Always — review every document and file edit" },
@@ -44,7 +79,14 @@ const defaults: LLMSettings = {
   showTimestamps: true,
   perfLog: true,
   editApproval: "files",
+  chatSide: "left",
+  projectFileLocation: "dotdir",
+  ...DEFAULT_APPEARANCE,
 };
+
+const px = (n: number) => ({ value: String(n), text: `${n} px` });
+export const UI_FONT_OPTIONS = UI_FONT_SIZES.map(px);
+export const EDITOR_FONT_OPTIONS = EDITOR_FONT_SIZES.map(px);
 
 export function loadSettings(): LLMSettings {
   try {
@@ -70,6 +112,40 @@ export function chatDisplayOf(s: LLMSettings) {
 /** The edit-approval policy with the default applied (and bad stored values ignored). */
 export function editApprovalOf(s: LLMSettings): EditApproval {
   return s.editApproval === "always" || s.editApproval === "never" ? s.editApproval : "files";
+}
+
+/** Where a new project's file goes, with the default applied (and bad stored values ignored). */
+export function projectFileLocationOf(s: LLMSettings): ProjectFileLocation {
+  return s.projectFileLocation === "root" ? "root" : "dotdir";
+}
+
+/** The chat drawer's side with the default applied (and bad stored values ignored). */
+export function chatSideOf(s: LLMSettings): ChatSide {
+  return s.chatSide === "right" ? "right" : "left";
+}
+
+/** Everything in Settings that restyles the chat on the spot: display flags and drawer side. */
+export function applyChatSettings(s: LLMSettings): void {
+  setChatDisplay(chatDisplayOf(s));
+  setChatSide(chatSideOf(s));
+}
+
+/** The appearance with defaults applied and unknown stored values dropped. */
+export function appearanceOf(s: LLMSettings): Appearance {
+  const size = (v: unknown, allowed: number[], def: number) => (typeof v === "number" && allowed.includes(v) ? v : def);
+  return {
+    theme: isThemeChoice(s.theme) ? s.theme : DEFAULT_APPEARANCE.theme,
+    uiFontSize: size(s.uiFontSize, UI_FONT_SIZES, DEFAULT_APPEARANCE.uiFontSize),
+    editorFontSize: size(s.editorFontSize, EDITOR_FONT_SIZES, DEFAULT_APPEARANCE.editorFontSize),
+    previewStyle: isPreviewStyle(s.previewStyle) ? s.previewStyle : DEFAULT_APPEARANCE.previewStyle,
+    previewCss: typeof s.previewCss === "string" ? s.previewCss : "",
+  };
+}
+
+/** Everything in Settings that shows on the spot: chat display, drawer side, appearance. */
+export function applyLiveSettings(s: LLMSettings): void {
+  applyChatSettings(s);
+  applyAppearance(appearanceOf(s));
 }
 
 // --- Presets ----------------------------------------------------------------
@@ -156,6 +232,13 @@ function readForm(): LLMSettings {
     showTimestamps: field<HTMLInputElement>("set-show-timestamps").checked,
     perfLog: field<HTMLInputElement>("set-perf-log").checked,
     editApproval: field<HTMLSelectElement>("set-edit-approval").value as EditApproval,
+    chatSide: field<HTMLSelectElement>("set-chat-side").value as ChatSide,
+    theme: field<HTMLSelectElement>("set-theme").value as ThemeChoice,
+    uiFontSize: Number(field<HTMLSelectElement>("set-ui-font").value),
+    editorFontSize: Number(field<HTMLSelectElement>("set-editor-font").value),
+    previewStyle: field<HTMLSelectElement>("set-preview-style").value as PreviewStyle,
+    previewCss: field<HTMLTextAreaElement>("set-preview-css").value,
+    projectFileLocation: field<HTMLSelectElement>("set-project-file").value as ProjectFileLocation,
   };
 }
 
@@ -171,6 +254,14 @@ function writeForm(s: LLMSettings): void {
   field<HTMLInputElement>("set-show-timestamps").checked = s.showTimestamps !== false;
   field<HTMLInputElement>("set-perf-log").checked = s.perfLog !== false;
   field<HTMLSelectElement>("set-edit-approval").value = editApprovalOf(s);
+  field<HTMLSelectElement>("set-chat-side").value = chatSideOf(s);
+  const a = appearanceOf(s);
+  field<HTMLSelectElement>("set-theme").value = a.theme;
+  field<HTMLSelectElement>("set-ui-font").value = String(a.uiFontSize);
+  field<HTMLSelectElement>("set-editor-font").value = String(a.editorFontSize);
+  field<HTMLSelectElement>("set-preview-style").value = a.previewStyle;
+  field<HTMLTextAreaElement>("set-preview-css").value = a.previewCss;
+  field<HTMLSelectElement>("set-project-file").value = projectFileLocationOf(s);
   bw.clear("models-list");
 }
 
@@ -200,9 +291,9 @@ export function closeSettings(): void {
   modalHandle(modalEl)?.close();
 }
 
-/** Display toggles preview live; Cancel/close puts them back the way they were saved. */
+/** Display toggles, the drawer side and appearance preview live; Cancel/close puts them back the way they were saved. */
 function revertDisplay(): void {
-  setChatDisplay(chatDisplayOf(loadSettings()));
+  applyLiveSettings(loadSettings());
 }
 
 function onCancel(): void {
@@ -213,14 +304,14 @@ function onCancel(): void {
 function onSave(): void {
   const s = readForm();
   saveSettings(s);
-  setChatDisplay(chatDisplayOf(s));
+  applyLiveSettings(s);
   updateStatus();
   closeSettings();
 }
 
-/** Switches apply immediately so the chat updates while the dialog is open. */
+/** Switches, pickers and the CSS box apply immediately so the app updates while the dialog is open. */
 function onDisplayToggle(): void {
-  setChatDisplay(chatDisplayOf(readForm()));
+  applyLiveSettings(readForm());
 }
 
 function onPresetChange(e: Event): void {
@@ -283,6 +374,12 @@ function onRevealLog(): void {
   invoke("log_reveal").catch((e: any) => notify("Cannot open log folder", String(e?.message || e), "danger"));
 }
 
+/** View Log: close the dialog (reverting unsaved previews) and ask the app for the log tab. */
+function onViewLog(): void {
+  onCancel();
+  bw.pub(LOG_OPEN, {});
+}
+
 function sectionTitle(text: string): Taco {
   return { t: "h4", a: { class: "settings-section-title" }, c: text };
 }
@@ -341,9 +438,51 @@ export function makeSettingsModal(): Taco {
       }),
       { t: "div", a: { id: "models-list" } },
 
+      sectionTitle("Appearance"),
+      bw.makeFormGroup({
+        id: "set-theme",
+        label: "Theme",
+        input: bw.makeSelect({ id: "set-theme", options: THEME_OPTIONS, value: defaults.theme, onchange: onDisplayToggle }),
+        help: "The sun/moon button in the title bar switches between light and dark; pick \"Follow the system\" to go back to the OS setting.",
+      }),
+      bw.makeFormGroup({
+        id: "set-ui-font",
+        label: "Interface font size",
+        input: bw.makeSelect({ id: "set-ui-font", options: UI_FONT_OPTIONS, value: String(defaults.uiFontSize), onchange: onDisplayToggle }),
+        help: "Menus, tab bar, toolbars and status bar.",
+      }),
+      bw.makeFormGroup({
+        id: "set-editor-font",
+        label: "Editor font size",
+        input: bw.makeSelect({ id: "set-editor-font", options: EDITOR_FONT_OPTIONS, value: String(defaults.editorFontSize), onchange: onDisplayToggle }),
+        help: "The rendered preview; the source pane follows a little smaller.",
+      }),
+      bw.makeFormGroup({
+        id: "set-preview-style",
+        label: "Preview style",
+        input: bw.makeSelect({ id: "set-preview-style", options: PREVIEW_STYLES, value: defaults.previewStyle, onchange: onDisplayToggle }),
+        help: "How the rendered markdown is typeset. Changes show at once; Cancel puts it back.",
+      }),
+      bw.makeFormGroup({
+        id: "set-preview-css",
+        label: "Preview CSS",
+        input: withAttrs(bw.makeTextarea({ rows: 5, placeholder: "h1 { font-family: Georgia; }\nblockquote { color: #666; }" }), {
+          id: "set-preview-css",
+          spellcheck: "false",
+          oninput: onDisplayToggle,
+        }),
+        help: "Your own rules, applied inside the preview on top of the chosen style. Write selectors as if the preview were the page (h1, p, code…); a bare declaration styles the preview itself.",
+      }),
+
       sectionTitle("Chat display"),
       bw.makeSwitch({ id: "set-show-timestamps", label: "Show timestamps and timing under messages", onchange: onDisplayToggle }),
       bw.makeSwitch({ id: "set-show-tools", label: "Show tool calls in chat", onchange: onDisplayToggle }),
+      bw.makeFormGroup({
+        id: "set-chat-side",
+        label: "Chat drawer side",
+        input: bw.makeSelect({ id: "set-chat-side", options: CHAT_SIDE_OPTIONS, value: defaults.chatSide, onchange: onDisplayToggle }),
+        help: "The chat slides out of this edge of the tab. Open it with the pull on that edge, the Chat button, or Cmd/Ctrl+Shift+C.",
+      }),
 
       sectionTitle("Agent"),
       bw.makeFormGroup({
@@ -353,12 +492,21 @@ export function makeSettingsModal(): Taco {
         help: "Reviewed edits appear in the chat as a diff with Accept and Reject. Stop cancels any pending review.",
       }),
 
+      sectionTitle("Project"),
+      bw.makeFormGroup({
+        id: "set-project-file",
+        label: "Project file location",
+        input: bw.makeSelect({ id: "set-project-file", options: PROJECT_FILE_OPTIONS, value: defaults.projectFileLocation }),
+        help: "Where quikleaf.prj (open tabs, chats, scratchpad) is created when a folder is opened with --project. A project that already has one keeps it where it is.",
+      }),
+
       sectionTitle("Diagnostics"),
       bw.makeSwitch({ id: "set-perf-log", label: "Write performance log (timings per request and tool call)" }),
       {
         t: "div",
         a: { class: "settings-actions" },
         c: [
+          withAttrs(bw.makeButton({ text: "View Log", variant: "secondary", size: "sm", onclick: onViewLog }), { id: "settings-view-log" }),
           withAttrs(bw.makeButton({ text: "Open Log Folder", variant: "secondary", size: "sm", onclick: onRevealLog }), {
             id: "settings-open-log",
           }),

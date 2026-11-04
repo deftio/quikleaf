@@ -13,6 +13,7 @@ export default mergeConfig(
       alias: {
         "@tauri-apps/api/core": path.resolve(__dirname, "e2e/mocks/tauri-core.ts"),
         "@tauri-apps/api/event": path.resolve(__dirname, "e2e/mocks/tauri-event.ts"),
+        "@tauri-apps/api/webview": path.resolve(__dirname, "e2e/mocks/tauri-webview.ts"),
         "@tauri-apps/plugin-dialog": path.resolve(__dirname, "e2e/mocks/tauri-dialog.ts"),
         "@tauri-apps/plugin-fs": path.resolve(__dirname, "e2e/mocks/tauri-fs.ts"),
         "@tauri-apps/plugin-shell": path.resolve(__dirname, "e2e/mocks/tauri-shell.ts"),

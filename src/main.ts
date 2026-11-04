@@ -1,9 +1,11 @@
 import bw from "bitwrench";
 import { invoke } from "@tauri-apps/api/core";
 import "./ui/theme"; // generates and injects all CSS at import
-import { setDarkMode } from "./ui/theme";
+import { isDarkMode } from "./ui/theme";
 import { el } from "./ui/taco";
-import { initMenus, makeMain, makeStatusbar, makeTitlebar, setChatDisplay, setStatusFile, setToggleState } from "./ui/shell";
+import { initLogPane, makeLogPanel } from "./diag/log-pane";
+import { LOG_OPEN } from "./diag/perf";
+import { initMenus, makeChatDrawerPull, makeMain, makeStatusbar, makeTitlebar, setStatusFile, setToggleState } from "./ui/shell";
 import { initTabBar, makeTabBar } from "./ui/tabbar";
 import { activeEditorMode, handlePanesKeydown, initPanes, isChatPaneOpen, isInfoPaneOpen, setActiveEditorMode, toggleChatPane, toggleInfoPane } from "./ui/panes";
 import { initInfoPane, makeInfoPanel, setInfoProjectRoot } from "./ui/infopane";
@@ -13,21 +15,30 @@ import { handleOutlineKeydown, initOutline, isOutlineVisible, makeOutlinePanel, 
 import { handleFindKeydown, initFindBar, makeFindBar, openFind } from "./ui/findbar";
 import { handleFocusKeydown, makeFocusExitPill, toggleFocusMode } from "./ui/focus";
 import { exportHtml, printDocument } from "./editor/export";
-import { initEditor } from "./editor/editor";
+import { copyToClipboard, initEditor, redo, undo } from "./editor/editor";
+import { flashCopied, initEditorToolbar, makeEditorToolbar } from "./ui/editor-toolbar";
 import { listTabs,
   closeDocument,
   handleKeydown,
   initDocuments,
   newDocument,
   openFileDialog,
+  openLogTab,
   openPath,
   openProjectChat,
   saveActiveDocument,
   setDocumentsProjectMode,
   showTab,
 } from "./editor/documents";
-import { chatDisplayOf, initSettingsUI, loadSettings, openSettings } from "./settings/settings";
+import { applyLiveSettings, initSettingsUI, loadSettings, openSettings, projectFileLocationOf, saveSettings } from "./settings/settings";
+import { initPreviewImages, initImagePaste } from "./editor/images";
+import { initDropZone } from "./editor/dropzone";
+import { initWatch, setWatched, toggleWatch } from "./editor/watch";
+import { joinPath } from "./editor/paths";
+import { open as shellOpen } from "@tauri-apps/plugin-shell";
+import { ISSUES_URL, SITE_URL } from "./ui/about";
 import { logEvent } from "./diag/perf";
+import { notify } from "./ui/toast";
 import { initChat, makeChatPanel } from "./chat/chat-ui";
 import { exportChatHistory, importChatHistory } from "./chat/session";
 import {
@@ -55,6 +66,8 @@ interface LaunchModeProject {
   project_root: string;
   project_file: string;
   exists: boolean;
+  /** True when the command line named the project file itself, so Settings → Project does not move it. */
+  explicit?: boolean;
 }
 type LaunchMode = LaunchModeSimple | LaunchModeProject;
 
@@ -83,6 +96,9 @@ bw.mount("#app", [
     onSettings: () => openSettings(),
     onAbout: () => openAbout(),
     onInstallCli: () => installCli(),
+    onOpenDocs: () => shellOpen(SITE_URL).catch(console.error),
+    onReportIssue: () => shellOpen(ISSUES_URL).catch(console.error),
+    onToggleTheme: () => toggleTheme(),
     state: {
       chat: isChatPaneOpen,
       info: isInfoPaneOpen,
@@ -91,8 +107,12 @@ bw.mount("#app", [
       editorMode: activeEditorMode,
     },
   }),
-  // Window-wide panels on the left; the chat and info panes live inside the
-  // tab column, because they belong to the tab: [chat | quikdown view | info].
+  // Rows: [menus … Settings Help About] / [tabs +] / [Files Outline Chat |
+  // editor controls … | Info] / the body: [files | outline | chat | editor |
+  // info]. Every panel opens in the body row, under its toggle, so the rows
+  // above never move. The chat is a drawer: Settings → Chat drawer side moves
+  // it to the right edge (CSS order), and a pull on the editor's edge opens
+  // it while it is closed.
   makeMain(
     [makeFileTreePanel(), makeOutlinePanel()],
     [
@@ -101,9 +121,24 @@ bw.mount("#app", [
         onClose: (id) => closeDocument(id),
         onNew: () => newDocument(),
       }),
+      // The tab's control row: panel toggles at the ends, editor controls between.
+      makeEditorToolbar({
+        onMode: (mode) => setActiveEditorMode(mode),
+        onUndo: () => undo(),
+        onRedo: () => redo(),
+        onCopy: (kind) => void copyToClipboard(kind).then((ok) => ok && flashCopied(kind)),
+        onToggleFiles: () => toggleFiles(),
+        onToggleOutline: () => toggleOutline(),
+        onToggleChat: () => toggleChatPane(),
+        onToggleInfo: () => toggleInfoPane(),
+        onToggleWatch: () => void toggleWatch(),
+      }),
       makeFindBar(),
     ],
-    { left: [makeChatPanel()], right: [makeInfoPanel()] },
+    // The log viewer sits where the editor is and shows instead of it on the log tab.
+    { left: [makeChatPanel()], right: [makeLogPanel(), makeInfoPanel()] },
+    // The drawer pull hugs the editor's edge (not the outline's) while the chat is closed.
+    [makeChatDrawerPull(() => toggleChatPane())],
   ),
   makeStatusbar(),
   makeFocusExitPill(),
@@ -111,6 +146,7 @@ bw.mount("#app", [
 
 initMenus();
 initEditor(el("editor-container")!);
+initEditorToolbar();
 initTabBar();
 initStats();
 initOutline();
@@ -119,8 +155,14 @@ initSettingsUI();
 initChat();
 initInfoPane();
 initPanes();
-setChatDisplay(chatDisplayOf(loadSettings()));
+initLogPane();
+initPreviewImages();
+initImagePaste();
+void initDropZone();
+void initWatch();
+applyLiveSettings(loadSettings());
 openAbout = initAbout();
+bw.sub(LOG_OPEN, () => void openLogTab());
 setOnFileClick((path) => loadFileIntoEditor(path));
 logEvent({ kind: "app", event: "start", version: __APP_VERSION__ });
 
@@ -131,12 +173,11 @@ function toggleFiles() {
   setToggleState("btn-toggle-files", show);
 }
 
-// --- Dark mode follows the OS ---
-function initDarkMode() {
-  const query = window.matchMedia("(prefers-color-scheme: dark)");
-  const apply = (e: MediaQueryList | MediaQueryListEvent) => setDarkMode(e.matches);
-  apply(query);
-  query.addEventListener("change", apply);
+// --- Theme: the title bar toggle picks the opposite of what is showing and remembers it ---
+function toggleTheme() {
+  const s = { ...loadSettings(), theme: isDarkMode() ? ("light" as const) : ("dark" as const) };
+  saveSettings(s);
+  applyLiveSettings(s);
 }
 
 // --- Keyboard shortcuts ---
@@ -168,14 +209,18 @@ const persistenceProviders = { openFile: projectOpenFile, openTabs: projectOpenT
 
 // --- Startup ---
 async function init() {
-  initDarkMode();
   await initDocuments();
 
   try {
     const launchMode = await invoke<LaunchMode>("get_launch_info");
 
+    let launchTab: { id: string } | null = null;
     if (launchMode.type === "Simple") {
-      if (launchMode.file_path) await openPath(launchMode.file_path);
+      if (launchMode.file_path) {
+        launchTab = await openPath(launchMode.file_path);
+        // openPath logged the reason; the user gets told instead of an empty window.
+        if (!launchTab) notify("Could not open file", launchMode.file_path, "danger", 10000);
+      }
     } else if (launchMode.type === "Project") {
       setDocumentsProjectMode(true, launchMode.project_root);
       setInfoProjectRoot(launchMode.project_root);
@@ -197,12 +242,16 @@ async function init() {
         // Each reopened file gets its chat (and pane layout) back; the project chat too.
         importChatHistory(data?.chatHistory);
       } else {
-        await invoke("project_init", {
-          root: launchMode.project_root,
-          file: launchMode.project_file,
-        });
+        // No project file yet: Rust proposes `.quikleaf/quikleaf.prj`; Settings →
+        // Project can put it in the root instead. A file named on the command
+        // line stays where the user said.
+        const file =
+          !launchMode.explicit && projectFileLocationOf(loadSettings()) === "root"
+            ? joinPath(launchMode.project_root, "quikleaf.prj")
+            : launchMode.project_file;
+        await invoke("project_init", { root: launchMode.project_root, file });
         initProjectPersistence(persistenceProviders);
-        await saveProjectNow(); // create quikleaf.prj right away
+        await saveProjectNow(); // create the project file right away
       }
       flushProjectSaveOnUnload();
 
@@ -216,6 +265,11 @@ async function init() {
       const active = activeTab();
       if (active?.projectRelative) highlightFile(active.path);
     }
+    // `quikleaf --watch file.md`: watch the file named on the command line.
+    // `quikleaf --log` (with or without a file or project): start on the log tab.
+    const flags = await invoke<{ open_log?: boolean; watch?: boolean }>("get_launch_flags").catch(() => null);
+    if (flags?.watch && launchTab) await setWatched(launchTab.id, true);
+    if (flags?.open_log) await openLogTab();
   } catch (e) {
     console.error("Startup failed:", e);
     setStatusFile("No file open");

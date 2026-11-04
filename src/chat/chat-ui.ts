@@ -51,7 +51,7 @@ import {
   type ChatSession,
 } from "./session";
 import { scheduleProjectSave } from "../project/persist";
-import { setStatusTiming } from "../ui/shell";
+import { chatSide, setStatusTiming } from "../ui/shell";
 import { Stopwatch, computeTiming, describeEntry, formatClock, formatMs, getLogPath, isPerfLogEnabled, logEvent, summarizeTiming, tailLog } from "../diag/perf";
 // @ts-ignore — core parser, direct ESM import
 import quikdown from "quikdown";
@@ -402,16 +402,17 @@ export function makeChatPanel(): Taco {
 }
 
 /**
- * Drag handle on the pane's right edge. The mousedown lives in `a:`; the
- * document-level move/up listeners are installed once by `initChat()`.
- * Inline `cursor: ew-resize` is what the e2e suite looks for.
+ * Drag handle on the drawer's inner edge (the theme places it right or left
+ * to match the drawer side). The mousedown lives in `a:`; the document-level
+ * move/up listeners are installed once by `initChat()`. Inline
+ * `cursor: ew-resize` is what the e2e suite looks for.
  */
 function makeResizeHandle(): Taco {
   return {
     t: "div",
     a: {
       class: "chat-resize-handle",
-      style: { position: "absolute", right: "-4px", top: "0", bottom: "0", width: "8px", cursor: "ew-resize", "z-index": "10" },
+      style: { cursor: "ew-resize" },
       onmousedown: (e: MouseEvent) => {
         const panel = el("chat-panel");
         if (!panel) return;
@@ -430,7 +431,10 @@ function onDocumentMouseMove(e: MouseEvent) {
   if (!resize) return;
   const panel = el("chat-panel");
   if (!panel) return;
-  const width = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, resize.startWidth + e.clientX - resize.startX));
+  // Dragging toward the editor shrinks the drawer whichever side it is on.
+  const delta = e.clientX - resize.startX;
+  const grow = chatSide() === "right" ? -delta : delta;
+  const width = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, resize.startWidth + grow));
   panel.style.width = `${width}px`;
 }
 

@@ -18,7 +18,9 @@ import {
   updateContent,
   openProjectTab,
   setView,
+  LOG_TAB_ID,
   PROJECT_TAB_ID,
+  openLogTab,
   type TabsSnapshot,
 } from "./tabs";
 
@@ -327,6 +329,20 @@ describe("views and the project tab", () => {
     const pub = getTab(c.id)!;
     pub.view.chat = false;
     expect(getTab(c.id)!.view.chat).toBe(true);
+  });
+
+  it("openLogTab creates one log tab with no chat, focuses it on repeat calls, and closes like any tab", () => {
+    openTab("/a.md", "");
+    setView(activeTab()!.id, { chat: true });
+    const l = openLogTab();
+    expect(l).toMatchObject({ id: LOG_TAB_ID, kind: "log", path: null, title: "Log", projectRelative: false, dirty: false });
+    expect(l.view.chat).toBe(false);
+    expect(activeTab()!.id).toBe(LOG_TAB_ID);
+    expect(openLogTab().id).toBe(LOG_TAB_ID);
+    expect(listTabs().filter((t) => t.kind === "log")).toHaveLength(1);
+    expect(setView(LOG_TAB_ID, { chat: true, info: true })!.view).toEqual({ chat: false, info: true, mode: "split" });
+    closeTab(LOG_TAB_ID);
+    expect(getTab(LOG_TAB_ID)).toBeNull();
   });
 
   it("openProjectTab creates one project tab, focuses it on repeat calls and keeps its chat open", () => {

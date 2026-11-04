@@ -64,7 +64,10 @@ Located in `src/`. Built with Vite, runs in Tauri's webview. `index.html` is an 
 |--------|---------|
 | `main.ts` | Mounts the shell, file operations, project mode detection, keyboard shortcuts |
 | `ui/theme.ts` | Two bitwrench themes (`bw.loadStyles()` light, and dark scoped under `.dark`) plus app CSS written with `bw.css()` over CSS custom properties |
-| `ui/shell.ts` | Title bar, File/View/Help menus, main row, status bar as TACO |
+| `ui/shell.ts` | Title bar (File/View menus, LLM status, Settings, Help, About, theme toggle), toggle buttons, `makeMain` (`#tab-body` with `#editor-frame`), the chat drawer pull, status bar as TACO |
+| `ui/editor-toolbar.ts` | The tab's control row: Files/Outline/Chat toggles, the headless quikdown editor's controls (Source/Split/Rendered, Undo/Redo, Copy MD/HTML/Rendered), Info toggle |
+| `ui/appearance.ts` | Theme (light/dark/system), font sizes, preview style class and the user's preview CSS |
+| `diag/log-pane.ts` | The log tab's viewer: live entries via `onLogEvent`, the file's tail on first show, filter, Follow, Clear |
 | `ui/about.ts` | About dialog (`bw.makeModal`) with system-browser links |
 | `ui/taco.ts` | Helpers: `withAttrs()` to add ids to factory output, typed `makeModal()`, element lookups |
 | `ui/toast.ts` | Notifications via `bw.makeToast` in a lazily created container |
@@ -75,16 +78,18 @@ Located in `src/`. Built with Vite, runs in Tauri's webview. `index.html` is an 
 | `editor/tabs.ts` | Pure tab model (document tabs and the single project tab, each with a `view`); publishes `tabs:changed` |
 | `editor/documents.ts` | Session controller: binds tabs to the single quikdown instance, open/save/close, unsaved prompts, shortcuts |
 | `editor/find.ts`, `editor/outline.ts`, `editor/stats.ts`, `editor/export.ts` | Pure logic for find/replace, heading parsing, document stats, standalone HTML export and print |
+| `editor/paths.ts`, `editor/images.ts`, `editor/dropzone.ts` | Path helpers; relative images rewritten to the `asset://` scheme after each render, image paste (`image_save`) and image links; native file drops (`onDragDropEvent`) |
+| `editor/watch.ts` | The Watch toggle: `watch_start`/`watch_stop` per tab, `file-changed` events debounced into `reloadDocument()`, prompts for dirty tabs, `--watch` at launch |
 | `chat/diff.ts`, `chat/review.ts`, `chat/plan.ts`, `chat/outline.ts` | Line diff, Accept/Reject review cards, plan card, heading tool |
 | `diag/perf.ts` | Stopwatch, time-to-first-token / tok/s math, formatting, `logEvent()` client for the performance log |
-| `editor/editor.ts` | quikdown editor wrapper with undo/redo/insert/selection exports |
+| `editor/editor.ts` | quikdown editor wrapper (`showToolbar: false`) with mode/undo/redo/history/copy/insert/selection exports |
 | `chat/session.ts` | One chat session per tab: scope (document / project), provider-format history, visible transcript, plan, model override, stats, and the chat's own log element; `exportChatHistory` / `importChatHistory` for `quikleaf.prj` |
 | `chat/chat-ui.ts` | Chat pane TACO: mounts the active tab's session log, header naming the target, streaming bubbles via `bw.append`/`bw.patch`, scoped tool dispatch loop, slash commands |
 | `chat/chat-utils.ts` | System prompt, tool schemas, provider-neutral message shaping |
 | `chat/providers.ts` | Provider adapters — translates between internal format and OpenAI/Anthropic APIs |
 | `settings/settings.ts` | LLM settings dialog (bitwrench modal + form controls), localStorage, auto-detect |
 | `project/file-tree.ts` | File tree sidebar for project mode |
-| `project/persist.ts` | Debounced `project_save` so `quikleaf.prj` follows the open file, open tabs, chat history, scratchpad and KV store |
+| `project/persist.ts` | Debounced `project_save` so the project file (`.quikleaf/quikleaf.prj` by default, or `quikleaf.prj` in the root per Settings → Project) follows the open file, open tabs, chat history, scratchpad and KV store |
 
 ### UI rules
 
@@ -92,7 +97,7 @@ Located in `src/`. Built with Vite, runs in Tauri's webview. `index.html` is an 
 - Updates use bitwrench verbs (`bw.patch`, `bw.toggleClass`, `bw.clear`, `bw.remove`), never `innerHTML`.
 - Dark mode is a one-class toggle (`.dark` on `#app`); both themes derive from the same seed accent.
 - Chat display toggles are classes on `#chat-panel` (`show-timestamps`, `show-tools`): bubbles always render their meta line and tool entries, so flipping a setting restyles history instantly.
-- The chat and info panes live inside `#editor-column > #tab-body`, under the tab bar, not beside the window: the tab is the unit a chat belongs to. Each session owns a `.chat-log` element; `chat-ui.ts` re-parents the active one into `#chat-messages` on tab switches (bitwrench's `append` takes TACO, not elements), so a background chat keeps its streaming bubble, review cards and plan card.
+- The chat and info panes live inside `#editor-column > #tab-body`, under the tab bar, not beside the window: the tab is the unit a chat belongs to. The chat is a drawer: the DOM order is always `[chat | editor | info]`, and `setChatSide("right")` (Settings → Chat drawer side) puts `chat-right` on `#tab-body`, which reorders the panes with flex `order`, flips the resize handle and moves the pull (`#chat-drawer-pull`, shown while `#tab-body.chat-closed`) to the other edge. It appears in place, like the other panels (no slide animation). Each session owns a `.chat-log` element; `chat-ui.ts` re-parents the active one into `#chat-messages` on tab switches (bitwrench's `append` takes TACO, not elements), so a background chat keeps its streaming bubble, review cards and plan card.
 
 ### Chat scope
 

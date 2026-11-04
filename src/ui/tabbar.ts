@@ -21,6 +21,7 @@ export interface TabBarHandlers {
 let handlers: TabBarHandlers = { onSelect: () => {}, onClose: () => {}, onNew: () => {} };
 let unsubscribe: (() => void) | null = null;
 
+/** Tabs and the new-tab button, nothing else: the tab's controls are on the row below (`ui/editor-toolbar.ts`). */
 export function makeTabBar(h: TabBarHandlers): Taco {
   handlers = h;
   return {

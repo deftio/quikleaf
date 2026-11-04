@@ -116,10 +116,12 @@ node -e "
   for (const [f, re, rep] of [
     ['docs/scripts/site.js', /var SITE_VERSION = '[^']*';/, \"var SITE_VERSION = '\" + v + \"';\"],
     ['docs/index.html', /\"softwareVersion\": \"[^\"]*\"/, '\"softwareVersion\": \"' + v + '\"'],
+    ['llms.txt', /Version [0-9]+\.[0-9]+\.[0-9]+\./, 'Version ' + v + '.'],
+    ['docs/llms.txt', /Version [0-9]+\.[0-9]+\.[0-9]+\./, 'Version ' + v + '.'],
   ]) fs.writeFileSync(f, fs.readFileSync(f, 'utf8').replace(re, rep));
 "
 
-git add package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json docs/scripts/site.js docs/index.html npm/quikleaf/package.json
+git add package.json package-lock.json src-tauri/Cargo.toml src-tauri/tauri.conf.json docs/scripts/site.js docs/index.html llms.txt docs/llms.txt npm/quikleaf/package.json
 git commit -m "bump version to ${NEW_VERSION}"
 
 info "\nCreated branch: $BRANCH"

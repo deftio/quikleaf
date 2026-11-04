@@ -5,6 +5,121 @@ All notable changes to quikleaf are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.3] - 2026-11-03
+
+AI assistance: the chat drawer, the three-row layout and headless editor
+controls, Appearance settings, the log tab, Watch, file drop and image paste,
+the README demo, the tests and this entry were drafted with Claude Code under
+the maintainer's direction; reviewed and released by the maintainer.
+
+### Changed
+- **The chat is a drawer.** It slides out of the left edge of the tab instead
+  of appearing in place, and while it is closed a small "Chat" pull sits on
+  that edge to open it (the Chat button and Cmd/Ctrl+Shift+C still work).
+  Settings → Chat display → **Chat drawer side** moves it to the right edge;
+  the info pane crosses to the other side and the resize handle follows. The
+  choice previews live in Settings and is remembered. The slide respects
+  `prefers-reduced-motion`.
+- **Three rows, each with one job.** The title bar holds the File and View
+  menus and, on the right, Settings, Help and About. The tab bar holds only
+  tabs. Under it, a control row for the active tab: `[Files Outline Chat |
+  Source Split Rendered · Undo Redo … Copy MD/HTML/Rendered | Info]`. Each
+  panel's toggle sits at the end its panel opens on, and the Chat toggle moves
+  to the right end with its drawer. A pressed toggle now inverts (text and
+  background swap) instead of filling with the accent colour, and the state
+  dots are gone. The title bar is a little shorter.
+- **quikdown runs headless.** The editor controls on that row (Source / Split
+  / Rendered, Undo / Redo, Copy MD / HTML / Rendered) are drawn by quikleaf in
+  the app's palette instead of quikdown's built-in toolbar, so they match the
+  rest of the shell in both themes. Same functions, same keyboard shortcuts.
+- **About is its own button**, not a Help item, and the dialog is laid out to
+  be read: logo, name, version and a one-line tagline; one short paragraph;
+  then a facts grid with clickable links to the source, the website, and the
+  three libraries with their installed versions (quikdown, bitwrench, Tauri).
+  "How it works" is now bold-lead bullets instead of blocks of text. Help
+  holds Documentation, Report an Issue and Install Command Line Tool.
+- **Readable chrome.** Menu and toolbar text is the primary text colour (it
+  was a light grey) and one size up (14 px). Settings → **Appearance** adds
+  the interface font size (12–18 px), the editor font size (13–22 px), a
+  choice of four preview styles for the rendered markdown (quikdown's
+  Default, Book, Plain, Mono) and a box for your own preview CSS. All preview
+  live and Cancel puts them back.
+- **Contrast.** The secondary and tertiary text colours were below 4.5:1 on
+  most backgrounds in the light theme (tertiary was 2.3:1) and the tertiary
+  colour was in the dark theme too. Both are now at or above 4.5:1 on every
+  background in both themes, and the status bar and LLM pill use the
+  secondary colour.
+- **Light / dark toggle.** A sun/moon button at the far right of the title
+  bar switches themes and remembers the choice. Settings → Appearance →
+  Theme offers Light, Dark or Follow the system (the default, as before).
+- **Dark mode fixes.** The editor followed the OS, not the app, so with the
+  OS light and the app dark the panes kept light-theme text on a dark
+  background; quikdown's theme is now set with the app's. Its dark greys are
+  replaced by the app's palette so the panes sit flush, native controls
+  (selects, scrollbars) follow the theme (`color-scheme`), and the info
+  pane's model picker is styled.
+- **About** puts the logo, name and version above the tabs, with the version
+  in a pill and underline tabs, so the header stays while the tabs change.
+- **The chat no longer slides in.** It appears in place like the other
+  panels; the animation drew the eye every time.
+- **Panels open under their buttons.** The file tree and the outline now
+  open inside the body row, `[files | outline | chat | editor | info]`,
+  instead of beside the whole editor column, so toggling them no longer
+  shifts the control row; the mouse can stay on the button. The chat pull
+  sits on the editor's edge, to the right of an open outline.
+
+### Added
+- **Watch.** A toggle at the right end of the tab's control row (off by
+  default) reloads the tab whenever its file changes on disk, for files
+  written by another editor, a build, or an agent. A tab with unsaved edits
+  asks before its text is replaced; a removed file is reported once and the
+  tab keeps its text; closing the tab stops the watch. `quikleaf --watch
+  notes.md` starts with it on. Rust watches the file's folder (the `notify`
+  crate), so editors that save by rename keep working, and sends
+  `file-changed` events to the webview.
+- **Drop files on the window.** Markdown and text files open as tabs, image
+  files are linked into the active document, and an outline shows while the
+  drag hovers. Rust widens the fs scope to each dropped file (`allow_path`),
+  the same way the Open dialog and the command line already did.
+- **Paste images.** An image on the clipboard pasted into the source pane is
+  saved as `images/<document>-<timestamp>.png` beside the document and a
+  relative link is inserted at the caret. An unsaved document says so instead
+  (there is nowhere to put the file).
+- **Relative images render.** `![a](images/a.png)` beside the document now
+  shows in the preview: the app's `asset://` handler serves image files (and
+  only image files) to the webview, resolved against the active document.
+- **Settings → Project → Project file location.** A new project's file goes
+  in a `.quikleaf` folder by default, keeping the root clean; the setting
+  can put `quikleaf.prj` in the root instead. Projects that already have a
+  file keep it where it is, and `--project ./x.prj` is used as named.
+- A README that leads with what is different (the sealed chat per document,
+  the rich fences rendered offline), and an animated demo in place of the
+  static screenshot. `CONTRIBUTING.md` and `SECURITY.md`; `agents.md`,
+  `llms.txt` and the site brought up to date.
+- **A log tab.** About → Diagnostics → View Log, Settings → Diagnostics →
+  View Log, or `quikleaf --log` opens the performance log in a tab: one line
+  per entry (as `/log` prints them), a filter by kind (llm, tool, turn,
+  app), Follow to keep the newest in view, Clear, Open Folder. It follows the
+  running app live, in-process, so new entries appear the instant they are
+  logged, even while the log file is switched off; the file's tail is read
+  the first time the tab is shown. The info pane counts the entries in view.
+- GitHub Pages site: left-justified, more compact layout with the install
+  strip above the fold; the hero shows a real screenshot of the app (document
+  chat proposing a reviewed diff, source, rendered preview) instead of the
+  mock SVG; the platform tiles are now actual download links for the current
+  release (retargeted to the latest tag at runtime); social-card image is the
+  screenshot; `docs/publishing.md` documents the release and npm trust path.
+
+### Fixed
+- `quikleaf notes.md` opened an empty window. The file named on the command
+  line was read through the Tauri fs plugin, whose default scope allows only
+  the app's own directories, so the read was refused ("forbidden path") and
+  the failure was logged to the console only. The path is now added to the
+  fs scope at startup (the same thing the Open dialog does for files picked
+  there), so it opens and saves. A file that still cannot be opened shows a
+  toast, and every failed open is written to the diagnostics log
+  (About → Diagnostics, `/log`) with the reason.
+
 ## [1.2.2] - 2026-11-02
 
 AI assistance: the publishing fix and this entry were drafted with Claude

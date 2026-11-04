@@ -47,6 +47,11 @@ export interface ShellHandlers {
   onSettings: () => void;
   onAbout: () => void;
   onInstallCli: () => void;
+  /** Help → Documentation / Report an Issue: open the site or the issue tracker in the system browser. */
+  onOpenDocs: () => void;
+  onReportIssue: () => void;
+  /** The sun/moon button at the far right: switch between light and dark. */
+  onToggleTheme: () => void;
   /** Current pane states, read when the View menu opens to tick its items. */
   state?: {
     chat: () => boolean;
@@ -148,22 +153,24 @@ export function initMenus(): void {
 }
 
 /**
- * A press-to-toggle button (`aria-pressed`), used for panels that stay open:
- * Chat and Files. Visually distinct from the menu triggers: it carries a
- * state dot and fills with the accent color while pressed.
+ * A press-to-toggle button (`aria-pressed`) for a panel that stays open. It
+ * inverts (text colour on background colour swap) while pressed. Two
+ * variants: `titlebar` (a title bar button) and `toolbar` (a full-height
+ * button at an end of the tab's control row, `ui/editor-toolbar.ts`).
  */
-export function makeToggleButton(id: string, label: string, onclick: () => void, extraClass = ""): Taco {
+export function makeToggleButton(id: string, label: string, onclick: () => void, extraClass = "", variant: "titlebar" | "toolbar" = "titlebar"): Taco {
+  const base = variant === "toolbar" ? "tool-toggle" : "titlebar-btn";
   return {
     t: "button",
     a: {
       id,
-      class: `titlebar-btn toggle-btn ${extraClass}`.trim(),
+      class: `${base} toggle-btn ${extraClass}`.trim(),
       type: "button",
       "aria-pressed": "false",
       title: `Show or hide the ${label.toLowerCase()} panel`,
       onclick,
     },
-    c: [{ t: "span", a: { class: "toggle-dot", "aria-hidden": "true" } }, label],
+    c: label,
   };
 }
 
@@ -213,10 +220,8 @@ export function makeTitlebar(h: ShellHandlers): Taco {
             { id: "btn-focus-mode", label: "Focus Mode", shortcut: "Cmd+Shift+D", onclick: h.onFocusMode },
             { id: "btn-find", label: "Find & Replace…", shortcut: "Cmd+F", onclick: h.onFind },
           ]),
-          makeToggleButton("btn-toggle-chat", "Chat", h.onToggleChat),
-          makeToggleButton("btn-toggle-info", "Info", h.onToggleInfo),
-          makeToggleButton("btn-toggle-files", "Files", h.onToggleFiles, "hidden"),
-          makeToggleButton("btn-toggle-outline", "Outline", h.onToggleOutline),
+          // Panel toggles are not here: they sit on the tab's control row
+          // (`ui/editor-toolbar.ts`), each at the end its panel opens on.
         ],
       },
       {
@@ -226,13 +231,39 @@ export function makeTitlebar(h: ShellHandlers): Taco {
           { t: "span", a: { id: "llm-status" }, c: "" },
           { t: "button", a: { id: "btn-settings", class: "titlebar-btn", type: "button", onclick: h.onSettings }, c: "Settings" },
           makeMenu("btn-help-menu", "help-menu-dropdown", "Help", [
-            { id: "btn-about", label: "About quikleaf", onclick: h.onAbout },
+            { id: "btn-docs", label: "Documentation", onclick: h.onOpenDocs },
+            { id: "btn-report-issue", label: "Report an Issue", onclick: h.onReportIssue },
+            { separator: true },
             { id: "btn-install-cli", label: "Install Command Line Tool", onclick: h.onInstallCli },
           ]),
+          { t: "button", a: { id: "btn-about", class: "titlebar-btn", type: "button", onclick: h.onAbout }, c: "About" },
+          makeThemeToggle(h.onToggleTheme),
         ],
       },
     ],
   };
+}
+
+/**
+ * The theme toggle: a moon while the app is light (click for dark), a sun
+ * while dark. `setThemeToggleState` keeps the label right; the glyph swap is
+ * CSS on `#app.dark`.
+ */
+export function makeThemeToggle(onclick: () => void): Taco {
+  return {
+    t: "button",
+    a: { id: "btn-theme", class: "titlebar-btn theme-toggle", type: "button", "aria-label": "Switch to dark mode", title: "Switch to dark mode", onclick },
+    c: [
+      { t: "span", a: { class: "theme-moon", "aria-hidden": "true" }, c: "☾" },
+      { t: "span", a: { class: "theme-sun", "aria-hidden": "true" }, c: "☀︎" },
+    ],
+  };
+}
+
+/** Relabel the theme toggle for the mode the app is in. */
+export function setThemeToggleState(dark: boolean): void {
+  const label = dark ? "Switch to light mode" : "Switch to dark mode";
+  if (bw.el("btn-theme")) bw.patch("btn-theme", { "aria-label": label, title: label } as unknown as TacoContent);
 }
 
 export function makeStatusbar(): Taco {
@@ -251,27 +282,47 @@ export function makeStatusbar(): Taco {
 /**
  * The main row: window-wide panels (file tree, outline), then the editor
  * column — anything in `aboveEditor` (the tab bar, find bar) stacked over
- * `#tab-body`, the active tab's panes: `beside.left` (the chat), then
- * `#editor-container` (quikdown mounts into it), then `beside.right` (the
- * info pane). Putting the chat and info panes under the tab bar is what
- * makes the tab, not the window, the unit a chat belongs to.
+ * `#tab-body`, the active tab's panes: `beside.left` (the chat drawer and
+ * its pull), then `#editor-container` (quikdown mounts into it), then
+ * `beside.right` (the info pane). Putting the chat and info panes under the
+ * tab bar is what makes the tab, not the window, the unit a chat belongs to.
+ * The DOM order is the left-side layout; `setChatSide("right")` reorders the
+ * panes with CSS `order`, so the markup never changes. `panels` (file tree,
+ * outline) sit in the body too, at its left, so toggling them moves nothing
+ * above. `inEditor` goes beside `#editor-container` inside `#editor-frame`
+ * (the drawer pull); the frame is `position: relative` so the pull hugs the
+ * editor's edge, not the body's. quikdown empties `#editor-container` when it
+ * mounts, which is why the pull cannot live inside it.
  */
 export function makeMain(
   panels: TacoContent[],
   aboveEditor: TacoContent[] = [],
   beside: { left?: TacoContent[]; right?: TacoContent[] } = {},
+  inEditor: TacoContent[] = [],
 ): Taco {
   return {
     t: "div",
     a: { id: "main" },
     c: [
-      ...panels,
       {
         t: "div",
         a: { id: "editor-column" },
         c: [
           ...aboveEditor,
-          { t: "div", a: { id: "tab-body" }, c: [...(beside.left ?? []), { t: "div", a: { id: "editor-container" } }, ...(beside.right ?? [])] },
+          // Everything that opens and closes lives in the body row, so the
+          // rows above never move: [files | outline | chat | editor | info].
+          {
+            t: "div",
+            a: { id: "tab-body" },
+            c: [
+              ...panels,
+              ...(beside.left ?? []),
+              // quikdown empties #editor-container when it mounts, so the pull
+              // sits beside it in a frame that is the editor's box.
+              { t: "div", a: { id: "editor-frame" }, c: [{ t: "div", a: { id: "editor-container" } }, ...inEditor] },
+              ...(beside.right ?? []),
+            ],
+          },
         ],
       },
     ],
@@ -298,10 +349,52 @@ export function setStatusStats(text: string): void {
   bw.patch("status-stats", text);
 }
 
-/** Show or hide the chat pane and keep the toolbar button's pressed state in step. */
+/**
+ * Show or hide the chat drawer and keep the toolbar button's pressed state in
+ * step. `chat-closed` on `#tab-body` is what shows the drawer pull at the edge.
+ */
 export function setChatPanelVisible(on: boolean): void {
   bw.toggleClass("chat-panel", "hidden", !on);
+  bw.toggleClass("tab-body", "chat-closed", !on);
   setToggleState("btn-toggle-chat", on);
+}
+
+export type ChatSide = "left" | "right";
+
+/**
+ * Which edge of the tab body the chat drawer slides out of (Settings → Chat
+ * display → Chat drawer side). One class on `#tab-body` reorders its flex
+ * children, `[chat | editor | info]` or `[info | editor | chat]`, and flips
+ * the drawer pull and the resize handle with it.
+ */
+export function setChatSide(side: ChatSide): void {
+  bw.toggleClass("tab-body", "chat-right", side === "right");
+  // The tab bar's Chat / Info toggles swap ends with the drawer.
+  bw.toggleClass("editor-column", "chat-right", side === "right");
+}
+
+export function chatSide(): ChatSide {
+  return bw.hasClass("tab-body", "chat-right") ? "right" : "left";
+}
+
+/**
+ * The drawer pull: a small tab on the edge of `#tab-body`, shown only while
+ * the chat is closed (`#tab-body.chat-closed`), that opens the active tab's
+ * chat. It sits over the editor's edge and takes no layout space.
+ */
+export function makeChatDrawerPull(onOpen: () => void): Taco {
+  return {
+    t: "button",
+    a: {
+      id: "chat-drawer-pull",
+      class: "chat-drawer-pull",
+      type: "button",
+      title: "Open chat (Cmd/Ctrl+Shift+C)",
+      "aria-label": "Open chat",
+      onclick: onOpen,
+    },
+    c: "Chat",
+  };
 }
 
 /** Show or hide the info pane and keep the toolbar button's pressed state in step. */

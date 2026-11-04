@@ -77,6 +77,24 @@ describe("applyPanes", () => {
     expect(activeEditorMode()).toBe("preview");
   });
 
+  it("the log tab hides the editor and the chat, and ignores chat and mode toggles", () => {
+    const a = tabs.newUntitledTab();
+    tabs.setView(a.id, { chat: true });
+    stop = initPanes();
+    expect(hidden("chat-panel")).toBe(false);
+    tabs.openLogTab();
+    expect(document.getElementById("editor-column")!.classList.contains("log-tab")).toBe(true);
+    expect(hidden("chat-panel")).toBe(true);
+    expect(isChatPaneOpen()).toBe(false);
+    expect(toggleChatPane()).toBe(false);
+    expect(hidden("chat-panel")).toBe(true);
+    setActiveEditorMode("preview"); // ignored for the log tab
+    expect(tabs.activeTab()!.view.mode).toBe("split");
+    tabs.closeTab(tabs.LOG_TAB_ID);
+    expect(document.getElementById("editor-column")!.classList.contains("log-tab")).toBe(false);
+    expect(hidden("chat-panel")).toBe(false); // back on the document tab
+  });
+
   it("the project tab hides the editor and pins the chat open", () => {
     tabs.newUntitledTab();
     stop = initPanes();

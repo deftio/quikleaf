@@ -25,7 +25,50 @@ pub struct LogEntry {
 #[serde(tag = "type")]
 pub enum LaunchMode {
     Simple { file_path: Option<String> },
-    Project { project_root: String, project_file: String, exists: bool },
+    /// `explicit` is true when the user named the project file itself
+    /// (`--project ./x.prj`); for a directory the file is `locate_project_file`'s
+    /// answer, and when none exists yet the frontend may still move it to the
+    /// root per Settings → Project.
+    Project { project_root: String, project_file: String, exists: bool, #[serde(default)] explicit: bool },
+}
+
+/// The project file's name, and the folder it lives in by default.
+pub const PROJECT_FILE: &str = "quikleaf.prj";
+pub const PROJECT_DIR: &str = ".quikleaf";
+
+/// Where a directory's project file is: `.quikleaf/quikleaf.prj` if it exists,
+/// else `quikleaf.prj` in the root if that exists (projects from 1.2.3 and
+/// earlier), else the `.quikleaf` location, not yet created.
+pub fn locate_project_file(root: &Path) -> (PathBuf, bool) {
+    let hidden = root.join(PROJECT_DIR).join(PROJECT_FILE);
+    if hidden.is_file() {
+        return (hidden, true);
+    }
+    let plain = root.join(PROJECT_FILE);
+    if plain.is_file() {
+        return (plain, true);
+    }
+    (hidden, false)
+}
+
+/// Flags that ride alongside the launch mode: `--log` opens the log viewer
+/// tab, `--watch` turns the Watch toggle on for the file named on the command line.
+#[derive(Clone, Default, Serialize, Deserialize)]
+pub struct LaunchFlags {
+    pub open_log: bool,
+    #[serde(default)]
+    pub watch: bool,
+}
+
+/// Read the flags from the command line (testable without std::env::args).
+pub fn launch_flags_from(args: &[String]) -> LaunchFlags {
+    let has = |flag: &str| args.iter().skip(1).any(|a| a == flag);
+    LaunchFlags { open_log: has("--log"), watch: has("--watch") }
+}
+
+#[tauri::command]
+pub async fn get_launch_flags(state: tauri::State<'_, LaunchFlags>) -> Result<LaunchFlags, String> {
+    Ok(state.inner().clone())
 }
 
 #[derive(Default)]
@@ -395,6 +438,10 @@ pub async fn project_save(
     let serialized = serde_json::to_string_pretty(&data)
         .map_err(|e| format!("Failed to serialize project data: {}", e))?;
 
+    // The default location is `.quikleaf/quikleaf.prj`; make the folder on first save.
+    if let Some(parent) = Path::new(path).parent() {
+        std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create project folder: {}", e))?;
+    }
     std::fs::write(path, serialized)
         .map_err(|e| format!("Failed to write project file: {}", e))?;
 
@@ -716,6 +763,26 @@ mod tests {
             .collect();
         entries.sort_by(|a, b| b.modified.cmp(&a.modified));
         Ok(KvListResponse { entries })
+    }
+
+    #[test]
+    fn locate_project_file_prefers_the_dot_folder_then_the_root_then_defaults_to_the_dot_folder() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let root = tmp.path();
+        let (path, exists) = locate_project_file(root);
+        assert_eq!(path, root.join(".quikleaf").join("quikleaf.prj"));
+        assert!(!exists);
+
+        std::fs::write(root.join("quikleaf.prj"), "{}").unwrap();
+        let (path, exists) = locate_project_file(root);
+        assert_eq!(path, root.join("quikleaf.prj"));
+        assert!(exists);
+
+        std::fs::create_dir_all(root.join(".quikleaf")).unwrap();
+        std::fs::write(root.join(".quikleaf").join("quikleaf.prj"), "{}").unwrap();
+        let (path, exists) = locate_project_file(root);
+        assert_eq!(path, root.join(".quikleaf").join("quikleaf.prj"));
+        assert!(exists);
     }
 
     fn project_init_inner(state: &ProjectState, root: String, file: String) -> Result<(), String> {
@@ -1303,4 +1370,33 @@ mod tests {
         assert_eq!(ok.matches.len(), 1); // max_results clamped to 1
         assert!(ok.truncated);
     }
+}
+
+#[cfg(test)]
+mod launch_flag_tests {
+    use super::*;
+
+    fn args(strs: &[&str]) -> Vec<String> {
+        strs.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn log_flag_is_read_from_anywhere_after_the_binary() {
+        assert!(!launch_flags_from(&args(&["quikleaf"])).open_log);
+        assert!(launch_flags_from(&args(&["quikleaf", "--log"])).open_log);
+        assert!(launch_flags_from(&args(&["quikleaf", "notes.md", "--log"])).open_log);
+        assert!(launch_flags_from(&args(&["quikleaf", "--project", ".", "--log"])).open_log);
+        // The binary's own path never counts.
+        assert!(!launch_flags_from(&args(&["--log"])).open_log);
+    }
+
+    #[test]
+    fn watch_flag_is_read_and_absent_by_default() {
+        let a = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        assert!(launch_flags_from(&a(&["quikleaf", "--watch", "notes.md"])).watch);
+        assert!(!launch_flags_from(&a(&["quikleaf", "notes.md"])).watch);
+        let both = launch_flags_from(&a(&["quikleaf", "--log", "--watch"]));
+        assert!(both.open_log && both.watch);
+    }
+
 }

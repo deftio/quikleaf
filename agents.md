@@ -140,7 +140,7 @@ External agents (CI/CD, scripts, other tools) can interact with quikleaf's proje
 
 ### Project File Format
 
-When quikleaf runs in project mode (`--project ./dir`, or `--project ./dir/quikleaf.prj`), it creates `quikleaf.prj` on first launch and rewrites it (debounced, a few hundred ms) after every change to the open tabs, the active file, a chat, the scratchpad or the key-value store. Keys are camelCase (the Rust `ProjectData` struct is serialised with `rename_all = "camelCase"`):
+When quikleaf runs in project mode (`--project ./dir`, or `--project ./dir/x.prj`), it creates a project file on first launch (`./dir/.quikleaf/quikleaf.prj` by default; Settings → Project can put `quikleaf.prj` in the root instead, and a project that already has one keeps it where it is) and rewrites it (debounced, a few hundred ms) after every change to the open tabs, the active file, a chat, the scratchpad or the key-value store. Keys are camelCase (the Rust `ProjectData` struct is serialised with `rename_all = "camelCase"`):
 
 ```json
 {
@@ -172,7 +172,15 @@ When quikleaf runs in project mode (`--project ./dir`, or `--project ./dir/quikl
 
 ### Memory and KV as Agent Communication
 
-An external agent can seed `memory` or `kv` in `quikleaf.prj` **while quikleaf is not running**; the values are loaded at the next launch and QD sees them through `memory_read` / `kv_get`. While quikleaf is running it owns the file and overwrites it on each save, so edits made underneath it are lost. For live communication use the project folder instead: write a markdown file and let QD read it with `file_read` or find it with `project_search`.
+An external agent can seed `memory` or `kv` in the project file **while quikleaf is not running**; the values are loaded at the next launch and QD sees them through `memory_read` / `kv_get`. While quikleaf is running it owns the file and overwrites it on each save, so edits made underneath it are lost. For live communication use the project folder instead: write a markdown file and let QD read it with `file_read` or find it with `project_search`.
+
+### Watching a file an agent writes
+
+An external agent that writes a markdown file can have quikleaf show the result as it lands: open the file with `quikleaf --watch path.md`, or turn on the **Watch** toggle at the right end of the tab's control row. The tab reloads whenever the file changes on disk (writes are coalesced; save-by-rename works). If the user has unsaved edits in that tab, quikleaf asks before replacing them; a deleted file is reported once and the tab keeps its text. Watching is per tab, off by default, and stops when the tab closes.
+
+### Images
+
+An image pasted into the source pane is saved as `images/<document>-<timestamp>.<ext>` beside the document and linked relatively; relative image paths render in the preview. Agents that write documents with images should use the same convention.
 
 ## Performance Log
 
@@ -183,9 +191,9 @@ quikleaf writes one JSON object per line to a performance log (unless the user t
 | `llm` | `provider`, `model`, `host`, `ttft_ms`, `total_ms`, `chars`, `est_tokens`, `tok_per_s`, `tool_calls`, `error?` |
 | `tool` | `name`, `ms`, `ok` |
 | `turn` | `total_ms`, `llm_calls`, `tool_calls`, `aborted` |
-| `app` | `event` (`start`), `version` |
+| `app` | `event` (`start`, `open-failed`, `watch-reload`, `watch-read-failed`), `version`, `path`, `error` as applicable |
 
-Location: macOS `~/Library/Logs/com.deftio.quikleaf/quikleaf-perf.jsonl`, Linux `~/.local/share/com.deftio.quikleaf/logs/`, Windows `%LOCALAPPDATA%\com.deftio.quikleaf\logs\`. External agents can tail it to compare models or spot slow tools; the `/log` slash command and About → Diagnostics show the same data in-app.
+Location: macOS `~/Library/Logs/com.deftio.quikleaf/quikleaf-perf.jsonl`, Linux `~/.local/share/com.deftio.quikleaf/logs/`, Windows `%LOCALAPPDATA%\com.deftio.quikleaf\logs\`. External agents can tail it to compare models or spot slow tools; the `/log` slash command, About → Diagnostics and the log tab (View Log, or `quikleaf --log`) show the same data in-app, the tab live.
 
 ## Data Flow
 
@@ -203,5 +211,6 @@ The Rust backend proxies all LLM API calls to:
 - API keys are stored in localStorage (webview-local, not synced)
 - LLM API calls never leave the backend proxy — the webview only talks to localhost
 - File tools are scoped to the project root directory (no path traversal)
+- The webview's file access is the fs plugin's scope: files picked in a dialog, named on the command line, or dropped on the window; the `asset://` scheme serves image files only
 - The LLM never receives or produces HTML — only raw markdown
 - quikdown's HTML sanitizer handles XSS protection in rendered output
