@@ -22,6 +22,7 @@ import {
   openFileDialog,
   openPath,
   openLogTab,
+  reloadDocument,
   openProjectChat,
   saveActiveDocument,
   setDocumentsProjectMode,
@@ -84,6 +85,7 @@ beforeEach(async () => {
   inst.getMarkdown.mockImplementation(() => editorText);
   inst.setMarkdown.mockImplementation(async (md: string) => {
     editorText = md;
+    inst.sourceTextarea.value = md; // quikdown fills the source pane before resolving
     notifyEditorChange(md, "");
   });
   setDocumentsProjectMode(false);
@@ -562,5 +564,52 @@ describe("activeDocumentPath", () => {
     await openLogTab();
     expect(activeDocumentPath()).toBeNull();
     expect(absolutePathOf(null)).toBeNull();
+  });
+});
+
+describe("reloadDocument", () => {
+  const V1 = "# v1\n\nline two\nline three\n";
+  const V2 = "# v2\n\nline two\nline three\n";
+
+  it("replaces the text, marks the tab saved, and keeps caret and scroll where they were", async () => {
+    mockRead.mockResolvedValue(V1);
+    const tab = (await openPath("/docs/w.md"))!;
+    type(V1 + "mine\n");
+    expect(tabs.getTab(tab.id)!.dirty).toBe(true);
+    const ta = getEditor().sourceTextarea;
+    ta.setSelectionRange(5, 7);
+    ta.scrollTop = 40;
+
+    await reloadDocument(tab.id, V2);
+
+    expect(tabs.getTab(tab.id)).toMatchObject({ content: V2, dirty: false });
+    expect(editorText).toBe(V2);
+    expect([ta.selectionStart, ta.selectionEnd]).toEqual([5, 7]);
+    expect(ta.scrollTop).toBe(40);
+  });
+
+  it("clamps the caret when the new text is shorter", async () => {
+    mockRead.mockResolvedValue(V1);
+    const tab = (await openPath("/docs/w.md"))!;
+    const ta = getEditor().sourceTextarea;
+    ta.setSelectionRange(20, 24);
+    await reloadDocument(tab.id, "short");
+    expect([ta.selectionStart, ta.selectionEnd]).toEqual([5, 5]);
+  });
+
+  it("updates a background tab's model without touching the editor, and ignores non-document tabs", async () => {
+    mockRead.mockResolvedValue(V1);
+    const back = (await openPath("/docs/back.md"))!;
+    mockRead.mockResolvedValue("# front\n");
+    await openPath("/docs/front.md");
+    const calls = getEditor().setMarkdown.mock.calls.length;
+    await reloadDocument(back.id, V2);
+    expect(tabs.getTab(back.id)).toMatchObject({ content: V2, dirty: false });
+    expect(getEditor().setMarkdown.mock.calls.length).toBe(calls);
+    expect(editorText).toBe("# front\n");
+
+    const log = (await openLogTab())!;
+    await reloadDocument(log.id, "ignored");
+    expect(tabs.getTab(log.id)!.content).not.toBe("ignored");
   });
 });

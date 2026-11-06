@@ -77,6 +77,17 @@ async fn get_launch_info(state: tauri::State<'_, LaunchInfo>) -> Result<LaunchMo
 }
 
 fn main() {
+    // `--help` / `--version` print and leave before any window; a typo'd
+    // flag is warned about and the app launches anyway.
+    let args: Vec<String> = std::env::args().collect();
+    if let Some(exit) = commands::cli::early_exit(&args) {
+        print!("{}", exit.text());
+        std::process::exit(0);
+    }
+    for flag in commands::cli::unknown_flags(&args) {
+        eprintln!("quikleaf: unknown option {flag} (see quikleaf --help)");
+    }
+
     let launch_mode = parse_cli_args();
 
     let project_state = ProjectState::default();

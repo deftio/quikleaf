@@ -5,6 +5,47 @@ All notable changes to quikleaf are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.4] - Unreleased
+
+AI assistance: the styling pass and this entry were drafted with Claude Code
+under the maintainer's direction; reviewed and released by the maintainer.
+
+### Added
+
+- `quikleaf --help` and `quikleaf --version` (also `-h`, `-V`) print and
+  exit; an unknown `--flag` prints a warning and the app starts anyway. The
+  npm launcher answers both itself, before it looks for the binary, so they
+  work on a fresh machine and on Windows, where the app has no console.
+
+### Changed
+
+- A styling refresh, same layout and controls: the title bar, tab bar and
+  control row share one surface; panel toggles are pills (pressed still
+  inverts) instead of boxed segments with dividers; tabs are cards, the
+  active one lifted onto the editor's surface; the selected file and outline
+  rows are an accent tint rather than a solid block; panel headers are one
+  height and style; chat bubbles sit flat with a fade instead of a slide;
+  the composer and Send are quieter; modals, menus, fields and buttons share
+  the same radii and a single focus ring; scrollbars are thinner with no
+  track. Light and dark palettes adjusted slightly for the new surfaces.
+- Keyboard focus is visible on every bar button, tab and menu item.
+
+### Fixed
+
+- Watch now also polls each watched file's size and modification time every
+  1.5 seconds, so a write the OS never reports (a network share, a sync
+  client, the shared folder of a sandboxed agent or VM) still reloads the
+  tab within about two seconds. OS events stay immediate; a change seen by
+  both is reloaded once.
+- A watch reload keeps the caret, the source scroll and the preview scroll
+  where they were instead of jumping to the top of the document.
+- The drop-to-open outline referenced a colour variable that did not exist.
+
+### Internal
+
+- `main` requires CI's `check` status and the repo allows auto-merge, so a
+  release PR merges only after its tests pass (CLAUDE.md, Release Workflow).
+
 ## [1.2.3] - 2026-11-03
 
 AI assistance: the chat drawer, the three-row layout and headless editor

@@ -25,6 +25,7 @@
   ],
   "files": [
     "bin/",
+    "help.js",
     "install.js",
     "README.md"
   ],

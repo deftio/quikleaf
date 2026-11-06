@@ -118,7 +118,10 @@ quikleaf --watch notes.md       # open it and reload the tab when it changes on 
 quikleaf --project ./docs       # a folder: file tree, project chat, project file
 quikleaf --project ./x.prj      # a project file by name
 quikleaf --log                  # start on the log tab
+quikleaf --help                 # the flags; --version prints the version
 ```
+
+Flags go before or after the file name.
 
 ### Chats and scope
 
