@@ -9,6 +9,7 @@ import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import { initAbout, installCli, makeAboutModal } from "./about";
 import { LOG_OPEN } from "../diag/perf";
 import type { CliStatus } from "./about";
+import { appendEl } from "./taco";
 
 const mockInvoke = vi.mocked(invoke);
 const mockShellOpen = vi.mocked(shellOpen);
@@ -73,7 +74,7 @@ afterEach(async () => {
 
 describe("makeAboutModal", () => {
   it("renders an overlay with three tabs, the first one active", () => {
-    const node = bw.append(byId("app"), makeAboutModal());
+    const node = appendEl(byId("app"), makeAboutModal());
     expect(node.id).toBe("about-overlay");
     expect(node.classList.contains("bw_bccl_modal")).toBe(true);
     expect(node.querySelector("#about-modal")).not.toBeNull();
@@ -86,7 +87,7 @@ describe("makeAboutModal", () => {
   });
 
   it("shows the app version from the Vite define in the About pane and Diagnostics grid", () => {
-    const node = bw.append(byId("app"), makeAboutModal());
+    const node = appendEl(byId("app"), makeAboutModal());
     expect(typeof __APP_VERSION__).toBe("string");
     expect(__APP_VERSION__).toMatch(/^\d+\.\d+\.\d+/);
     expect(node.querySelector(".about-version")?.textContent).toBe(`Version ${__APP_VERSION__}`);
@@ -130,7 +131,7 @@ describe("makeAboutModal", () => {
   });
 
   it("opens project links in the system browser instead of the webview", () => {
-    const node = bw.append(byId("app"), makeAboutModal());
+    const node = appendEl(byId("app"), makeAboutModal());
     const links = Array.from(node.querySelectorAll(".about-links a")) as HTMLAnchorElement[];
     expect(links.map((a) => a.textContent)).toEqual(["github.com/deftio/quikleaf", "deftio.github.io/quikleaf", "quikdown", "bitwrench", "Tauri"]);
     expect(links.map((a) => a.getAttribute("href"))).toEqual([
@@ -159,7 +160,7 @@ describe("makeAboutModal", () => {
     mockShellOpen.mockImplementation(async () => {
       throw new Error("no browser");
     });
-    const node = bw.append(byId("app"), makeAboutModal());
+    const node = appendEl(byId("app"), makeAboutModal());
     (node.querySelector(".about-links a") as HTMLAnchorElement).dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
     await flush();
     expect(err).toHaveBeenCalledTimes(1);
@@ -168,7 +169,7 @@ describe("makeAboutModal", () => {
   });
 
   it("does not fetch diagnostics until the Diagnostics tab is selected", () => {
-    const node = bw.append(byId("app"), makeAboutModal());
+    const node = appendEl(byId("app"), makeAboutModal());
     const tabs = Array.from(node.querySelectorAll('[role="tab"]')) as HTMLElement[];
     tabs[1].click();
     expect(tabs[1].classList.contains("active")).toBe(true);
@@ -177,7 +178,7 @@ describe("makeAboutModal", () => {
   });
 
   it("refreshes diagnostics when the Diagnostics tab is selected", async () => {
-    const node = bw.append(byId("app"), makeAboutModal());
+    const node = appendEl(byId("app"), makeAboutModal());
     const tabs = Array.from(node.querySelectorAll('[role="tab"]')) as HTMLElement[];
     tabs[2].click();
     await flush();
@@ -247,7 +248,7 @@ describe("initAbout", () => {
     backend({
       build_info: () => ({ tauri: "2.12.5", arch: "aarch64", os: "macos", profile: "release", exe: "/Applications/quikleaf.app/Contents/MacOS/quikleaf" }),
     });
-    const node = bw.append(byId("app"), makeAboutModal());
+    const node = appendEl(byId("app"), makeAboutModal());
     const tabs = Array.from(node.querySelectorAll('[role="tab"]')) as HTMLElement[];
     expect(text("diag-platform")).not.toContain("aarch64");
     expect(text("about-tauri")).toMatch(/^\d+\.\d+\.\d+/);
@@ -262,7 +263,7 @@ describe("initAbout", () => {
 
   it("keeps the browser's platform, and warns, when build_info is missing or rejects", async () => {
     backend({ build_info: () => null });
-    const node = bw.append(byId("app"), makeAboutModal());
+    const node = appendEl(byId("app"), makeAboutModal());
     const tabs = Array.from(node.querySelectorAll('[role="tab"]')) as HTMLElement[];
     tabs[2].click();
     await flush();

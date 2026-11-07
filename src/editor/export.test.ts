@@ -6,6 +6,7 @@ import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { getEditor, initEditor } from "./editor";
 import * as tabs from "./tabs";
 import { EXPORT_CSS, buildStandaloneHtml, exportHtml, printDocument } from "./export";
+import { appendEl } from "../ui/taco";
 
 const mockSave = vi.mocked(save);
 const mockWrite = vi.mocked(writeTextFile);
@@ -41,7 +42,7 @@ describe("exportHtml", () => {
     mockWrite.mockResolvedValue(undefined);
     mockStyles.mockReset();
     mockStyles.mockReturnValue(".qd{a:b}");
-    const container = bw.append(document.getElementById("app")!, { t: "div", a: { id: "editor-container" } });
+    const container = appendEl(document.getElementById("app")!, { t: "div", a: { id: "editor-container" } });
     initEditor(container);
     getEditor().getHTML.mockReturnValue("<h1>Rendered</h1>");
     vi.spyOn(console, "error").mockImplementation(() => {});

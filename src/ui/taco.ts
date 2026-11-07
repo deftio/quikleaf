@@ -8,7 +8,7 @@
  * to do it — no DOM is touched.
  */
 import bw from "bitwrench";
-import type { Taco, TacoAttributes, TacoContent } from "bitwrench";
+import type { ModalConfig, Taco, TacoAttributes, TacoContent } from "bitwrench";
 
 /** Merge attributes (id, class, aria-*, handlers) into a TACO and return it. */
 export function withAttrs(taco: Taco, attrs: TacoAttributes): Taco {
@@ -26,25 +26,11 @@ function joinClass(c: string | string[]): string {
   return Array.isArray(c) ? c.join(" ") : c;
 }
 
-/**
- * Props `bw.makeModal()` actually reads (bitwrench-bccl.js). The shipped
- * `ModalConfig` type lags the implementation (`closable` vs `closeButton`,
- * no `onClose`/`open`/`className`), so we keep an accurate local type and cast.
- */
-export interface ModalProps {
-  title?: string | Taco;
-  content?: TacoContent;
-  footer?: TacoContent;
-  size?: "sm" | "lg" | "xl";
-  closeButton?: boolean;
-  closeLabel?: string;
-  onClose?: () => void;
-  open?: boolean;
-  className?: string;
-}
+/** The props `bw.makeModal()` reads. bitwrench 2.1.13's `ModalConfig` matches the implementation, so this is now just its name here. */
+export type ModalProps = ModalConfig;
 
 export function makeModal(props: ModalProps): Taco {
-  return bw.makeModal(props as Parameters<typeof bw.makeModal>[0]);
+  return bw.makeModal(props);
 }
 
 /** The imperative handle `bw.makeModal()` installs on its root element. */
@@ -63,11 +49,7 @@ export function isModalOpen(): boolean {
   return document.querySelector(".bw_bccl_modal_show") !== null;
 }
 
-/**
- * Options `bw.syncChildren()` actually reads (bitwrench.js). The shipped type
- * says `{ key?: string }`, but the implementation wants a key function plus
- * `create`/`update` callbacks, so this wrapper carries the accurate type.
- */
+/** Typed `bw.syncChildren()`: the shipped signature takes `unknown` items; this keeps the item type. */
 export interface SyncOptions<T> {
   key: (item: T) => string;
   create: (item: T) => Taco;
@@ -75,12 +57,23 @@ export interface SyncOptions<T> {
 }
 
 export function syncChildren<T>(parent: HTMLElement, items: T[], opts: SyncOptions<T>): void {
-  bw.syncChildren(parent, items as unknown as Taco[], opts as unknown as { key?: string });
+  bw.syncChildren(parent, items, opts as SyncOptions<unknown>);
 }
 
-/** `bw.patch` with a plain object sets attributes; the shipped type only admits content, hence this wrapper. */
+/** `bw.patch` with a plain object sets attributes. */
 export function patchAttrs(target: string | HTMLElement, attrs: Record<string, string>): void {
-  bw.patch(target, attrs as unknown as TacoContent);
+  bw.patch(target, attrs);
+}
+
+/**
+ * `bw.append` for a target that must exist. bitwrench 2.1.13 returns null
+ * (with a console warning) when it cannot resolve the target; here that is a
+ * programming error, so it throws instead of handing null down the line.
+ */
+export function appendEl(target: string | HTMLElement, content: Taco | TacoContent, opts?: { before?: Element | number }): HTMLElement {
+  const node = bw.append(target, content, opts);
+  if (!node) throw new Error(`quikleaf: cannot append to ${typeof target === "string" ? `#${target}` : `<${target.tagName.toLowerCase()}>`}`);
+  return node;
 }
 
 /** Resolve an element by id (or selector) through bitwrench. */

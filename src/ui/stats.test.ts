@@ -3,6 +3,7 @@ import bw from "bitwrench";
 import { getEditor, initEditor, notifyEditorChange } from "../editor/editor";
 import { makeStatusbar } from "./shell";
 import { STATS_DEBOUNCE_MS, initStats, refreshStats } from "./stats";
+import { appendEl } from "./taco";
 
 function app(): HTMLElement {
   return document.getElementById("app")!;
@@ -19,7 +20,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   editorText = "";
   bw.append(app(), makeStatusbar());
-  const container = bw.append(app(), { t: "div", a: { id: "editor-container" } });
+  const container = appendEl(app(), { t: "div", a: { id: "editor-container" } });
   initEditor(container);
   getEditor().getMarkdown.mockImplementation(() => editorText);
 });

@@ -1,6 +1,7 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
+import bw from "bitwrench";
 import type { Taco } from "bitwrench";
-import { withAttrs, modalHandle, makeModal, el, control } from "./taco";
+import { appendEl, control, el, makeModal, modalHandle, withAttrs } from "./taco";
 
 const added: HTMLElement[] = [];
 function mount(tag: string, id: string): HTMLElement {
@@ -107,5 +108,23 @@ describe("el / control", () => {
 
   it("control throws a clear error naming the id when missing", () => {
     expect(() => control("taco-nope")).toThrow("quikleaf: #taco-nope is not mounted");
+  });
+});
+
+describe("appendEl", () => {
+  it("returns the appended element", () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const node = appendEl(host, { t: "span", a: { id: "append-el-child" }, c: "hi" });
+    expect(node.tagName).toBe("SPAN");
+    expect(node.textContent).toBe("hi");
+    bw.clear(host);
+    host.remove();
+  });
+
+  it("throws when bitwrench cannot resolve the target instead of returning null", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(() => appendEl("no-such-id-anywhere", { t: "div" })).toThrow(/#no-such-id-anywhere/);
+    warn.mockRestore();
   });
 });

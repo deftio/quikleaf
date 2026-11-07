@@ -28,7 +28,7 @@ import {
   type PromptContext,
   type ToolScope,
 } from "./chat-utils";
-import { el, patchAttrs, withAttrs } from "../ui/taco";
+import { appendEl, el, patchAttrs, withAttrs } from "../ui/taco";
 import { REJECTED_RESULT, cancelPendingReviews, requestApproval, showAppliedDiff, type ReviewRequest } from "./review";
 import { planSet, planUpdate, resetPlan } from "./plan";
 import { outlineOf } from "./outline";
@@ -586,13 +586,13 @@ function metaParts(stamp: string, detail?: string): TacoContent {
  * informational bubbles).
  */
 function appendBubble(session: ChatSession, role: "user" | "assistant" | "tool", text: string, detail?: string, record = false): Bubble {
-  const root = bw.append(session.log, { t: "div", a: { class: `chat-msg ${role}` } });
-  const body = bw.append(root, {
+  const root = appendEl(session.log, { t: "div", a: { class: `chat-msg ${role}` } });
+  const body = appendEl(root, {
     t: "div",
     a: { class: "chat-body" },
     c: role === "assistant" ? bw.raw(renderMarkdown(text)) : text,
   });
-  const meta = bw.append(root, { t: "div", a: { class: "chat-meta" }, c: metaParts(formatClock(), detail) });
+  const meta = appendEl(root, { t: "div", a: { class: "chat-meta" }, c: metaParts(formatClock(), detail) });
   if (record && role !== "tool") {
     session.transcript.push({ role, text });
     session.rendered = session.transcript.length;

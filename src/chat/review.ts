@@ -15,7 +15,7 @@
  */
 import bw from "bitwrench";
 import type { Taco } from "bitwrench";
-import { el, withAttrs } from "../ui/taco";
+import { appendEl, el, withAttrs } from "../ui/taco";
 import { collapseContext, diffLines, summarizeDiff, type DiffRow, type DiffSummary } from "./diff";
 
 export interface ReviewRequest {
@@ -154,7 +154,7 @@ export function requestApproval(req: ReviewRequest, into?: HTMLElement | null): 
     ],
   };
   return new Promise<boolean>((resolve) => {
-    const root = bw.append(log, cardTaco(req, "proposed", n, [actions]));
+    const root = appendEl(log, cardTaco(req, "proposed", n, [actions]));
     pending.set(n, { root, log, resolve });
     scrollToBottom(log);
   });
@@ -164,7 +164,7 @@ export function requestApproval(req: ReviewRequest, into?: HTMLElement | null): 
 export function showAppliedDiff(req: ReviewRequest, into?: HTMLElement | null): HTMLElement {
   const log = logEl(into);
   const n = ++counter;
-  const root = bw.append(log, cardTaco(req, "applied", n, []));
+  const root = appendEl(log, cardTaco(req, "applied", n, []));
   scrollToBottom(log);
   return root;
 }

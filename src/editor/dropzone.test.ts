@@ -11,6 +11,7 @@ import { getEditor, initEditor } from "./editor";
 import * as tabs from "./tabs";
 import { initDocuments, listTabs, setDocumentsProjectMode } from "./documents";
 import { DRAG_CLASS, handleDragEvent, handleDroppedPaths, initDropZone } from "./dropzone";
+import { appendEl } from "../ui/taco";
 
 const mockInvoke = vi.mocked(invoke);
 const mockRead = vi.mocked(readTextFile);
@@ -29,7 +30,7 @@ beforeEach(async () => {
   mockRead.mockReset();
   mockRead.mockResolvedValue("# dropped");
   bw.append(app(), { t: "span", a: { id: "status-file" } });
-  initEditor(bw.append(app(), { t: "div", a: { id: "editor-container" } }));
+  initEditor(appendEl(app(), { t: "div", a: { id: "editor-container" } }));
   setDocumentsProjectMode(false);
   await initDocuments();
 });

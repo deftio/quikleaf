@@ -14,6 +14,7 @@ import { getEditor, initEditor, notifyEditorChange } from "./editor";
 import * as tabs from "./tabs";
 import { closeDocument, initDocuments, openPath, setDocumentsProjectMode } from "./documents";
 import { makeEditorToolbar } from "../ui/editor-toolbar";
+import { appendEl } from "../ui/taco";
 import {
   FILE_CHANGED,
   RELOAD_DEBOUNCE_MS,
@@ -63,7 +64,7 @@ beforeEach(async () => {
   mockRead.mockResolvedValue("");
   bw.append(app(), { t: "span", a: { id: "status-file" } });
   bw.append(app(), makeEditorToolbar({ onMode() {}, onUndo() {}, onRedo() {}, onCopy() {}, onToggleWatch: () => void toggleWatch() }));
-  initEditor(bw.append(app(), { t: "div", a: { id: "editor-container" } }));
+  initEditor(appendEl(app(), { t: "div", a: { id: "editor-container" } }));
   const inst = getEditor();
   inst.getMarkdown.mockImplementation(() => editorText);
   inst.setMarkdown.mockImplementation(async (md: string) => {
