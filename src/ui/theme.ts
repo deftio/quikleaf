@@ -107,6 +107,21 @@ const darkTokens = tokens(
   bw.adjustLightness(dp.primary.base, 16),
 );
 
+/**
+ * File tree glyphs: 24-unit outline paths, used as CSS masks over
+ * `currentColor` by `.tree-icon.<kind>` (see `getFileIcon()` in
+ * `project/file-tree.ts` for the kinds).
+ */
+const glyph = (d: string) =>
+  `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='${d}'/></svg>`;
+export const TREE_GLYPHS = {
+  dir: glyph("M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"),
+  file: glyph("M6 3h8l5 5v13H6z M14 3v5h5"),
+  markdown: glyph("M6 3h8l5 5v13H6z M14 3v5h5 M9 13h6 M9 17h6"),
+  code: glyph("M6 3h8l5 5v13H6z M14 3v5h5 M10.5 12l-2 2.5 2 2.5 M13.5 12l2 2.5-2 2.5"),
+  image: glyph("M4 5h16v14H4z M4 16l5-5 4 4 3-3 4 4 M15.5 9.5h.01"),
+};
+
 const shell: CssRules = {
   "html, body": {
     height: "100%",
@@ -194,7 +209,7 @@ const shell: CssRules = {
   ".titlebar-btn": {
     background: "transparent",
     border: "none",
-    "border-radius": "var(--radius-md)",
+    "border-radius": "var(--radius-sm)",
     padding: "0 10px",
     "font-size": "var(--ui-font-size)",
     "font-weight": "500",
@@ -977,8 +992,27 @@ const shell: CssRules = {
     "user-select": "none",
   },
   ".file-tree-item:hover": { background: "var(--bg-tertiary)", color: "var(--text-primary)" },
-  ".file-tree-item.active": { background: "var(--accent-soft)", color: "var(--text-primary)", "font-weight": "600" },
-  ".file-tree-item.dir": { "font-weight": "600", color: "var(--text-primary)", cursor: "default" },
+  ".file-tree-item.active": { background: "var(--accent-soft)", color: "var(--text-primary)", "font-weight": "500" },
+  ".file-tree-item.dir": { "font-weight": "500", color: "var(--text-primary)", cursor: "default" },
+  /* Monochrome outline glyphs (a mask over currentColor), so they follow the row's colour in both themes. */
+  ".tree-icon": {
+    display: "inline-block",
+    width: "14px",
+    height: "14px",
+    "margin-right": "7px",
+    "vertical-align": "-2px",
+    background: "currentColor",
+    opacity: "0.75",
+    "flex-shrink": "0",
+    "-webkit-mask": "var(--tree-glyph) center / contain no-repeat",
+    mask: "var(--tree-glyph) center / contain no-repeat",
+  },
+  ".file-tree-item.active .tree-icon, .file-tree-item.dir .tree-icon": { opacity: "0.9" },
+  ".tree-icon.dir": { "--tree-glyph": `url("${TREE_GLYPHS.dir}")` },
+  ".tree-icon.markdown": { "--tree-glyph": `url("${TREE_GLYPHS.markdown}")` },
+  ".tree-icon.code": { "--tree-glyph": `url("${TREE_GLYPHS.code}")` },
+  ".tree-icon.image": { "--tree-glyph": `url("${TREE_GLYPHS.image}")` },
+  ".tree-icon.file": { "--tree-glyph": `url("${TREE_GLYPHS.file}")` },
   ".file-tree-note": { padding: "8px 14px", "font-size": "12px", color: "var(--text-tertiary)" },
   ".file-tree-note.error": { color: "var(--danger)" },
 
@@ -1017,6 +1051,15 @@ const shell: CssRules = {
   ".bw_bccl_form_control:focus": { outline: "none", "border-color": "var(--accent-primary)", "box-shadow": "var(--focus-ring)" },
   ".bw_bccl_btn": { "border-radius": "var(--radius-md)", "font-family": "inherit", "font-weight": "600", transition: "background 0.15s ease, color 0.15s ease, border-color 0.15s ease" },
   ".bw_bccl_btn:focus-visible": { outline: "2px solid var(--accent-primary)", "outline-offset": "2px" },
+  /* Secondary actions (Clear chat, Fetch Models, Cancel…) sit on the surface instead of a solid grey block. */
+  ".bw_bccl_btn.bw_secondary": {
+    background: "var(--bg-tertiary)",
+    color: "var(--text-primary)",
+    border: "1px solid var(--border-primary)",
+    "font-weight": "500",
+  },
+  ".bw_bccl_btn.bw_secondary:hover": { background: "var(--border-primary)", color: "var(--text-primary)", "border-color": "var(--border-secondary)" },
+  ".bw_bccl_btn.bw_secondary:active": { background: "var(--border-secondary)" },
   /* Keyboard focus on bar buttons: a ring inside the button so nothing clips. */
   ".titlebar-btn:focus-visible, .tool-btn:focus-visible, .tool-toggle:focus-visible, .tab-new:focus-visible, .dropdown-item:focus-visible, .editor-tab:focus-visible, .chat-drawer-pull:focus-visible": {
     outline: "2px solid var(--accent-primary)",
@@ -1117,6 +1160,7 @@ const shell: CssRules = {
   ".chat-msg.user .chat-meta": { color: "var(--accent-text)", opacity: "0.75", "justify-content": "flex-end" },
   ".chat-msg.tool .chat-meta": { "margin-top": "4px" },
   "#chat-panel:not(.show-timestamps) .chat-meta": { display: "none" },
+  "#chat-panel:not(.show-timing) .chat-timing": { display: "none" },
   "#chat-panel:not(.show-tools) .chat-msg.tool": { display: "none" },
 
   /* ── Settings sections ───────────────────────────────────── */
@@ -1253,7 +1297,7 @@ const writing: CssRules = {
     transition: "background 0.1s ease, color 0.1s ease",
   },
   ".outline-item:hover, .outline-item:focus-visible": { background: "var(--bg-tertiary)", color: "var(--text-primary)", outline: "none" },
-  ".outline-item.level-1": { "font-weight": "600", color: "var(--text-primary)" },
+  ".outline-item.level-1": { "font-weight": "500", color: "var(--text-primary)" },
   ".outline-item.level-2": { "padding-left": "26px" },
   ".outline-item.level-3": { "padding-left": "38px" },
   ".outline-item.level-4": { "padding-left": "50px", "font-size": "12px" },
@@ -1356,6 +1400,7 @@ const writing: CssRules = {
 bw.injectCSS(bw.css([{ ":root": lightTokens }, { "#app.dark": darkTokens }, shell, writing]), { id: "quikleaf_css" });
 
 /** Flip the whole app between the light and dark bitwrench themes. */
+
 export function setDarkMode(dark: boolean): void {
   bw.toggleClass("app", "dark", dark);
 }

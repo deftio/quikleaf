@@ -14,6 +14,14 @@ test.describe("About modal", () => {
     await expect(overlay).toHaveClass(/bw_bccl_modal_show/);
   });
 
+  test("the native app menu's About item opens the same dialog", async ({ page }) => {
+    // main.rs turns the "About quikleaf" menu item into a `menu-about` event; the webview opens its own About.
+    await expect(page.locator("#about-overlay")).not.toHaveClass(/bw_bccl_modal_show/);
+    await page.evaluate(() => (window as any).__E2E_EVENTS__.emit("menu-about", null));
+    await expect(page.locator("#about-overlay")).toHaveClass(/bw_bccl_modal_show/);
+    await expect(page.locator("#about-modal .about-version")).toContainText(/\d+\.\d+\.\d+/);
+  });
+
   test("version, description and the library versions are visible", async ({ page }) => {
     await page.click("#btn-about");
     const modal = page.locator("#about-modal");

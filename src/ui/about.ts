@@ -18,6 +18,15 @@ export const QUIKDOWN_URL = "https://github.com/deftio/quikdown";
 export const BITWRENCH_URL = "https://github.com/deftio/bitwrench";
 export const TAURI_URL = "https://tauri.app";
 
+/** What the running binary is (`build_info`): Tauri runtime, target, cargo profile, executable path. */
+export interface BuildInfo {
+  tauri: string;
+  arch: string;
+  os: string;
+  profile: string;
+  exe: string | null;
+}
+
 export interface CliStatus {
   supported: boolean;
   installed: boolean;
@@ -51,8 +60,8 @@ function fact(label: string, value: TacoContent, ddClass = ""): Taco[] {
 }
 
 /** A library link followed by its installed version. */
-function lib(name: string, href: string, version: string): TacoContent {
-  return [externalLink(name, href), { t: "span", a: { class: "about-ver" }, c: version }];
+function lib(name: string, href: string, version: string, id?: string): TacoContent {
+  return [externalLink(name, href), { t: "span", a: { class: "about-ver", id }, c: version }];
 }
 
 /** The masthead above the tabs: logo, name, version, tagline. Shared by all three panes. */
@@ -87,7 +96,7 @@ function aboutTab(): Taco {
           ...fact("Website", externalLink("deftio.github.io/quikleaf", SITE_URL)),
           ...fact("Rendering", lib("quikdown", QUIKDOWN_URL, __QUIKDOWN_VERSION__)),
           ...fact("Interface", lib("bitwrench", BITWRENCH_URL, __BITWRENCH_VERSION__)),
-          ...fact("Shell", lib("Tauri", TAURI_URL, __TAURI_API_VERSION__)),
+          ...fact("Shell", lib("Tauri", TAURI_URL, __TAURI_API_VERSION__, "about-tauri")),
           ...fact("License", "BSD-2-Clause, free and open source", "about-license"),
         ],
       },
@@ -164,7 +173,8 @@ function diagnosticsTab(): Taco {
         a: { class: "diag-grid" },
         c: [
           ...diagRow("Version", __APP_VERSION__),
-          ...diagRow("Platform", typeof navigator !== "undefined" ? navigator.platform || navigator.userAgent : "unknown"),
+          ...diagRow("Platform", typeof navigator !== "undefined" ? navigator.platform || navigator.userAgent : "unknown", "diag-platform"),
+          ...diagRow("Binary", { t: "code", c: "…" }, "diag-exe"),
           ...diagRow("Performance log", "…", "diag-log-state"),
           ...diagRow("Log file", { t: "code", c: "…" }, "diag-log-path"),
           ...diagRow("Command line", "…", "diag-cli"),
@@ -187,8 +197,27 @@ function diagnosticsTab(): Taco {
   };
 }
 
+/**
+ * Fill the rows that describe the binary itself: the Shell version in About becomes the Tauri runtime
+ * the binary links (the JS API version stays in brackets), Platform becomes the compiled OS, CPU
+ * architecture and cargo profile, and Binary is the executable's path. The browser's own idea of the
+ * platform stays as the fallback: under Rosetta it says MacIntel, which is exactly the case this is for.
+ */
+async function refreshBuildInfo(): Promise<void> {
+  try {
+    const b = await invoke<BuildInfo | null>("build_info");
+    if (!b) return;
+    bw.patch("about-tauri", `${b.tauri} (API ${__TAURI_API_VERSION__})`);
+    bw.patch("diag-platform", `${b.os} ${b.arch}, ${b.profile} build, Tauri ${b.tauri}`);
+    bw.patch("diag-exe", { t: "code", c: b.exe || "unknown" });
+  } catch (e: any) {
+    console.warn("build_info failed", e?.message || e);
+  }
+}
+
 async function refreshDiagnostics(): Promise<void> {
   if (!el("about-diag")) return;
+  await refreshBuildInfo();
   bw.patch("diag-log-state", isPerfLogEnabled() ? "on (Settings → Diagnostics to turn off)" : "off");
   const path = await getLogPath();
   bw.patch("diag-log-path", { t: "code", c: path || "unavailable" });
@@ -225,6 +254,9 @@ export async function installCli(): Promise<void> {
     notify("Could not install command line tool", String(e?.message || e), "danger", 10000);
   }
 }
+
+/** Event the Rust side emits when the native "About quikleaf" menu item is chosen (`MENU_ABOUT_EVENT` in main.rs). */
+export const MENU_ABOUT = "menu-about";
 
 // --- Modal ----------------------------------------------------------------
 

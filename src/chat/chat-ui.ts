@@ -52,7 +52,8 @@ import {
 } from "./session";
 import { scheduleProjectSave } from "../project/persist";
 import { chatSide, setStatusTiming } from "../ui/shell";
-import { Stopwatch, computeTiming, describeEntry, formatClock, formatMs, getLogPath, isPerfLogEnabled, logEvent, summarizeTiming, tailLog } from "../diag/perf";
+import type { LlmTiming } from "../diag/perf";
+import { Stopwatch, computeTiming, describeEntry, formatClock, formatMs, getLogPath, isPerfLogEnabled, logEvent, statusTiming, summarizeTiming, tailLog } from "../diag/perf";
 // @ts-ignore — core parser, direct ESM import
 import quikdown from "quikdown";
 
@@ -129,6 +130,25 @@ function readDoc(session: ChatSession): string {
   return sessionTab(session)?.content ?? "";
 }
 
+/**
+ * Characters the current turn has put into the document through the document
+ * tools, and the timing of its last model call: together they make the status
+ * bar's line. Reset when a turn starts; keyed by session so a background chat's
+ * turn never shows up on the tab in front.
+ */
+const turnDocChars = new WeakMap<ChatSession, number>();
+const lastTiming = new WeakMap<ChatSession, LlmTiming>();
+
+function countDocChars(session: ChatSession, n: number): void {
+  if (n > 0) turnDocChars.set(session, (turnDocChars.get(session) ?? 0) + n);
+}
+
+/** Put the session's last call on the status bar if that session is on screen. */
+function showStatusTiming(session: ChatSession): void {
+  const t = lastTiming.get(session);
+  if (t && mounted === session) setStatusTiming(statusTiming(t, turnDocChars.get(session) ?? 0));
+}
+
 /** Replace the session's document, on screen or in the background. */
 async function writeDoc(session: ChatSession, md: string): Promise<void> {
   if (isSessionActive(session)) {
@@ -173,6 +193,7 @@ export async function dispatchTool(name: string, args: any, session: ChatSession
       const after = typeof args?.content === "string" ? args.content : String(args?.content ?? "");
       if (!(await reviewEdit(session, { kind: "document", before: readDoc(session), after }))) return REJECTED_RESULT;
       await writeDoc(session, after);
+      countDocChars(session, after.length);
       return JSON.stringify({ success: true, document: label });
     }
     case "document_replace": {
@@ -198,6 +219,7 @@ export async function dispatchTool(name: string, args: any, session: ChatSession
       if (count > 0) {
         if (!(await reviewEdit(session, { kind: "document", before, after: md }))) return REJECTED_RESULT;
         await writeDoc(session, md);
+        countDocChars(session, replace.length * count);
       }
       return JSON.stringify({ count, document: label });
     }
@@ -208,7 +230,9 @@ export async function dispatchTool(name: string, args: any, session: ChatSession
     case "document_insert": {
       if (!isDoc) return sealed(session, name);
       if (!isSessionActive(session)) return notOnScreen(session, name);
-      insertAtCursor(String(args?.text ?? ""));
+      const inserted = String(args?.text ?? "");
+      insertAtCursor(inserted);
+      countDocChars(session, inserted.length);
       return JSON.stringify({ success: true, document: label });
     }
     case "document_undo": {
@@ -665,9 +689,9 @@ async function streamTurn(session: ChatSession, settings: LLMSettings, toSend: C
   if (live) bw.removeClass(live.root, "streaming");
 
   const timing = computeTiming(sw.elapsed(), firstTokenAt, result.fullText || accumulated);
-  const summary = summarizeTiming(timing);
-  if (live) setBubbleDetail(live, summary);
-  if (mounted === session) setStatusTiming(`last: ${summary}`);
+  if (live) setBubbleDetail(live, summarizeTiming(timing));
+  lastTiming.set(session, timing);
+  showStatusTiming(session);
   logEvent({
     kind: "llm",
     provider: settings.provider,
@@ -714,6 +738,7 @@ async function send() {
   if (input) input.value = "";
   session.draft = "";
   const turn = { sw: new Stopwatch(), llmCalls: session.stats.llmCalls, toolCalls: session.stats.toolCalls };
+  turnDocChars.delete(session);
 
   session.messages.push({ role: "user", content: text });
   session.stats.turns++;
@@ -776,6 +801,7 @@ async function send() {
     tool_calls: session.stats.toolCalls - turn.toolCalls,
     aborted: session.abortRequested,
   });
+  showStatusTiming(session); // now with everything the turn wrote to the document
   session.sending = false;
   session.abortRequested = false;
   setSendState(session, "idle");

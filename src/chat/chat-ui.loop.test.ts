@@ -345,7 +345,11 @@ describe("send()", () => {
     const timing = assistant.querySelector(".chat-timing")!.textContent!;
     expect(timing).toMatch(/first token/);
     expect(timing).toMatch(/≈3 tok/);
-    expect(document.getElementById("status-timing")!.textContent).toBe(`last: ${timing}`);
+    // The status bar carries the same call in its own order: first token, rate, total, size.
+    const status = document.getElementById("status-timing")!.textContent!;
+    expect(status).toMatch(/^first token \d+(\.\d+)?m?s · /);
+    expect(status).toMatch(/≈3 tok$/);
+    expect(status).not.toContain("chars to document");
 
     // Provider got the system prompt first and the user turn last.
     const [settings, toSend, tools] = sendChatStream.mock.calls[0];
@@ -526,6 +530,21 @@ describe("tool round-trips", () => {
     expect(bodyText(bubbles("tool")[0])).toBe('memory_write() → {"error":"disk full"}');
     expect(logEntries("tool")[0]).toMatchObject({ name: "memory_write", ok: false });
     expect(lastBody()).toBe("sorry");
+  });
+
+  it("the status bar counts what the turn wrote to the document, and the next turn starts from zero", async () => {
+    configure();
+    script([
+      { toolCalls: [openaiCall("w", "document_write", { content: "# Bananas\n\nA story." })] },
+      { chunks: ["Done."] },
+    ]);
+    await sendMessage("write a story");
+    const status = () => document.getElementById("status-timing")!.textContent!;
+    expect(status()).toMatch(/≈\d+ tok · 19 chars to document$/);
+
+    script([{ chunks: ["Hi."] }]);
+    await sendMessage("hello");
+    expect(status()).not.toContain("chars to document");
   });
 
   it("keeps streamed text that accompanies a tool call and records it in history", async () => {

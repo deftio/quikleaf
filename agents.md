@@ -4,7 +4,7 @@ This file describes how AI agents can interact with quikleaf, both as the built-
 
 ## Built-in Agent: QD
 
-quikleaf includes a built-in LLM-powered assistant called QD. QD communicates via a tool-calling loop and operates exclusively on raw markdown (never HTML).
+quikleaf includes a built-in LLM-powered assistant called QD. QD communicates via a tool-calling loop and operates exclusively on raw markdown (never HTML). This file is the reference for what the tools are and what they return; [docs/quikleaf-chat-internals.md](docs/quikleaf-chat-internals.md) is the account of how a turn runs, the full system prompt text, the dispatcher's scope gates, the provider wire formats and the streaming proxy.
 
 ### Chat scopes
 
@@ -41,6 +41,7 @@ QD uses the standard OpenAI function-calling format or Anthropic tool_use format
 4. Tool results are appended and sent back to the LLM
 5. Loop continues until LLM returns a text response (no tool calls) or max iterations (10) reached; edits may pause for user review (see Edit Review)
 6. No per-call timeout; the user can abort at any point with the Stop button, which also rejects pending edit reviews
+7. After each model call the status bar shows time to first token, tokens per second, total time, an estimated token count and, when the turn wrote to the document through the document tools, how many characters it put there; the same numbers go to the performance log
 
 ### Tool Definitions
 
@@ -82,7 +83,7 @@ Results carry `document: "<title>"` so the model can see which file it touched.
 | `memory_append` | `content: string` | Append to scratchpad |
 | `memory_clear` | none | Clear scratchpad |
 
-#### Key-Value Tools (always available)
+#### Key-Value Tools (project files and the project chat)
 
 | Tool | Parameters | Description |
 |------|-----------|-------------|
@@ -91,7 +92,7 @@ Results carry `document: "<title>"` so the model can see which file it touched.
 | `kv_delete` | `key: string` | Delete key |
 | `kv_list` | none | List keys with their last-modified timestamps (`{entries: [{key, modified}]}`) |
 
-#### File Tools (project mode only)
+#### File Tools (project chat)
 
 | Tool | Parameters | Description |
 |------|-----------|-------------|

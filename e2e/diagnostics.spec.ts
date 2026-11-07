@@ -76,7 +76,7 @@ test.describe("Diagnostics and display toggles", () => {
 
     const timing = page.locator(".chat-msg.assistant").nth(1).locator(".chat-timing");
     await expect(timing).toContainText(/ms|s/);
-    await expect(page.locator("#status-timing")).toContainText("last:");
+    await expect(page.locator("#status-timing")).toContainText(/first token|tok/);
 
     const kinds = await page.evaluate(() => (window as any).__E2E__.perfLog.map((e: any) => e.kind));
     expect(kinds).toContain("llm");

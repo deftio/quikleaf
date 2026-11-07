@@ -23,6 +23,11 @@ function labels(): string[] {
   return items().map((i) => i.textContent ?? "");
 }
 
+/** The glyph kind of each row, from its `.tree-icon` class. */
+function icons(): string[] {
+  return items().map((i) => (i.querySelector(".tree-icon")?.className ?? "").replace("tree-icon", "").trim());
+}
+
 type Entry = { name: string; type: "file" | "dir"; size: number };
 
 function listing(entries: Entry[]): void {
@@ -119,7 +124,10 @@ describe("loadTree", () => {
       { name: "beta.json", type: "file", size: 1 },
     ]);
     await loadTree();
-    expect(labels()).toEqual(["📁 assets", "📁 src", "📜 Alpha.ts", "📋 beta.json", "📝 zeta.md"]);
+    expect(labels()).toEqual(["assets", "src", "Alpha.ts", "beta.json", "zeta.md"]);
+    expect(icons()).toEqual(["dir", "dir", "code", "code", "markdown"]);
+    // The glyph is decorative: hidden from assistive tech, the name is the row's text.
+    expect(items()[0].querySelector(".tree-icon")?.getAttribute("aria-hidden")).toBe("true");
     const all = items();
     expect(all[0].classList.contains("dir")).toBe(true);
     expect(all[2].classList.contains("dir")).toBe(false);
@@ -137,7 +145,8 @@ describe("loadTree", () => {
     ]);
     await loadTree();
     // localeCompare orders case-insensitively: "not…" sorts before "README…".
-    expect(labels()).toEqual(["📄 not.quikleaf.prj", "📝 README.md"]);
+    expect(labels()).toEqual(["not.quikleaf.prj", "README.md"]);
+    expect(icons()).toEqual(["file", "markdown"]);
   });
 
   it("shows an empty-project note when nothing is left after filtering", async () => {
@@ -176,10 +185,10 @@ describe("loadTree", () => {
     mount();
     listing([{ name: "a.md", type: "file", size: 1 }]);
     await loadTree();
-    expect(labels()).toEqual(["📝 a.md"]);
+    expect(labels()).toEqual(["a.md"]);
     listing([{ name: "b.md", type: "file", size: 1 }]);
     await loadTree();
-    expect(labels()).toEqual(["📝 b.md"]);
+    expect(labels()).toEqual(["b.md"]);
   });
 });
 

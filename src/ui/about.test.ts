@@ -96,7 +96,7 @@ describe("makeAboutModal", () => {
 
     const diag = byId("about-diag");
     const labels = Array.from(diag.querySelectorAll(".diag-label")).map((l) => l.textContent);
-    expect(labels).toEqual(["Version", "Platform", "Performance log", "Log file", "Command line"]);
+    expect(labels).toEqual(["Version", "Platform", "Binary", "Performance log", "Log file", "Command line"]);
     expect(diag.querySelectorAll(".diag-value")[0].textContent).toBe(__APP_VERSION__);
     expect(diag.querySelectorAll(".diag-value")[1].textContent).not.toBe("");
     expect(text("diag-recent")).toBe("…");
@@ -241,6 +241,47 @@ describe("initAbout", () => {
     initAbout()();
     await flush();
     expect(text("diag-log-path")).toBe("unavailable");
+  });
+
+  it("fills the Shell, Platform and Binary rows from build_info when diagnostics refresh", async () => {
+    backend({
+      build_info: () => ({ tauri: "2.12.5", arch: "aarch64", os: "macos", profile: "release", exe: "/Applications/quikleaf.app/Contents/MacOS/quikleaf" }),
+    });
+    const node = bw.append(byId("app"), makeAboutModal());
+    const tabs = Array.from(node.querySelectorAll('[role="tab"]')) as HTMLElement[];
+    expect(text("diag-platform")).not.toContain("aarch64");
+    expect(text("about-tauri")).toMatch(/^\d+\.\d+\.\d+/);
+    expect(text("about-tauri")).not.toContain("API");
+    tabs[2].click();
+    await flush();
+    expect(text("diag-platform")).toBe("macos aarch64, release build, Tauri 2.12.5");
+    expect(text("diag-exe")).toBe("/Applications/quikleaf.app/Contents/MacOS/quikleaf");
+    expect(byId("diag-exe").querySelector("code")).not.toBeNull();
+    expect(text("about-tauri")).toMatch(/^2\.12\.5 \(API \d+\.\d+\.\d+/);
+  });
+
+  it("keeps the browser's platform, and warns, when build_info is missing or rejects", async () => {
+    backend({ build_info: () => null });
+    const node = bw.append(byId("app"), makeAboutModal());
+    const tabs = Array.from(node.querySelectorAll('[role="tab"]')) as HTMLElement[];
+    tabs[2].click();
+    await flush();
+    const before = text("diag-platform");
+    expect(before).not.toContain("Tauri");
+    expect(text("diag-exe")).toBe("…");
+
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    backend({
+      build_info: () => {
+        throw new Error("no such command");
+      },
+    });
+    tabs[0].click();
+    tabs[2].click(); // a fresh selection refreshes again
+    await flush();
+    expect(text("diag-platform")).toBe(before);
+    expect(warn).toHaveBeenCalledWith("build_info failed", "no such command");
+    warn.mockRestore();
   });
 
   it("reports an unknown CLI state when cli_status returns nothing", async () => {

@@ -37,13 +37,15 @@ Located in `src-tauri/src/`. Commands are in `src-tauri/src/commands/`.
 
 | Module | Purpose |
 |--------|---------|
-| `main.rs` | CLI argument parsing, app builder, state management, asset protocol |
+| `main.rs` | CLI argument parsing, app builder, state management, asset protocol, the native menu (its About item emits `menu-about`, which opens the app's own About dialog) |
 | `lib.rs` | Library entry point, mirrors main.rs for Tauri mobile/test targets |
-| `commands/fs.rs` | File read/write via Tauri commands |
+| `commands/cli.rs` | `--help` / `--version` (printed before the builder runs) and the unknown-flag warning; the help text is mirrored in `npm/quikleaf/help.js` |
+| `commands/fs.rs` | File read/write via Tauri commands, `allow_path` (fs-scope widening for dropped files), `image_save` |
 | `commands/llm.rs` | LLM API proxy — streams responses from OpenAI/Anthropic endpoints via reqwest |
 | `commands/project.rs` | Project state management, memory/KV store, file tools scoped to project root |
 | `commands/project.rs` (`project_search`) | Case-insensitive substring/regex search over project text files, skipping VCS and build directories |
-| `commands/diag.rs` | Performance log (JSON lines in the OS log dir: append/tail/clear/reveal) and the `quikleaf` CLI shim installer |
+| `commands/watch.rs` | `WatchHub`: notify-based watching of each tab's file plus a 1.5 s size/mtime poller, emitting `file-changed` |
+| `commands/diag.rs` | Performance log (JSON lines in the OS log dir: append/tail/clear/reveal), the `quikleaf` CLI shim installer (refuses in a debug build) and `build_info` for About |
 | `commands/mod.rs` | Module declarations |
 
 ### State Management
@@ -96,7 +98,7 @@ Located in `src/`. Built with Vite, runs in Tauri's webview. `index.html` is an 
 - Every element is a TACO `{t, a, c, o}`; event handlers live in `a:`.
 - Updates use bitwrench verbs (`bw.patch`, `bw.toggleClass`, `bw.clear`, `bw.remove`), never `innerHTML`.
 - Dark mode is a one-class toggle (`.dark` on `#app`); both themes derive from the same seed accent.
-- Chat display toggles are classes on `#chat-panel` (`show-timestamps`, `show-tools`): bubbles always render their meta line and tool entries, so flipping a setting restyles history instantly.
+- Chat display toggles are classes on `#chat-panel` (`show-timestamps`, `show-timing`, `show-tools`): bubbles always render their meta line, timing and tool entries, so flipping a setting restyles history instantly. The status bar's `#status-timing` is written by `chat-ui.ts` after every model call (`statusTiming()` in `diag/perf.ts`: first token, tok/s, total, size, characters the turn wrote to the document).
 - The chat and info panes live inside `#editor-column > #tab-body`, under the tab bar, not beside the window: the tab is the unit a chat belongs to. The chat is a drawer: the DOM order is always `[chat | editor | info]`, and `setChatSide("right")` (Settings → Chat drawer side) puts `chat-right` on `#tab-body`, which reorders the panes with flex `order`, flips the resize handle and moves the pull (`#chat-drawer-pull`, shown while `#tab-body.chat-closed`) to the other edge. It appears in place, like the other panels (no slide animation). Each session owns a `.chat-log` element; `chat-ui.ts` re-parents the active one into `#chat-messages` on tab switches (bitwrench's `append` takes TACO, not elements), so a background chat keeps its streaming bubble, review cards and plan card.
 
 ### Chat scope
@@ -118,6 +120,8 @@ Each LLM request logs `ttft_ms`, `total_ms`, `chars`, `est_tokens` (chars/4), `t
    - Send back to LLM (loop)
 5. If response is plain text: display to user
 6. Max 10 iterations; the Stop button aborts the stream and rejects pending edit reviews; no per-call timeout
+
+[quikleaf-chat-internals.md](quikleaf-chat-internals.md) goes through this in detail: the prompt text, the dispatcher's gates, the provider message shapes and the proxy's SSE parsing.
 
 ## Key Dependencies
 

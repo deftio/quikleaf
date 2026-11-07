@@ -8,6 +8,7 @@ import {
   formatMs,
   logEvent,
   onLogEvent,
+  statusTiming,
   summarizeTiming,
   tailLog,
 } from "./perf";
@@ -59,6 +60,17 @@ describe("summarizeTiming", () => {
   it("omits missing parts", () => {
     const s = summarizeTiming({ ttftMs: null, totalMs: 900, chars: 0, estTokens: 0, tokPerSec: null });
     expect(s).toBe("900ms");
+  });
+});
+
+describe("statusTiming", () => {
+  it("orders the parts for the status bar and adds what reached the document", () => {
+    const t = { ttftMs: 180, totalMs: 1800, chars: 400, estTokens: 100, tokPerSec: 62 };
+    expect(statusTiming(t)).toBe("first token 180ms · 62 tok/s · 1.80s · ≈100 tok");
+    expect(statusTiming(t, 1234)).toBe("first token 180ms · 62 tok/s · 1.80s · ≈100 tok · 1,234 chars to document");
+  });
+  it("omits missing parts", () => {
+    expect(statusTiming({ ttftMs: null, totalMs: 900, chars: 0, estTokens: 0, tokPerSec: null }, 0)).toBe("900ms");
   });
 });
 

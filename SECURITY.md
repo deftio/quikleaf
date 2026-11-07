@@ -13,6 +13,9 @@ Supported: the latest release. Older versions are not patched; upgrade.
 
 ## What quikleaf does with your data
 
+[PRIVACY.md](PRIVACY.md) is the fuller statement of what leaves the machine
+and what is stored where. The short version:
+
 - **Files stay local.** Documents are read and written by the app on your
   machine. There is no sync, no telemetry, no update check.
 - **The only network traffic is to the LLM host you configure**, and it goes
@@ -22,7 +25,7 @@ Supported: the latest release. Older versions are not patched; upgrade.
   Nothing is sent until you send a message. A local host (Ollama, LM Studio,
   Docker Model Runner) keeps everything on the machine.
 - **API keys** are stored in the webview's localStorage for the app, in
-  plain text, under the user's profile. They are sent only to the host you
+  plain text, under the user's profile, alongside the other settings. They are sent only to the host you
   set. Treat the settings store like a config file: do not share screenshots
   of Settings, and rotate a key if a machine is shared.
 - **The performance log** (`quikleaf-perf.jsonl` in the OS log folder) holds
@@ -47,6 +50,9 @@ Supported: the latest release. Older versions are not patched; upgrade.
   `asset://` scheme serves image files only.
 - **The model never sees or produces HTML.** Rendering is quikdown's, with
   its sanitizer; raw HTML in markdown is off unless you turn it on.
+- **The command line tool installer** writes a shim only from a release
+  build; a development build refuses, since its shim would point at a
+  binary that needs the Vite dev server.
 - **Edits can be reviewed.** By default the model's writes to project files
   wait for Accept; Settings → Agent can require review for every edit.
 
