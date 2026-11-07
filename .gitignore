@@ -44,3 +44,6 @@ playwright-report/
 
 # Tauri generated
 src-tauri/gen/
+
+# Local scratch (screenshots, notes)
+tmp/

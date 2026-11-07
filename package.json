@@ -61,6 +61,6 @@
     "@tauri-apps/plugin-fs": "^2.7.1",
     "@tauri-apps/plugin-shell": "^2.6.0",
     "bitwrench": "^2.1.11",
-    "quikdown": "^1.2.21"
+    "quikdown": "^1.2.22"
   }
 }

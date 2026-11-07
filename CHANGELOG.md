@@ -5,7 +5,33 @@ All notable changes to quikleaf are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.4] - Unreleased
+## [1.2.5] - Unreleased
+
+AI assistance: the fixes, the quikdown update, the tests and this entry
+were drafted with Claude Code under the maintainer's direction; reviewed and
+released by the maintainer.
+
+### Fixed
+
+- Turning Watch off (or closing a watched tab) could freeze the file watcher,
+  and with it the Watch command, if the file changed at that moment. The hub
+  called notify's `watch`/`unwatch` while holding the lock its event callback
+  needs; on Linux those calls wait for the event thread, so the two waited on
+  each other. The lock is now released before the watcher is called. A test
+  hammers start/stop while the file is being written. This is what left CI's
+  Rust tests running for an hour on the 1.2.4 release commit.
+- Wrapped bullets render as bullets. quikdown 1.2.21 read a 4-space
+  continuation line under a nested item as a code block, which closed the
+  lists and left the next item as a bare `<li>` with its marker on the
+  pane's edge. Fixed in quikdown 1.2.22 (deftio/quikdown#36), which quikleaf
+  now uses; an e2e test covers the rendering.
+- `tmp/` is ignored by git, for local screenshots and notes.
+
+## [1.2.4] - 2026-11-07
+
+Merged to main but never tagged: CI's Rust tests hung twice on the watcher
+deadlock fixed in 1.2.5, so the tag job never ran. Everything below shipped
+with 1.2.5.
 
 AI assistance: the styling pass, the chat internals document, the privacy
 statement, the tests and this entry were drafted with Claude Code under the
