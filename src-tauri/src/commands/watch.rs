@@ -183,19 +183,31 @@ impl WatchHub {
         let canonical = file.canonicalize().map_err(|e| format!("Cannot watch {}: {}", path, e))?;
         let dir = canonical.parent().ok_or_else(|| "Cannot watch a path with no folder".to_string())?.to_path_buf();
         let mut guard = self.watcher()?;
-        let mut w = self.watched.lock().map_err(|e| e.to_string())?;
-        if w.files.insert(canonical.clone(), path.to_string()).is_some() {
-            return Ok(());
-        }
-        w.seen.insert(canonical.clone(), stamp(&canonical));
-        let count = w.dirs.entry(dir.clone()).or_insert(0);
-        *count += 1;
-        if *count == 1 {
-            guard
-                .as_mut()
-                .unwrap()
-                .watch(&dir, RecursiveMode::NonRecursive)
-                .map_err(|e| format!("Cannot watch {}: {}", dir.display(), e))?;
+        // The bookkeeping happens under `watched`, and the lock is released
+        // before the watcher is asked to do anything. notify's `watch` and
+        // `unwatch` wait for its event thread to answer, and that thread's
+        // callback takes `watched` to classify each event: holding the lock
+        // across the call deadlocks the two whenever an event is in flight
+        // (inotify showed it; CI's Rust tests once sat for an hour on it).
+        let first_in_dir = {
+            let mut w = self.watched.lock().map_err(|e| e.to_string())?;
+            if w.files.insert(canonical.clone(), path.to_string()).is_some() {
+                return Ok(());
+            }
+            w.seen.insert(canonical.clone(), stamp(&canonical));
+            let count = w.dirs.entry(dir.clone()).or_insert(0);
+            *count += 1;
+            *count == 1
+        };
+        if first_in_dir {
+            if let Err(e) = guard.as_mut().unwrap().watch(&dir, RecursiveMode::NonRecursive) {
+                if let Ok(mut w) = self.watched.lock() {
+                    w.files.remove(&canonical);
+                    w.seen.remove(&canonical);
+                    w.dirs.remove(&dir);
+                }
+                return Err(format!("Cannot watch {}: {}", dir.display(), e));
+            }
         }
         Ok(())
     }
@@ -203,25 +215,37 @@ impl WatchHub {
     /// Stop reporting changes to `path`. Unknown paths are ignored.
     pub fn stop(&self, path: &str) -> Result<(), String> {
         let canonical = Path::new(path).canonicalize().unwrap_or_else(|_| PathBuf::from(path));
-        let mut w = self.watched.lock().map_err(|e| e.to_string())?;
-        if w.files.remove(&canonical).is_none() {
-            return Ok(());
-        }
-        w.seen.remove(&canonical);
-        if let Some(dir) = canonical.parent().map(|d| d.to_path_buf()) {
-            let done = match w.dirs.get_mut(&dir) {
-                Some(n) => {
-                    *n -= 1;
-                    *n == 0
-                }
-                None => false,
-            };
-            if done {
-                w.dirs.remove(&dir);
-                if let Ok(mut guard) = self.watcher.lock() {
-                    if let Some(watcher) = guard.as_mut() {
-                        let _ = watcher.unwatch(&dir);
+        // Same rule as in `start`: decide under `watched`, then let go of it
+        // before calling into the watcher.
+        let release = {
+            let mut w = self.watched.lock().map_err(|e| e.to_string())?;
+            if w.files.remove(&canonical).is_none() {
+                return Ok(());
+            }
+            w.seen.remove(&canonical);
+            match canonical.parent().map(|d| d.to_path_buf()) {
+                Some(dir) => {
+                    let done = match w.dirs.get_mut(&dir) {
+                        Some(n) => {
+                            *n -= 1;
+                            *n == 0
+                        }
+                        None => false,
+                    };
+                    if done {
+                        w.dirs.remove(&dir);
+                        Some(dir)
+                    } else {
+                        None
                     }
+                }
+                None => None,
+            }
+        };
+        if let Some(dir) = release {
+            if let Ok(mut guard) = self.watcher.lock() {
+                if let Some(watcher) = guard.as_mut() {
+                    let _ = watcher.unwatch(&dir);
                 }
             }
         }
@@ -369,5 +393,45 @@ mod tests {
         std::fs::write(&file, "v2").unwrap();
         assert!(wait_for(&rx, &given, "changed"), "no change event for {}", given);
         hub.stop(&given).unwrap();
+    }
+
+    #[test]
+    fn start_and_stop_do_not_deadlock_while_the_file_is_being_written() {
+        // Regression: `stop` called notify's `unwatch` with `watched` held.
+        // On inotify that call waits for the event thread, whose callback was
+        // waiting for the same lock when an event landed mid-stop. The work
+        // runs on its own thread so a deadlock fails the test instead of
+        // hanging the run.
+        let tmp = TempDir::new().unwrap();
+        let file = tmp.path().join("busy.md");
+        std::fs::write(&file, "0").unwrap();
+        let given = file.to_string_lossy().to_string();
+        let (done_tx, done_rx) = mpsc::channel();
+        std::thread::spawn(move || {
+            let hub = WatchHub::new(|_| {});
+            let writing = Arc::new(AtomicBool::new(true));
+            let writer = {
+                let (writing, file) = (Arc::clone(&writing), file.clone());
+                std::thread::spawn(move || {
+                    let mut n = 0u32;
+                    while writing.load(Ordering::Relaxed) {
+                        n += 1;
+                        let _ = std::fs::write(&file, n.to_string());
+                        std::thread::yield_now();
+                    }
+                })
+            };
+            for _ in 0..100 {
+                hub.start(&given).unwrap();
+                hub.stop(&given).unwrap();
+            }
+            writing.store(false, Ordering::Relaxed);
+            writer.join().unwrap();
+            let _ = done_tx.send(());
+        });
+        assert!(
+            done_rx.recv_timeout(Duration::from_secs(60)).is_ok(),
+            "start/stop deadlocked with writes in flight"
+        );
     }
 }

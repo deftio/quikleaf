@@ -2,7 +2,7 @@
 
 > A local, cross-platform desktop markdown editor (Tauri v2) with a preview that renders diagrams, math, maps, charts and 3D offline (quikdown), and an LLM chat per document that can see and edit only that document. Files stay on the machine; the only network traffic is to the LLM host the user configures.
 
-Version 1.2.4. BSD-2-Clause. Source: https://github.com/deftio/quikleaf. Site: https://deftio.github.io/quikleaf/. npm: `quikleaf` (a launcher that downloads the release binary on first run).
+Version 1.2.5. BSD-2-Clause. Source: https://github.com/deftio/quikleaf. Site: https://deftio.github.io/quikleaf/. npm: `quikleaf` (a launcher that downloads the release binary on first run).
 
 ## What it does
 

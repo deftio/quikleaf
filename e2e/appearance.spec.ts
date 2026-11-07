@@ -43,6 +43,17 @@ test.describe("Appearance settings", () => {
     await expect(page.locator("#app")).not.toHaveClass(/preview-mono/);
   });
 
+  test("wrapped nested bullets render as bullets, not code blocks or stray items", async ({ page }) => {
+    // quikdown 1.2.21 read a 4-space continuation line under a nested bullet
+    // as a code block and emitted the next item as a bare <li> (deftio/quikdown#36).
+    await page.locator(".qde-textarea").fill("- **Docs**\n  - one two\n    three.\n  - four five\n    six.\n");
+    const preview = page.locator("#editor-container .qde-preview");
+    await expect(preview.locator("pre")).toHaveCount(0);
+    await expect(preview.locator("li:not(ul li, ol li)")).toHaveCount(0);
+    const nested = preview.locator("ul ul li");
+    await expect(nested).toHaveText(["one two three.", "four five six."]);
+  });
+
   test("the user's CSS applies inside the preview as it is typed", async ({ page }) => {
     await page.click("#btn-settings");
     await page.fill("#set-preview-css", "h1 { color: rgb(200, 0, 0); }");

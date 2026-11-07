@@ -1,6 +1,6 @@
 {
   "name": "quikleaf",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "type": "module",
   "description": "A standalone, cross-platform desktop markdown editor with rich rendering and LLM chat integration",
   "author": "deftio <deftio@deftio.com>",
@@ -61,6 +61,6 @@
     "@tauri-apps/plugin-fs": "^2.7.1",
     "@tauri-apps/plugin-shell": "^2.6.0",
     "bitwrench": "^2.1.11",
-    "quikdown": "^1.2.21"
+    "quikdown": "^1.2.22"
   }
 }

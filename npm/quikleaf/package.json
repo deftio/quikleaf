@@ -1,6 +1,6 @@
 {
   "name": "quikleaf",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "A standalone, cross-platform desktop markdown editor with rich rendering and LLM chat integration",
   "author": "deftio <deftio@deftio.com>",
   "license": "BSD-2-Clause",
