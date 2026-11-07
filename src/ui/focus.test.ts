@@ -3,6 +3,7 @@ import bw from "bitwrench";
 import { getEditor, initEditor } from "../editor/editor";
 import { makeFindBar, openFind } from "./findbar";
 import { handleFocusKeydown, isFocusMode, makeFocusExitPill, setFocusMode, toggleFocusMode } from "./focus";
+import { appendEl } from "./taco";
 
 function app(): HTMLElement {
   return document.getElementById("app")!;
@@ -15,7 +16,7 @@ function key(init: KeyboardEventInit): KeyboardEvent {
 beforeEach(() => {
   bw.append(app(), makeFocusExitPill());
   bw.append(app(), makeFindBar());
-  const container = bw.append(app(), { t: "div", a: { id: "editor-container" } });
+  const container = appendEl(app(), { t: "div", a: { id: "editor-container" } });
   initEditor(container);
 });
 
@@ -66,7 +67,7 @@ describe("handleFocusKeydown", () => {
 
   it("Escape is left alone while a modal or the find bar is open", () => {
     setFocusMode(true);
-    const modal = bw.append(app(), { t: "div", a: { class: "bw_bccl_modal bw_bccl_modal_show" } });
+    const modal = appendEl(app(), { t: "div", a: { class: "bw_bccl_modal bw_bccl_modal_show" } });
     expect(handleFocusKeydown(key({ key: "Escape" }))).toBe(false);
     expect(isFocusMode()).toBe(true);
     modal.remove();

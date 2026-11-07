@@ -5,7 +5,29 @@ All notable changes to quikleaf are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.5] - Unreleased
+## [1.2.6] - Unreleased
+
+AI assistance: the dependency update, the tests and this entry were drafted
+with Claude Code under the maintainer's direction; reviewed and released by
+the maintainer.
+
+### Changed
+
+- bitwrench 2.1.13 (from 2.1.11). The release fixed the gaps quikleaf had
+  worked around: `bw.append` takes an element id, slot setters render
+  `bw.raw()` and arrays, every factory reads `id` and `class`, and the BCCL
+  config types describe the factories. It also narrows `bw.append` and
+  `bw.replace` to `HTMLElement | null`, so quikleaf gains `appendEl()` in
+  `src/ui/taco.ts`, which throws when the target is missing, for the places
+  that need the element back. The local `ModalProps` type is now bitwrench's
+  own `ModalConfig`, and the casts around `bw.makeModal`, `bw.makeToast`,
+  `bw.patch` and `bw.syncChildren` are gone. One behaviour change needed a
+  fix: `makeFormGroup` now copies the group's `id` onto an input TACO that
+  has none, which put a second `#set-model` on the Model row's wrapper; the
+  wrapper has its own id.
+- quikdown stays at 1.2.22, the current release.
+
+## [1.2.5] - 2026-11-07
 
 AI assistance: the fixes, the quikdown update, the tests and this entry
 were drafted with Claude Code under the maintainer's direction; reviewed and

@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import bw from "bitwrench";
 import { invoke } from "@tauri-apps/api/core";
 import { hideFileTree, highlightFile, isFileTreeVisible, loadTree, makeFileTreePanel, setOnFileClick, showFileTree } from "./file-tree";
+import { appendEl } from "../ui/taco";
 
 const mockInvoke = vi.mocked(invoke);
 
@@ -35,7 +36,7 @@ function listing(entries: Entry[]): void {
 }
 
 function mount(): HTMLElement {
-  return bw.append(byId("app"), makeFileTreePanel());
+  return appendEl(byId("app"), makeFileTreePanel());
 }
 
 beforeEach(() => {

@@ -3,6 +3,7 @@ import bw from "bitwrench";
 import { getEditor, initEditor, notifyEditorChange } from "../editor/editor";
 import * as tabs from "../editor/tabs";
 import { makeToggleButton } from "./shell";
+import { appendEl } from "./taco";
 import {
   OUTLINE_DEBOUNCE_MS,
   handleOutlineKeydown,
@@ -41,7 +42,7 @@ beforeEach(() => {
   editorText = "";
   bw.append(app(), makeToggleButton("btn-toggle-outline", "Outline", vi.fn()));
   bw.append(app(), makeOutlinePanel());
-  const container = bw.append(app(), { t: "div", a: { id: "editor-container" } });
+  const container = appendEl(app(), { t: "div", a: { id: "editor-container" } });
   initEditor(container);
   getEditor().getMarkdown.mockImplementation(() => editorText);
 });

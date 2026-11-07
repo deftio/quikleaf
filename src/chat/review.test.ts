@@ -5,6 +5,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import bw from "bitwrench";
+import { appendEl } from "../ui/taco";
 import {
   DIFF_CONTEXT,
   MAX_DIFF_ROWS,
@@ -191,7 +192,7 @@ describe("showAppliedDiff", () => {
 describe("diffViewTaco", () => {
   function mount(before: string, after: string): HTMLElement {
     const { view } = diffViewTaco(before, after);
-    return bw.append(log(), view);
+    return appendEl(log(), view);
   }
   function rowTexts(view: HTMLElement): string[] {
     return Array.from(view.querySelectorAll(".diff-line")).map((n) => n.textContent ?? "");
@@ -249,7 +250,7 @@ describe("diffViewTaco", () => {
 
 describe("helpers", () => {
   it("summaryTaco renders +N −M", () => {
-    const node = bw.append(log(), summaryTaco({ added: 4, removed: 2 }));
+    const node = appendEl(log(), summaryTaco({ added: 4, removed: 2 }));
     expect(node.textContent).toBe("+4−2");
   });
 

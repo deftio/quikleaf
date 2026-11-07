@@ -9,6 +9,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getEditor, initEditor, notifyEditorChange } from "./editor";
 import * as tabs from "./tabs";
 import { initDocuments, setDocumentsProjectMode } from "./documents";
+import { appendEl } from "../ui/taco";
 import {
   SRC_ATTR,
   disposePreviewImages,
@@ -42,7 +43,7 @@ beforeEach(async () => {
   mockInvoke.mockReset();
   mockInvoke.mockImplementation(async () => null);
   bw.append(app(), { t: "span", a: { id: "status-file" } });
-  const container = bw.append(app(), { t: "div", a: { id: "editor-container" } });
+  const container = appendEl(app(), { t: "div", a: { id: "editor-container" } });
   initEditor(container);
   setDocumentsProjectMode(false);
   await initDocuments();

@@ -32,6 +32,7 @@ import {
   projectRootPath,
 } from "./documents";
 import { makeFileTreePanel, loadTree } from "../project/file-tree";
+import { appendEl } from "../ui/taco";
 
 const mockInvoke = vi.mocked(invoke);
 const mockOpen = vi.mocked(openDialog);
@@ -79,7 +80,7 @@ beforeEach(async () => {
   mockWrite.mockResolvedValue(undefined);
 
   bw.append(app(), { t: "span", a: { id: "status-file" }, c: "No file open" });
-  const container = bw.append(app(), { t: "div", a: { id: "editor-container" } });
+  const container = appendEl(app(), { t: "div", a: { id: "editor-container" } });
   initEditor(container);
   const inst = getEditor();
   inst.getMarkdown.mockImplementation(() => editorText);

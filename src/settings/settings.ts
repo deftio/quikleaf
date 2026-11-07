@@ -429,9 +429,11 @@ export function makeSettingsModal(): Taco {
       bw.makeFormGroup({
         id: "set-model",
         label: "Model",
+        // The wrapper carries its own id: bitwrench 2.1.13's makeFormGroup copies the
+        // group's id onto an input TACO that has none, which would duplicate #set-model.
         input: {
           t: "div",
-          a: { class: "model-row" },
+          a: { id: "set-model-row", class: "model-row" },
           c: [
             withAttrs(bw.makeInput({ type: "text", placeholder: "llama3, ai/smollm2, claude-sonnet-5-5, ..." }), { id: "set-model" }),
             withAttrs(bw.makeButton({ text: "Fetch Models", variant: "secondary", onclick: onFetchModels }), {

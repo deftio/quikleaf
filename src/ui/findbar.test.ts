@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import bw from "bitwrench";
 import { getEditor, initEditor, notifyEditorChange } from "../editor/editor";
+import { appendEl } from "./taco";
 import {
   closeFind,
   findNext,
@@ -61,7 +62,7 @@ let inputEvents = 0;
 
 beforeEach(() => {
   bw.append(app(), makeFindBar());
-  const container = bw.append(app(), { t: "div", a: { id: "editor-container" } });
+  const container = appendEl(app(), { t: "div", a: { id: "editor-container" } });
   initEditor(container);
   textarea().value = TEXT;
   textarea().setSelectionRange(0, 0);
@@ -375,7 +376,7 @@ describe("handleFindKeydown and Escape", () => {
   it("a document-level Escape closes an open bar but not a closed one or under a modal", () => {
     expect(handleFindKeydown(k({ key: "Escape" }))).toBe(false);
     openFind();
-    const modal = bw.append(app(), { t: "div", a: { class: "bw_bccl_modal_show" } });
+    const modal = appendEl(app(), { t: "div", a: { class: "bw_bccl_modal_show" } });
     expect(handleFindKeydown(k({ key: "Escape" }))).toBe(false);
     expect(isFindOpen()).toBe(true);
     modal.remove();

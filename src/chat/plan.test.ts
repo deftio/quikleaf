@@ -4,6 +4,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import bw from "bitwrench";
+import { appendEl } from "../ui/taco";
 import {
   STEP_GLYPH,
   STEP_STATUSES,
@@ -119,7 +120,7 @@ describe("planSet", () => {
   });
 
   it("two hosts keep separate plans and cards", () => {
-    const other = makePlanHost(bw.append(document.body, { t: "div", a: { id: "other-log" } }));
+    const other = makePlanHost(appendEl(document.body, { t: "div", a: { id: "other-log" } }));
     planSet({ steps: ["mine"] });
     planSetOn({ steps: ["theirs", "too"] }, other);
     expect(getPlan()!.steps.map((s) => s.text)).toEqual(["mine"]);

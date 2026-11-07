@@ -28,6 +28,7 @@ import {
 } from "./settings";
 import type { LLMSettings } from "./settings";
 import { LOG_OPEN } from "../diag/perf";
+import { appendEl } from "../ui/taco";
 
 const mockInvoke = vi.mocked(invoke);
 
@@ -161,7 +162,7 @@ describe("HOST_PRESETS", () => {
 
 describe("makeSettingsModal", () => {
   it("renders the overlay with every form control, action and footer button", () => {
-    const node = bw.append(byId("app"), makeSettingsModal());
+    const node = appendEl(byId("app"), makeSettingsModal());
     expect(node.id).toBe("settings-overlay");
     expect(node.classList.contains("bw_bccl_modal")).toBe(true);
     expect(node.classList.contains(SHOW)).toBe(false);
@@ -219,7 +220,7 @@ describe("makeSettingsModal", () => {
   });
 
   it("offers the three edit-approval policies under an Agent section, defaulting to files", () => {
-    const node = bw.append(byId("app"), makeSettingsModal());
+    const node = appendEl(byId("app"), makeSettingsModal());
     const titles = Array.from(node.querySelectorAll(".settings-section-title")).map((h) => h.textContent);
     expect(titles).toEqual(["LLM provider", "Appearance", "Chat display", "Agent", "Project", "Diagnostics"]);
     const sel = byId<HTMLSelectElement>("set-edit-approval");
@@ -228,7 +229,7 @@ describe("makeSettingsModal", () => {
   });
 
   it("offers the project file location under Project, between Agent and Diagnostics, defaulting to the .quikleaf folder", () => {
-    const node = bw.append(byId("app"), makeSettingsModal());
+    const node = appendEl(byId("app"), makeSettingsModal());
     const sel = byId<HTMLSelectElement>("set-project-file");
     expect(Array.from(sel.options).map((o) => o.value)).toEqual(["dotdir", "root"]);
     expect(sel.value).toBe("dotdir");
@@ -238,7 +239,7 @@ describe("makeSettingsModal", () => {
   });
 
   it("offers the drawer side under Chat display, defaulting to left", () => {
-    const node = bw.append(byId("app"), makeSettingsModal());
+    const node = appendEl(byId("app"), makeSettingsModal());
     const sel = byId<HTMLSelectElement>("set-chat-side");
     expect(Array.from(sel.options).map((o) => o.value)).toEqual(CHAT_SIDE_OPTIONS.map((o) => o.value));
     expect(sel.value).toBe("left");
