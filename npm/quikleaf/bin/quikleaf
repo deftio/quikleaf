@@ -7,8 +7,15 @@
 
 const { spawnSync } = require("child_process");
 const { ensureBinary } = require("../install.js");
+const { earlyExit } = require("../help.js");
+const { version } = require("../package.json");
 
 async function main() {
+  const early = earlyExit(process.argv.slice(2), version);
+  if (early !== null) {
+    process.stdout.write(early);
+    process.exit(0);
+  }
   let binary;
   try {
     binary = await ensureBinary();

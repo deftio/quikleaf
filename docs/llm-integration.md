@@ -1,6 +1,6 @@
 # LLM Integration
 
-quikleaf includes a built-in AI assistant called QD that can read, edit, and manage your documents through a tool-calling interface.
+quikleaf includes a built-in AI assistant called QD that can read, edit, and manage your documents through a tool-calling interface. This page is the user's view: providers, settings, what the tools are. [quikleaf-chat-internals.md](quikleaf-chat-internals.md) is the implementer's: how a turn runs, the full system prompt, the dispatcher, the wire formats.
 
 ## Supported Providers
 
@@ -35,7 +35,10 @@ Click **Settings** in the title bar to configure:
 | Host | API endpoint URL |
 | API Key | Authentication key (blank for local models) |
 | Model | Model name (use "Fetch Models" to list available) |
+| Show timestamps / Show timing under replies / Show tool calls | Chat display switches. Timestamps are on by default; the timing line under replies is off (the status bar always shows the last call); tool-call entries are off. All three apply to messages already on screen. |
 | Chat drawer side | Which edge of the tab the chat drawer opens on: left (default) or right. Applies immediately. |
+| Edit approval | Agent: which edits wait for Accept in a diff card: always, project file writes only (default), or never. See Reviewing Edits. |
+| Write performance log | Diagnostics: one JSON line per model call, tool call and chat turn in the OS log folder (on by default). Open Log Folder, Clear Log and View Log sit beside it. |
 | Project file location | Where a new project's file goes: a `.quikleaf` folder (default) or `quikleaf.prj` in the project root. An existing project file is used where it is. |
 | Theme | Light, Dark, or Follow the system (default). The sun/moon button in the title bar flips between light and dark. |
 | Interface font size | Menus, tab bar, toolbars, status bar (12–18 px, default 14). Applies immediately. |
@@ -156,7 +159,7 @@ Type these in the chat input:
 
 ## Timestamps, timing and the performance log
 
-Every chat message carries a timestamp. Assistant replies add a timing line: total time, time to first token, an approximate token count (characters ÷ 4; providers rarely report usage over SSE) and tokens per second. Tool calls show their duration. Settings → **Chat display** toggles timestamps and tool-call entries, and the change applies to messages already on screen.
+Every chat message carries a timestamp. The status bar shows the last model call: time to first token, tokens per second, total time, an approximate token count (characters ÷ 4; providers rarely report usage over SSE) and, when the turn wrote to the document through the document tools, how many characters it put there. Assistant replies can also carry a timing line of their own (Settings → **Chat display → Show timing under replies**, off by default). Tool calls show their duration. The Chat display switches, timestamps, timing and tool-call entries, apply to messages already on screen.
 
 With Settings → **Diagnostics → Write performance log** on (the default), the same numbers are appended as JSON lines:
 

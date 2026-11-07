@@ -427,13 +427,15 @@ describe("toggleChatPanel / setChatDisplay", () => {
     expect(document.getElementById("btn-toggle-chat")!.getAttribute("aria-pressed")).toBe("false");
   });
 
-  it("setChatDisplay flips the two visibility classes independently", () => {
+  it("setChatDisplay flips the three visibility classes independently", () => {
     const panel = document.getElementById("chat-panel")!;
-    setChatDisplay({ timestamps: true, tools: false });
+    setChatDisplay({ timestamps: true, timing: false, tools: false });
     expect(panel.classList.contains("show-timestamps")).toBe(true);
+    expect(panel.classList.contains("show-timing")).toBe(false);
     expect(panel.classList.contains("show-tools")).toBe(false);
-    setChatDisplay({ timestamps: false, tools: true });
+    setChatDisplay({ timestamps: false, timing: true, tools: true });
     expect(panel.classList.contains("show-timestamps")).toBe(false);
+    expect(panel.classList.contains("show-timing")).toBe(true);
     expect(panel.classList.contains("show-tools")).toBe(true);
   });
 });

@@ -124,11 +124,11 @@ describe("presetFor", () => {
 
 describe("chatDisplayOf", () => {
   it("defaults timestamps on when the flag is absent", () => {
-    expect(chatDisplayOf({ ...saved, showTimestamps: undefined, showToolCalls: false })).toEqual({ timestamps: true, tools: false });
+    expect(chatDisplayOf({ ...saved, showTimestamps: undefined, showTiming: undefined, showToolCalls: false })).toEqual({ timestamps: true, timing: false, tools: false });
   });
 
   it("reflects explicit flags", () => {
-    expect(chatDisplayOf({ ...saved, showTimestamps: false, showToolCalls: true })).toEqual({ timestamps: false, tools: true });
+    expect(chatDisplayOf({ ...saved, showTimestamps: false, showTiming: true, showToolCalls: true })).toEqual({ timestamps: false, timing: true, tools: true });
   });
 });
 
@@ -176,6 +176,7 @@ describe("makeSettingsModal", () => {
       "settings-fetch-models",
       "models-list",
       "set-show-timestamps",
+      "set-show-timing",
       "set-show-tools",
       "set-perf-log",
       "set-edit-approval",
@@ -361,6 +362,7 @@ describe("open / close and the form round-trip", () => {
     setValue("set-model", " claude-x ");
     setChecked("set-show-tools", false);
     setChecked("set-show-timestamps", true);
+    setChecked("set-show-timing", true);
     setChecked("set-perf-log", true);
     byId<HTMLSelectElement>("set-edit-approval").value = "always";
     byId<HTMLSelectElement>("set-chat-side").value = "right";
@@ -374,6 +376,7 @@ describe("open / close and the form round-trip", () => {
       model: "claude-x",
       showToolCalls: false,
       showTimestamps: true,
+      showTiming: true,
       perfLog: true,
       editApproval: "always",
       chatSide: "right",
@@ -386,6 +389,7 @@ describe("open / close and the form round-trip", () => {
     });
     const panel = byId("chat-panel");
     expect(panel.classList.contains("show-timestamps")).toBe(true);
+    expect(panel.classList.contains("show-timing")).toBe(true);
     expect(panel.classList.contains("show-tools")).toBe(false);
     expect(byId("tab-body").classList.contains("chat-right")).toBe(true);
     expect(text("llm-status")).toBe("claude-x @ api.anthropic.com");

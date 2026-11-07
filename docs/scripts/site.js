@@ -17,7 +17,7 @@
   'use strict';
 
   /* --- version (bumped by tools/feature.sh) ------------------------------- */
-  var SITE_VERSION = '1.2.3';
+  var SITE_VERSION = '1.2.4';
   var REPO = 'https://github.com/deftio/quikleaf';
 
   /* --- theme ---------------------------------------------------------------- */
@@ -136,6 +136,8 @@
       '.site-card-grid .bw_bccl_card': { height: '100%', background: 'var(--site-surface)', border: '1px solid var(--site-border)' },
       '.site-card-grid .bw_bccl_card_title': { 'font-size': '0.95rem', 'margin-bottom': '0.4rem' },
       '.site-card-grid .bw_bccl_card_body': { padding: '0.9rem 1rem' },
+      '.site-docs .bw_row > div': { 'margin-bottom': '1rem' },
+      '.site-docs .site-doc-link': { display: 'block', padding: '0 1rem 0.9rem', 'font-size': '0.8rem', 'font-family': 'ui-monospace, SFMono-Regular, Menlo, monospace', 'word-break': 'break-all' },
       '.site-card-grid .bw_bccl_card p': { margin: 0, 'font-size': '0.93rem' },
       '.site-card-grid .bw_row > div': { 'margin-bottom': '1rem' },
       '.site-card-grid pre': { padding: '0.6rem 0.8rem', 'font-size': '0.8rem' },
@@ -302,6 +304,7 @@
       { text: 'Install', href: '#install' },
       { text: 'Features', href: '#features' },
       { text: 'Architecture', href: '#architecture' },
+      { text: 'Docs', href: '#docs' },
       { text: 'GitHub', href: REPO },
       { text: 'quikdown', href: 'https://github.com/deftio/quikdown' }
     ]
@@ -464,6 +467,36 @@
     ], 'bw_col_md_6')
   });
 
+  /* --- documentation ---------------------------------------------------------
+   * One card per document, linking to the rendered file on GitHub. Keep in
+   * step with the Docs list in llms.txt. */
+  var DOCS = [
+    ['README', 'README.md', 'Install, use, settings, keyboard, build from source.'],
+    ['Chat internals', 'docs/quikleaf-chat-internals.md', 'How a chat turn runs: the full system prompt, tool schemas and counts, the dispatcher\u2019s scope gates, edit review, provider wire formats, the streaming proxy.'],
+    ['LLM integration', 'docs/llm-integration.md', 'Providers and presets, settings, the tool list per scope, edit review, slash commands, the performance log.'],
+    ['Architecture', 'docs/architecture.md', 'Module by module: the Rust commands, the TypeScript modules, UI rules, the tool-calling loop.'],
+    ['Project mode', 'docs/project-mode.md', 'The file tree, the project chat, scratchpad and key-value store, the project file format.'],
+    ['Agents and external tools', 'agents.md', 'Tool definitions and results, the project file as a channel, watching files an agent writes, the log format.'],
+    ['Publishing', 'docs/publishing.md', 'CI, tags, GitHub releases and npm trusted publishing: the trust path from a merge to npm.'],
+    ['Contributing', 'CONTRIBUTING.md', 'Reporting bugs, conventions, tests, pull requests.'],
+    ['Security', 'SECURITY.md', 'Reporting a vulnerability, what the app does with your data, boundaries enforced in code, known gaps.'],
+    ['Privacy', 'PRIVACY.md', 'What leaves the machine and when, what is stored where, what this website records.'],
+    ['Changelog', 'CHANGELOG.md', 'Every release, with its AI-assistance line.'],
+    ['llms.txt', 'llms.txt', 'The short form for language models.']
+  ];
+  function docCard(d) {
+    var card = bw.makeCard({ title: d[0], content: { t: 'p', c: d[2] } });
+    var link = { t: 'a', a: { href: REPO + '/blob/main/' + d[1], target: '_blank', rel: 'noopener', class: 'site-doc-link' }, c: d[1] };
+    card.c = Array.isArray(card.c) ? card.c.concat([link]) : [card.c, link];
+    return card;
+  }
+  var docs = section({
+    id: 'docs',
+    title: 'Documentation',
+    subtitle: 'Each page is a markdown file in the repository, rendered on GitHub.',
+    content: { t: 'div', a: { class: 'site-card-grid site-docs' }, c: row(DOCS.map(docCard), 'bw_col_md_6 bw_col_lg_4') }
+  });
+
   /* --- build from source ---------------------------------------------------- */
   var build = section({
     id: 'build',
@@ -489,7 +522,8 @@
 '    fs.rs                   File I/O commands\n' +
 '    llm.rs                  LLM API proxy with streaming\n' +
 '    project.rs              Project state, memory, KV, file tools, search\n' +
-'    diag.rs                 Performance log + CLI shim installer\n' +
+'    diag.rs                 Performance log, CLI shim installer, build info\n' +
+'    cli.rs                  --help / --version, unknown-flag warning\n' +
 '    watch.rs                File watcher behind the Watch toggle and --watch\n' +
 '  src/main.rs               CLI parsing, app setup, asset:// image handler\n' +
 '\n' +
@@ -555,8 +589,8 @@
     c: { t: 'div', a: { class: 'bw_container' }, c: [
       row([
         [{ t: 'h5', c: 'quikleaf' }, { t: 'p', c: 'A standalone, cross-platform markdown editor with rich rendering and LLM chat. Built with Tauri v2, a bitwrench.js UI and quikdown rendering.' }],
-        col('Product', [{ t: 'a', a: { href: '#features' }, c: 'Features' }, { t: 'a', a: { href: '#install' }, c: 'Install' }, { t: 'a', a: { href: '#build' }, c: 'Build from source' }, { t: 'a', a: { href: '#architecture' }, c: 'Architecture' }]),
-        col('Resources', [ext('GitHub', REPO), ext('Issues', REPO + '/issues'), ext('Releases', REPO + '/releases'), ext('npm', 'https://www.npmjs.com/package/quikleaf'), ext('License (BSD-2)', REPO + '/blob/main/LICENSE')]),
+        col('Product', [{ t: 'a', a: { href: '#features' }, c: 'Features' }, { t: 'a', a: { href: '#install' }, c: 'Install' }, { t: 'a', a: { href: '#build' }, c: 'Build from source' }, { t: 'a', a: { href: '#architecture' }, c: 'Architecture' }, { t: 'a', a: { href: '#docs' }, c: 'Documentation' }]),
+        col('Resources', [ext('GitHub', REPO), ext('Issues', REPO + '/issues'), ext('Releases', REPO + '/releases'), ext('npm', 'https://www.npmjs.com/package/quikleaf'), ext('Chat internals', REPO + '/blob/main/docs/quikleaf-chat-internals.md'), ext('Privacy', REPO + '/blob/main/PRIVACY.md'), ext('License (BSD-2)', REPO + '/blob/main/LICENSE')]),
         col('Related', [ext('quikdown', 'https://github.com/deftio/quikdown'), ext('bitwrench', 'https://github.com/deftio/bitwrench'), ext('quikdown site', 'https://deftio.github.io/quikdown/pages/'), ext('quikdown editor', 'https://deftio.github.io/quikdown/pages/edit/'), ext('deftio', 'https://github.com/deftio')])
       ], 'bw_col_md_3'),
       { t: 'div', a: { class: 'site-footer-bottom' }, c: [
@@ -567,7 +601,7 @@
   };
 
   /* --- mount ---------------------------------------------------------------- */
-  bw.mount('#app', { t: 'div', c: [nav, { t: 'main', c: [hero, install, features, rendering, providers, reference, build, architecture, cta] }, footer] });
+  bw.mount('#app', { t: 'div', c: [nav, { t: 'main', c: [hero, install, features, rendering, providers, reference, docs, build, architecture, cta] }, footer] });
   applyMode(currentMode());
 
   /* Show the latest released version in the nav badge and point the download

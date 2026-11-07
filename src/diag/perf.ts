@@ -83,6 +83,21 @@ export function summarizeTiming(t: LlmTiming): string {
   return parts.join(" · ");
 }
 
+/**
+ * The status bar's account of the last model call, in reading order: time to
+ * first token, generation rate, wall time, size, and how much of the turn
+ * landed in the document through the document tools (omitted when nothing did).
+ */
+export function statusTiming(t: LlmTiming, docChars = 0): string {
+  const parts: string[] = [];
+  if (t.ttftMs !== null) parts.push(`first token ${formatMs(t.ttftMs)}`);
+  if (t.tokPerSec !== null) parts.push(`${t.tokPerSec} tok/s`);
+  parts.push(formatMs(t.totalMs));
+  if (t.estTokens > 0) parts.push(`≈${t.estTokens} tok`);
+  if (docChars > 0) parts.push(`${docChars.toLocaleString()} chars to document`);
+  return parts.join(" · ");
+}
+
 export function formatClock(d: Date = new Date()): string {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;

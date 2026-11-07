@@ -64,7 +64,7 @@ export function highlightFile(path: string | null): void {
 }
 
 function makeItem(entry: FileEntry): Taco {
-  const icon = entry.type === "dir" ? "📁" : getFileIcon(entry.name);
+  const icon = entry.type === "dir" ? "dir" : getFileIcon(entry.name);
   const isFile = entry.type === "file";
   return {
     t: "div",
@@ -78,7 +78,7 @@ function makeItem(entry: FileEntry): Taco {
           }
         : undefined,
     },
-    c: `${icon} ${entry.name}`,
+    c: [{ t: "span", a: { class: `tree-icon ${icon}`, "aria-hidden": "true" } }, { t: "span", a: { class: "tree-name" }, c: entry.name }],
   };
 }
 
@@ -111,35 +111,38 @@ export async function loadTree(path?: string) {
   }
 }
 
-export function getFileIcon(name: string): string {
-  const ext = name.split(".").pop()?.toLowerCase() || "";
+/**
+ * The glyph kind for a file name: one of `markdown`, `code`, `image` or
+ * `file`. Drawn by `.tree-icon.<kind>` in `ui/theme.ts` (`TREE_GLYPHS`);
+ * directories are `dir`.
+ */
+export type TreeIcon = "dir" | "markdown" | "code" | "image" | "file";
+
+export function getFileIcon(name: string): TreeIcon {
+  const ext = name.includes(".") ? name.split(".").pop()!.toLowerCase() : "";
   switch (ext) {
     case "md":
     case "markdown":
-      return "📝";
+      return "markdown";
     case "ts":
     case "tsx":
     case "js":
     case "jsx":
-      return "📜";
     case "json":
-      return "📋";
     case "html":
     case "css":
-      return "🌐";
+    case "rs":
+    case "toml":
+    case "yaml":
+    case "yml":
+      return "code";
     case "png":
     case "jpg":
     case "jpeg":
     case "gif":
     case "svg":
-      return "🖼️";
-    case "rs":
-      return "🦀";
-    case "toml":
-    case "yaml":
-    case "yml":
-      return "⚙️";
+      return "image";
     default:
-      return "📄";
+      return "file";
   }
 }

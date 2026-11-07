@@ -27,8 +27,10 @@ export interface LLMSettings {
   model: string;
   /** Show tool-call entries in the chat log. */
   showToolCalls: boolean;
-  /** Show a timestamp and timing line under each message. */
+  /** Show a timestamp under each message. */
   showTimestamps?: boolean;
+  /** Show the timing line (total, first token, tokens) under each reply too; the status bar always has the last one. */
+  showTiming?: boolean;
   /** Append timings to the performance log file. */
   perfLog?: boolean;
   /**
@@ -77,6 +79,7 @@ const defaults: LLMSettings = {
   model: "",
   showToolCalls: false,
   showTimestamps: true,
+  showTiming: false,
   perfLog: true,
   editApproval: "files",
   chatSide: "left",
@@ -106,7 +109,7 @@ export function isConfigured(s: LLMSettings): boolean {
 
 /** Chat display flags derived from settings (with defaults applied). */
 export function chatDisplayOf(s: LLMSettings) {
-  return { timestamps: s.showTimestamps !== false, tools: !!s.showToolCalls };
+  return { timestamps: s.showTimestamps !== false, timing: !!s.showTiming, tools: !!s.showToolCalls };
 }
 
 /** The edit-approval policy with the default applied (and bad stored values ignored). */
@@ -230,6 +233,7 @@ function readForm(): LLMSettings {
     model: field<HTMLInputElement>("set-model").value.trim(),
     showToolCalls: field<HTMLInputElement>("set-show-tools").checked,
     showTimestamps: field<HTMLInputElement>("set-show-timestamps").checked,
+    showTiming: field<HTMLInputElement>("set-show-timing").checked,
     perfLog: field<HTMLInputElement>("set-perf-log").checked,
     editApproval: field<HTMLSelectElement>("set-edit-approval").value as EditApproval,
     chatSide: field<HTMLSelectElement>("set-chat-side").value as ChatSide,
@@ -252,6 +256,7 @@ function writeForm(s: LLMSettings): void {
   field<HTMLInputElement>("set-model").value = s.model;
   field<HTMLInputElement>("set-show-tools").checked = !!s.showToolCalls;
   field<HTMLInputElement>("set-show-timestamps").checked = s.showTimestamps !== false;
+  field<HTMLInputElement>("set-show-timing").checked = !!s.showTiming;
   field<HTMLInputElement>("set-perf-log").checked = s.perfLog !== false;
   field<HTMLSelectElement>("set-edit-approval").value = editApprovalOf(s);
   field<HTMLSelectElement>("set-chat-side").value = chatSideOf(s);
@@ -475,7 +480,8 @@ export function makeSettingsModal(): Taco {
       }),
 
       sectionTitle("Chat display"),
-      bw.makeSwitch({ id: "set-show-timestamps", label: "Show timestamps and timing under messages", onchange: onDisplayToggle }),
+      bw.makeSwitch({ id: "set-show-timestamps", label: "Show timestamps under messages", onchange: onDisplayToggle }),
+      bw.makeSwitch({ id: "set-show-timing", label: "Show timing under replies (the status bar always shows the last call)", onchange: onDisplayToggle }),
       bw.makeSwitch({ id: "set-show-tools", label: "Show tool calls in chat", onchange: onDisplayToggle }),
       bw.makeFormGroup({
         id: "set-chat-side",

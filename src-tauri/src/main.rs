@@ -7,7 +7,12 @@ use commands::project::{launch_flags_from, locate_project_file, ProjectState, La
 use std::path::{Path, PathBuf};
 use tauri::Manager;
 use tauri_plugin_fs::FsExt;
-use tauri::menu::{Menu, Submenu, PredefinedMenuItem};
+use tauri::menu::{Menu, MenuItem, Submenu, PredefinedMenuItem};
+
+/// Id of the native "About quikleaf" menu item, and the event it sends the
+/// webview, which opens the About dialog.
+pub const MENU_ABOUT: &str = "about";
+pub const MENU_ABOUT_EVENT: &str = "menu-about";
 
 pub struct LaunchInfo(pub LaunchMode);
 
@@ -77,6 +82,17 @@ async fn get_launch_info(state: tauri::State<'_, LaunchInfo>) -> Result<LaunchMo
 }
 
 fn main() {
+    // `--help` / `--version` print and leave before any window; a typo'd
+    // flag is warned about and the app launches anyway.
+    let args: Vec<String> = std::env::args().collect();
+    if let Some(exit) = commands::cli::early_exit(&args) {
+        print!("{}", exit.text());
+        std::process::exit(0);
+    }
+    for flag in commands::cli::unknown_flags(&args) {
+        eprintln!("quikleaf: unknown option {flag} (see quikleaf --help)");
+    }
+
     let launch_mode = parse_cli_args();
 
     let project_state = ProjectState::default();
@@ -211,7 +227,14 @@ fn main() {
             commands::diag::log_reveal,
             commands::diag::cli_status,
             commands::diag::cli_install,
+            commands::diag::build_info,
         ])
+        .on_menu_event(|app, event| {
+            use tauri::Emitter;
+            if event.id().as_ref() == MENU_ABOUT {
+                let _ = app.emit(MENU_ABOUT_EVENT, ());
+            }
+        })
         .setup(|app| {
             // File watching (the Watch toggle, `--watch`): changes arrive in the
             // webview as `file-changed` events.
@@ -231,7 +254,10 @@ fn main() {
             }
             let handle = app.handle();
             let app_menu = Submenu::with_items(handle, "quikleaf", true, &[
-                &PredefinedMenuItem::about(handle, Some("About quikleaf"), None)?,
+                // Not the stock About panel: this item opens the app's own About
+                // dialog (version, libraries, build, diagnostics), the same one the
+                // title bar's About button opens. See `on_menu_event` below.
+                &MenuItem::with_id(handle, MENU_ABOUT, "About quikleaf", true, None::<&str>)?,
                 &PredefinedMenuItem::separator(handle)?,
                 &PredefinedMenuItem::hide(handle, Some("Hide quikleaf"))?,
                 &PredefinedMenuItem::hide_others(handle, Some("Hide Others"))?,

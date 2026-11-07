@@ -180,6 +180,46 @@ fn home_dir() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
+/// A development build (`cargo build`, `tauri dev`) loads its UI from the Vite dev server named by
+/// `build.devUrl`, not from the bundled `dist/`. A shim pointing at it opens a window that never
+/// initializes once that server is gone, so the installer refuses and says where to install from.
+pub fn dev_build_shim_error(debug_build: bool, exe: &Path) -> Option<String> {
+    if !debug_build {
+        return None;
+    }
+    Some(format!(
+        "This is a development build ({}). It loads its UI from the Vite dev server, so a shim to it would open a blank window whenever that server is not running. Install the command line tool from the release app (the .dmg, or `npx tauri build`).",
+        exe.display()
+    ))
+}
+
+/// What this binary is: the Tauri runtime it links, the CPU architecture and OS it was compiled
+/// for, the cargo profile and the executable's path. Shown in About → Diagnostics so a user can tell
+/// an x86_64 build running under Rosetta, or a `tauri dev` binary, from the shipped release.
+#[derive(Debug, Clone, Serialize)]
+pub struct BuildInfo {
+    pub tauri: String,
+    pub arch: String,
+    pub os: String,
+    pub profile: String,
+    pub exe: Option<String>,
+}
+
+pub fn build_info_value() -> BuildInfo {
+    BuildInfo {
+        tauri: tauri::VERSION.to_string(),
+        arch: std::env::consts::ARCH.to_string(),
+        os: std::env::consts::OS.to_string(),
+        profile: if cfg!(debug_assertions) { "debug" } else { "release" }.to_string(),
+        exe: std::env::current_exe().ok().map(|p| p.to_string_lossy().to_string()),
+    }
+}
+
+#[tauri::command]
+pub fn build_info() -> BuildInfo {
+    build_info_value()
+}
+
 fn current_exe() -> Result<PathBuf, String> {
     std::env::current_exe().map_err(|e| format!("Cannot locate the quikleaf binary: {}", e))
 }
@@ -247,6 +287,9 @@ pub async fn cli_install() -> Result<CliStatus, String> {
         return Err("Installing a command-line shim is not supported on Windows yet.".into());
     }
     let exe = current_exe()?;
+    if let Some(msg) = dev_build_shim_error(cfg!(debug_assertions), &exe) {
+        return Err(msg);
+    }
     let home = home_dir();
     let candidates = candidate_dirs(&home);
 
@@ -336,6 +379,33 @@ mod tests {
         let s = shim_script(Path::new("/Applications/quikleaf.app/Contents/MacOS/quikleaf"));
         assert!(s.starts_with("#!/bin/sh\n"));
         assert!(s.contains("exec \"/Applications/quikleaf.app/Contents/MacOS/quikleaf\" \"$@\""));
+    }
+
+    #[test]
+    fn build_info_names_the_runtime_target_and_profile() {
+        let b = build_info_value();
+        assert_eq!(b.tauri, tauri::VERSION);
+        assert_eq!(b.arch, std::env::consts::ARCH);
+        assert_eq!(b.os, std::env::consts::OS);
+        assert_eq!(b.profile, "debug", "cargo test is a debug build");
+        assert!(b.exe.as_deref().is_some_and(|e| !e.is_empty()));
+    }
+
+    #[test]
+    fn a_dev_build_refuses_to_install_a_shim() {
+        let exe = Path::new("/Users/me/quikleaf/src-tauri/target/debug/quikleaf");
+        let msg = dev_build_shim_error(true, exe).expect("debug build refused");
+        assert!(msg.contains("development build"));
+        assert!(msg.contains("target/debug/quikleaf"), "names the binary: {msg}");
+        assert!(msg.contains("release app"), "says where to install from: {msg}");
+        assert!(dev_build_shim_error(false, exe).is_none(), "a release build installs");
+    }
+
+    #[tokio::test]
+    async fn cli_install_in_the_test_build_errors_and_writes_nothing() {
+        // cargo test is a debug build, so the installer must stop before touching any bin dir.
+        let err = cli_install().await.err().expect("refused");
+        assert!(err.contains("development build"), "{err}");
     }
 
     #[test]

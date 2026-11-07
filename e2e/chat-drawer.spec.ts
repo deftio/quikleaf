@@ -1,5 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
 
+/** Pill toggles sit a few px in from the bar edge and from each other (4px row padding + 2px margins). */
+const PILL_GAP = 9;
+
 /**
  * The chat is a drawer: it opens on one edge of the tab body, a pull on
  * that edge opens it while it is closed, and Settings → Chat display → Chat
@@ -57,13 +60,15 @@ test.describe("Chat drawer", () => {
     expect(Math.abs(left(pull) - left(body))).toBeLessThan(2);
 
     // The control row: [Outline Chat | editor controls … | Info]; the tab bar and title bar hold no toggles.
+    // The toggles are pills: a few px inset from the bar's edges and from each other (theme.ts), so the
+    // tolerance is the pill gap, not zero.
     const bar = await page.locator("#editor-toolbar").boundingBox();
     const outlineBtn = await page.locator("#editor-toolbar #btn-toggle-outline").boundingBox();
     const chatBtn = await page.locator("#editor-toolbar #btn-toggle-chat").boundingBox();
     const infoBtn = await page.locator("#editor-toolbar #btn-toggle-info").boundingBox();
-    expect(Math.abs(left(outlineBtn) - left(bar))).toBeLessThan(2);
-    expect(Math.abs(left(chatBtn) - right(outlineBtn))).toBeLessThan(2);
-    expect(Math.abs(right(infoBtn) - right(bar))).toBeLessThan(2);
+    expect(Math.abs(left(outlineBtn) - left(bar))).toBeLessThan(PILL_GAP);
+    expect(Math.abs(left(chatBtn) - right(outlineBtn))).toBeLessThan(PILL_GAP);
+    expect(Math.abs(right(infoBtn) - right(bar))).toBeLessThan(PILL_GAP);
     await expect(page.locator("#titlebar .toggle-btn, #tab-bar .toggle-btn")).toHaveCount(0);
 
     await pullOpen(page);
@@ -88,9 +93,9 @@ test.describe("Chat drawer", () => {
     const bar = await page.locator("#editor-toolbar").boundingBox();
     const chatBtn = await page.locator("#btn-toggle-chat").boundingBox();
     const infoBtn = await page.locator("#btn-toggle-info").boundingBox();
-    expect(Math.abs(right(chatBtn) - left(infoBtn))).toBeLessThan(2);
-    expect(Math.abs(right(infoBtn) - right(bar))).toBeLessThan(2);
-    expect(Math.abs(left(await page.locator("#btn-toggle-outline").boundingBox()) - left(bar))).toBeLessThan(2);
+    expect(Math.abs(right(chatBtn) - left(infoBtn))).toBeLessThan(PILL_GAP);
+    expect(Math.abs(right(infoBtn) - right(bar))).toBeLessThan(PILL_GAP);
+    expect(Math.abs(left(await page.locator("#btn-toggle-outline").boundingBox()) - left(bar))).toBeLessThan(PILL_GAP);
 
     await pullOpen(page);
     const panel = await page.locator("#chat-panel").boundingBox();

@@ -339,7 +339,7 @@ export function setStatusProvider(text: string): void {
   bw.patch("status-provider", text);
 }
 
-/** Update the status bar's last-request timing slot. */
+/** Update the status bar's last-call slot (`statusTiming()` in perf.ts: first token, tok/s, total, chars to document). */
 export function setStatusTiming(text: string): void {
   bw.patch("status-timing", text);
 }
@@ -423,6 +423,7 @@ export function toggleChatPanel(): boolean {
 
 export interface ChatDisplay {
   timestamps: boolean;
+  timing: boolean;
   tools: boolean;
 }
 
@@ -433,5 +434,6 @@ export interface ChatDisplay {
  */
 export function setChatDisplay(d: ChatDisplay): void {
   bw.toggleClass("chat-panel", "show-timestamps", d.timestamps);
+  bw.toggleClass("chat-panel", "show-timing", d.timing);
   bw.toggleClass("chat-panel", "show-tools", d.tools);
 }

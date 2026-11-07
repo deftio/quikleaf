@@ -288,6 +288,8 @@ export async function invoke<T = any>(cmd: string, args?: any): Promise<T> {
     case "log_reveal":
       state.logRevealed = true;
       return undefined as T;
+    case "build_info":
+      return { tauri: "2.12.5", arch: "aarch64", os: "macos", profile: "release", exe: "/Applications/quikleaf.app/Contents/MacOS/quikleaf" } as T;
     case "cli_status":
       return {
         supported: true,

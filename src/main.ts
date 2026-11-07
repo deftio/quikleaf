@@ -1,5 +1,6 @@
 import bw from "bitwrench";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import "./ui/theme"; // generates and injects all CSS at import
 import { isDarkMode } from "./ui/theme";
 import { el } from "./ui/taco";
@@ -9,7 +10,7 @@ import { initMenus, makeChatDrawerPull, makeMain, makeStatusbar, makeTitlebar, s
 import { initTabBar, makeTabBar } from "./ui/tabbar";
 import { activeEditorMode, handlePanesKeydown, initPanes, isChatPaneOpen, isInfoPaneOpen, setActiveEditorMode, toggleChatPane, toggleInfoPane } from "./ui/panes";
 import { initInfoPane, makeInfoPanel, setInfoProjectRoot } from "./ui/infopane";
-import { initAbout, installCli } from "./ui/about";
+import { MENU_ABOUT, initAbout, installCli } from "./ui/about";
 import { initStats } from "./ui/stats";
 import { handleOutlineKeydown, initOutline, isOutlineVisible, makeOutlinePanel, toggleOutline } from "./ui/outline";
 import { handleFindKeydown, initFindBar, makeFindBar, openFind } from "./ui/findbar";
@@ -162,6 +163,8 @@ void initDropZone();
 void initWatch();
 applyLiveSettings(loadSettings());
 openAbout = initAbout();
+// The native app menu's "About quikleaf" opens the same dialog as the title bar's About button.
+void listen(MENU_ABOUT, () => openAbout());
 bw.sub(LOG_OPEN, () => void openLogTab());
 setOnFileClick((path) => loadFileIntoEditor(path));
 logEvent({ kind: "app", event: "start", version: __APP_VERSION__ });

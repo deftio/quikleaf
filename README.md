@@ -20,7 +20,7 @@ Files stay on disk. The only network traffic is to the LLM host you pick,
 which can be a local Ollama. [Website](https://deftio.github.io/quikleaf/) ·
 [Releases](https://github.com/deftio/quikleaf/releases) ·
 [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md) ·
-[Security](SECURITY.md)
+[Security](SECURITY.md) · [Privacy](PRIVACY.md)
 
 ## Why quikleaf
 
@@ -61,7 +61,8 @@ file in your log folder that you can watch inside the app.
   with it on.
 - **Chat.** Streaming replies, slash commands, a tool-calling loop with a
   Stop button, a plan card for multi-step work, per-chat model choice, and
-  timings on every reply (time to first token, total, tokens per second).
+  the last call's timing in the status bar (time to first token, tokens per
+  second, total, characters written to the document).
   OpenAI-compatible hosts (Ollama, LM Studio, Docker Model Runner,
   OpenRouter, Groq) and Anthropic; local servers are auto-detected.
 - **Projects.** `quikleaf --project ./dir` adds a file tree, the project
@@ -101,13 +102,19 @@ xattr -cr /Applications/quikleaf.app
 The npm launcher's download does not carry the quarantine flag, so that path
 does not hit the prompt.
 
+On macOS the app menu's **About quikleaf** opens the same About dialog as
+the title bar's About button: version, libraries, build and diagnostics.
+
 ### Command line from the macOS app
 
 Dragging `quikleaf.app` into Applications does not put `quikleaf` on your
 PATH. **Help → Install Command Line Tool** writes a small shim to
 `/usr/local/bin`, `/opt/homebrew/bin` or `~/.local/bin`, whichever is
-writable. Windows installers register the app; the Linux packages put
-`quikleaf` on PATH.
+writable. Run it from the installed release app, not from `tauri dev`: a
+development build loads its UI from the Vite dev server, so a shim to it
+would open a blank window whenever that server is not running (the
+installer refuses in that case). Windows installers register the app; the
+Linux packages put `quikleaf` on PATH.
 
 ## Use
 
@@ -118,7 +125,10 @@ quikleaf --watch notes.md       # open it and reload the tab when it changes on 
 quikleaf --project ./docs       # a folder: file tree, project chat, project file
 quikleaf --project ./x.prj      # a project file by name
 quikleaf --log                  # start on the log tab
+quikleaf --help                 # the flags; --version prints the version
 ```
+
+Flags go before or after the file name.
 
 ### Chats and scope
 
@@ -179,8 +189,10 @@ sizes, a preview style (quikdown's default, Book, Plain, Mono) and a box for
 your own preview CSS written as if the preview were the page. Applies on the
 spot; Cancel puts it back.
 
-**Chat display.** Timestamps and timings, tool-call entries, which edge the
-drawer opens from.
+**Chat display.** Timestamps under messages, the timing line under replies
+(off by default; the status bar always shows the last call: first token,
+tokens per second, total, size, characters written to the document),
+tool-call entries, which edge the drawer opens from.
 
 **Agent.** When edits pause for review: always, project file writes only
 (default), never.
@@ -212,7 +224,7 @@ npm install && npm run setup
 npm run tauri:dev           # dev mode with hot reload
 npm run tauri:build         # installer in src-tauri/target/release/bundle/
 npm run check               # TypeScript
-npm test                    # unit tests (vitest, 750+)
+npm test                    # unit tests (vitest, 740+)
 npm run test:coverage       # with the coverage gate (90/90/90 lines/statements/functions, 85 branches)
 npm run test:e2e            # Playwright (140+), Tauri mocked
 cd src-tauri && cargo test  # Rust (lib and bin targets)
@@ -241,8 +253,11 @@ has the trust path. [CONTRIBUTING.md](CONTRIBUTING.md) has the rest.
 
 [docs/architecture.md](docs/architecture.md) goes module by module;
 [docs/llm-integration.md](docs/llm-integration.md) covers providers, tools
-and the system prompt; [docs/project-mode.md](docs/project-mode.md) the
-project file; [agents.md](agents.md) is for agents and external tools;
+and the system prompt; [docs/quikleaf-chat-internals.md](docs/quikleaf-chat-internals.md)
+is the deep version: how a turn runs, the full prompt text, the dispatcher's
+scope gates, the wire formats and the streaming proxy;
+[docs/project-mode.md](docs/project-mode.md) the project file;
+[agents.md](agents.md) is for agents and external tools;
 [llms.txt](llms.txt) is the short form for language models. The original
 plan is in [dev/quikleaf-spec.md](dev/quikleaf-spec.md).
 

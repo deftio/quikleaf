@@ -4,7 +4,7 @@ This file describes how AI agents can interact with quikleaf, both as the built-
 
 ## Built-in Agent: QD
 
-quikleaf includes a built-in LLM-powered assistant called QD. QD communicates via a tool-calling loop and operates exclusively on raw markdown (never HTML).
+quikleaf includes a built-in LLM-powered assistant called QD. QD communicates via a tool-calling loop and operates exclusively on raw markdown (never HTML). This file is the reference for what the tools are and what they return; [docs/quikleaf-chat-internals.md](docs/quikleaf-chat-internals.md) is the account of how a turn runs, the full system prompt text, the dispatcher's scope gates, the provider wire formats and the streaming proxy.
 
 ### Chat scopes
 
@@ -41,6 +41,7 @@ QD uses the standard OpenAI function-calling format or Anthropic tool_use format
 4. Tool results are appended and sent back to the LLM
 5. Loop continues until LLM returns a text response (no tool calls) or max iterations (10) reached; edits may pause for user review (see Edit Review)
 6. No per-call timeout; the user can abort at any point with the Stop button, which also rejects pending edit reviews
+7. After each model call the status bar shows time to first token, tokens per second, total time, an estimated token count and, when the turn wrote to the document through the document tools, how many characters it put there; the same numbers go to the performance log
 
 ### Tool Definitions
 
@@ -82,7 +83,7 @@ Results carry `document: "<title>"` so the model can see which file it touched.
 | `memory_append` | `content: string` | Append to scratchpad |
 | `memory_clear` | none | Clear scratchpad |
 
-#### Key-Value Tools (always available)
+#### Key-Value Tools (project files and the project chat)
 
 | Tool | Parameters | Description |
 |------|-----------|-------------|
@@ -91,7 +92,7 @@ Results carry `document: "<title>"` so the model can see which file it touched.
 | `kv_delete` | `key: string` | Delete key |
 | `kv_list` | none | List keys with their last-modified timestamps (`{entries: [{key, modified}]}`) |
 
-#### File Tools (project mode only)
+#### File Tools (project chat)
 
 | Tool | Parameters | Description |
 |------|-----------|-------------|
@@ -178,6 +179,8 @@ An external agent can seed `memory` or `kv` in the project file **while quikleaf
 
 An external agent that writes a markdown file can have quikleaf show the result as it lands: open the file with `quikleaf --watch path.md`, or turn on the **Watch** toggle at the right end of the tab's control row. The tab reloads whenever the file changes on disk (writes are coalesced; save-by-rename works). If the user has unsaved edits in that tab, quikleaf asks before replacing them; a deleted file is reported once and the tab keeps its text. Watching is per tab, off by default, and stops when the tab closes.
 
+
+How a change is noticed: the OS file watcher reports it at once; a poller also compares each watched file's size and modification time every 1.5 seconds, so a write that raises no OS event (a network share, a sync client, the shared folder of a sandboxed agent or VM) is picked up within about two seconds. Write the whole file, or write a temp file and rename it into place; both are seen. A write that leaves the text identical is ignored. Each reload is an `app` log event `watch-reload`; a read that failed mid-save is `watch-read-failed`.
 ### Images
 
 An image pasted into the source pane is saved as `images/<document>-<timestamp>.<ext>` beside the document and linked relatively; relative image paths render in the preview. Agents that write documents with images should use the same convention.

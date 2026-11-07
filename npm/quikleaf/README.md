@@ -13,9 +13,12 @@ npm install -g quikleaf
 Then run:
 
 ```bash
-quikleaf                    # Open empty editor
-quikleaf document.md        # Open a file
-quikleaf --project ./mydir  # Open folder with project tools
+quikleaf                    # empty editor
+quikleaf document.md        # open a file
+quikleaf --watch document.md  # open it and reload when it changes on disk
+quikleaf --project ./mydir  # project mode: file tree, project chat, project file
+quikleaf --log              # start on the log tab
+quikleaf --help             # the flags; --version prints the version
 ```
 
 Or use without installing:

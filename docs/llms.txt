@@ -2,17 +2,17 @@
 
 > A local, cross-platform desktop markdown editor (Tauri v2) with a preview that renders diagrams, math, maps, charts and 3D offline (quikdown), and an LLM chat per document that can see and edit only that document. Files stay on the machine; the only network traffic is to the LLM host the user configures.
 
-Version 1.2.3. BSD-2-Clause. Source: https://github.com/deftio/quikleaf. Site: https://deftio.github.io/quikleaf/. npm: `quikleaf` (a launcher that downloads the release binary on first run).
+Version 1.2.4. BSD-2-Clause. Source: https://github.com/deftio/quikleaf. Site: https://deftio.github.io/quikleaf/. npm: `quikleaf` (a launcher that downloads the release binary on first run).
 
 ## What it does
 
 - Markdown editing with source, split and rendered views per tab; outline; find and replace (regex); word count and reading time; focus mode; four preview styles plus user CSS; Export HTML; Print / PDF.
 - Rendering by quikdown's standalone bundle, all offline: syntax highlighting, Mermaid, LaTeX (```math fences), GeoJSON maps, STL 3D, CSV/TSV tables, Vega and Vega-Lite, ABC music notation, SVG, sanitized HTML.
 - A chat per document tab ("QD"), sealed to that document: the model is shown that file and that conversation, nothing else; its tools can change only that file. The seal is enforced in the tool dispatcher, not the prompt. A separate project chat (project mode) works on files under the project root by path. Per-chat model choice.
-- Edits arrive as diff cards: review every edit, only project file writes (default), or none. Plan card for multi-step work. Streaming, slash commands, a tool loop capped at 10 rounds with a Stop button, timings under every reply.
+- Edits arrive as diff cards: review every edit, only project file writes (default), or none. Plan card for multi-step work. Streaming, slash commands, a tool loop capped at 10 rounds with a Stop button; the status bar shows the last call's timing (first token, tok/s, total, size, characters written to the document).
 - Providers: any OpenAI-compatible API (Ollama, LM Studio, Docker Model Runner, OpenRouter, Groq, vLLM) and Anthropic. Local servers are auto-detected on first launch. Calls are proxied by the Rust backend; keys never sit in the webview.
 - Files: open by dialog, command line, or drag and drop onto the window. Paste an image into the source pane and it is saved to `images/<document>-<timestamp>.<ext>` beside the document and linked; relative images render in the preview.
-- Watch: a per-tab toggle (off by default) reloads the tab when its file changes on disk; `quikleaf --watch file.md` starts with it on. Unsaved edits are asked about first.
+- Watch: a per-tab toggle (off by default) reloads the tab when its file changes on disk (OS events plus a 1.5 s size/mtime poll for writes that raise none); `quikleaf --watch file.md` starts with it on. Unsaved edits are asked about first.
 - Project mode (`quikleaf --project ./dir`): file tree, the project chat with file read/write/list/stat/search and tab tools, a scratchpad and key-value store shared by the project's chats, and a project file (`.quikleaf/quikleaf.prj` by default, or `quikleaf.prj` in the root per Settings → Project) that remembers open tabs and each file's chat.
 - Diagnostics: a JSON-lines performance log (one line per LLM request, tool call and chat turn; off by a setting) and a log tab that follows it live (`quikleaf --log`, or View Log in About → Diagnostics or Settings).
 - Appearance: light, dark or system theme with a title-bar toggle; interface and editor font sizes.
@@ -26,7 +26,10 @@ quikleaf --watch notes.md    # open and reload when it changes on disk
 quikleaf --project ./dir     # project mode
 quikleaf --project ./x.prj   # a project file by name
 quikleaf --log               # start on the log tab
+quikleaf --help              # the flags; --version prints the version
 ```
+
+Flags go before or after the file name. Unknown `--flags` print a warning and the app starts anyway.
 
 ## Layout
 
@@ -52,11 +55,13 @@ Full detail for agents and external tools, including the project file format and
 - README: https://github.com/deftio/quikleaf/blob/main/README.md
 - Architecture: https://github.com/deftio/quikleaf/blob/main/docs/architecture.md
 - LLM integration (providers, tools, system prompt, settings): https://github.com/deftio/quikleaf/blob/main/docs/llm-integration.md
+- Chat internals (how a turn runs, the full system prompt, tool dispatch and scope gates, provider wire formats, the streaming proxy): https://github.com/deftio/quikleaf/blob/main/docs/quikleaf-chat-internals.md
 - Project mode and the project file: https://github.com/deftio/quikleaf/blob/main/docs/project-mode.md
 - Agents and external tools: https://github.com/deftio/quikleaf/blob/main/agents.md
 - Publishing pipeline (CI, releases, npm trusted publishing): https://github.com/deftio/quikleaf/blob/main/docs/publishing.md
 - Contributing: https://github.com/deftio/quikleaf/blob/main/CONTRIBUTING.md
 - Security: https://github.com/deftio/quikleaf/blob/main/SECURITY.md
+- Privacy (what leaves the machine, what is stored where): https://github.com/deftio/quikleaf/blob/main/PRIVACY.md
 - Changelog: https://github.com/deftio/quikleaf/blob/main/CHANGELOG.md
 - quikdown (rendering): https://github.com/deftio/quikdown
 - bitwrench (UI): https://github.com/deftio/bitwrench

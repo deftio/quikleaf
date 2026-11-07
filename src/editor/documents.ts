@@ -14,7 +14,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { scheduleProjectSave } from "../project/persist";
 import { ask, open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
-import { getMarkdown, onEditorChange, setMarkdown } from "./editor";
+import { getMarkdown, getPreviewPane, getSourceTextarea, onEditorChange, setMarkdown } from "./editor";
 import * as tabs from "./tabs";
 import type { Tab } from "./tabs";
 import { setStatusFile } from "../ui/shell";
@@ -203,12 +203,29 @@ export async function reloadDocument(id: string, content: string): Promise<void>
   tabs.updateContent(id, content);
   tabs.markSaved(id);
   if (tabs.activeTab()?.id === id) {
+    // quikdown re-renders from the top; keep the reader's place (caret,
+    // source scroll, preview scroll) so a file that is being written to
+    // does not jump on every reload.
+    const ta = getSourceTextarea();
+    const preview = getPreviewPane();
+    const place = {
+      start: ta?.selectionStart ?? 0,
+      end: ta?.selectionEnd ?? 0,
+      source: ta?.scrollTop ?? 0,
+      preview: preview?.scrollTop ?? 0,
+    };
     loading = true;
     try {
       await setMarkdown(content);
     } finally {
       loading = false;
     }
+    if (ta) {
+      const n = content.length;
+      ta.setSelectionRange(Math.min(place.start, n), Math.min(place.end, n));
+      ta.scrollTop = place.source;
+    }
+    if (preview) preview.scrollTop = place.preview;
   }
 }
 

@@ -31,7 +31,9 @@ npm install && npm run setup
 npm run tauri:dev            # the app, with hot reload for the frontend
 ```
 
-[docs/architecture.md](docs/architecture.md) is the map of the code.
+[docs/architecture.md](docs/architecture.md) is the map of the code;
+[docs/quikleaf-chat-internals.md](docs/quikleaf-chat-internals.md) is the
+chat loop in detail.
 [CLAUDE.md](CLAUDE.md) holds the working conventions in detail; it is written
 for an AI pair but applies to people too.
 
@@ -50,8 +52,8 @@ A few conventions that are not obvious from the code:
 - **Chat scope is a trust boundary.** A document chat may touch only its own
   document; file, search and tab tools belong to the project chat. A new tool
   is enforced in `dispatchTool` (`src/chat/chat-ui.ts`), not just left out of
-  a schema. Update the tool-count assertions, `/tools`, `agents.md` and
-  `docs/llm-integration.md` with it.
+  a schema. Update the tool-count assertions, `/tools`, `agents.md`,
+  `docs/llm-integration.md` and `docs/quikleaf-chat-internals.md` with it.
 - **The model sees raw markdown only.** Nothing in the chat path produces or
   consumes HTML.
 - **Keyboard shortcuts** join the chain in `src/main.ts`, not a new listener.
@@ -82,7 +84,10 @@ If a change is visible to a user, it shows up in the same pull request in:
 - `README.md` if it changes how the app is used
 - `agents.md` for anything an agent or external tool would care about (tools,
   the project file, the log, watching files)
-- `llms.txt` and `docs/` where they describe the thing
+- `llms.txt` and `docs/` where they describe the thing; a new doc also gets
+  a card in the site's Documentation section (`docs/scripts/site.js`)
+- `PRIVACY.md` or `SECURITY.md` if what leaves the machine, or what is
+  stored where, changes
 
 ## Pull requests
 

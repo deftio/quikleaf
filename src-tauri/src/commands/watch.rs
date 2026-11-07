@@ -5,12 +5,26 @@
 //! and the frontend reloads the tab. Parent folders are watched rather than
 //! the files themselves: editors that save by writing a temp file and
 //! renaming it over the original would otherwise detach the watch.
+//!
+//! Two sources feed the same sink. The OS watcher (notify: FSEvents, inotify,
+//! ReadDirectoryChanges) is immediate, but it only sees writes the kernel
+//! reports: a file written through a network share, a sync client, or the
+//! shared folder of a sandboxed agent arrives with no event. A poller stats
+//! every watched file every `POLL_INTERVAL` and reports a changed size or
+//! mtime, so those writes are noticed too, a little later. The frontend
+//! coalesces the two (a short debounce, and a reload is skipped when the text
+//! is unchanged), so a write seen by both costs one extra read.
 
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, SystemTime};
 use tauri::State;
+
+/// How often the fallback poller stats the watched files.
+pub const POLL_INTERVAL: Duration = Duration::from_millis(1500);
 
 pub const FILE_CHANGED: &str = "file-changed";
 
@@ -22,17 +36,73 @@ pub struct FileChanged {
     pub kind: String,
 }
 
+/// What the poller compares between passes. `None` from `stamp` means the
+/// file is missing (or unreadable).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Stamp {
+    modified: Option<SystemTime>,
+    len: u64,
+}
+
+pub fn stamp(path: &Path) -> Option<Stamp> {
+    std::fs::metadata(path).ok().map(|m| Stamp { modified: m.modified().ok(), len: m.len() })
+}
+
 struct Watched {
     /// Canonical path → the path as the frontend named it (what the event reports back).
     files: HashMap<PathBuf, String>,
     /// Watched parent folders and how many files each serves.
     dirs: HashMap<PathBuf, usize>,
+    /// What the last pass saw for each watched file (`None`: missing then).
+    seen: HashMap<PathBuf, Option<Stamp>>,
+}
+
+impl Watched {
+    fn new() -> Self {
+        Watched { files: HashMap::new(), dirs: HashMap::new(), seen: HashMap::new() }
+    }
+
+    /// Record the file's current size and mtime as the poller's baseline, so
+    /// a change the OS watcher already reported is not reported twice.
+    fn refresh(&mut self, canonical: &Path) {
+        if self.files.contains_key(canonical) {
+            self.seen.insert(canonical.to_path_buf(), stamp(canonical));
+        }
+    }
+}
+
+/// One pass of the polling fallback: report every watched file whose size or
+/// mtime differs from the last pass, and files that went missing or came back.
+fn poll_once(w: &mut Watched) -> Vec<FileChanged> {
+    let mut out = Vec::new();
+    for (canonical, original) in &w.files {
+        let now = stamp(canonical);
+        let kind = match (w.seen.get(canonical).copied(), now) {
+            (Some(Some(before)), Some(after)) if before != after => Some("changed"),
+            (Some(None), Some(_)) => Some("changed"),
+            (Some(Some(_)), None) => Some("removed"),
+            _ => None,
+        };
+        if let Some(kind) = kind {
+            out.push(FileChanged { path: original.clone(), kind: kind.to_string() });
+        }
+        w.seen.insert(canonical.clone(), now);
+    }
+    out
 }
 
 pub struct WatchHub {
     watched: Arc<Mutex<Watched>>,
     watcher: Mutex<Option<RecommendedWatcher>>,
     sink: Arc<dyn Fn(FileChanged) + Send + Sync>,
+    /// Cleared on drop so the poller thread ends with the hub.
+    alive: Arc<AtomicBool>,
+}
+
+impl Drop for WatchHub {
+    fn drop(&mut self) {
+        self.alive.store(false, Ordering::Relaxed);
+    }
 }
 
 /// Which watched file an event is about, if any, and what happened to it.
@@ -54,11 +124,25 @@ pub fn classify(watched: &HashMap<PathBuf, String>, event: &Event) -> Vec<FileCh
 
 impl WatchHub {
     pub fn new(sink: impl Fn(FileChanged) + Send + Sync + 'static) -> Self {
-        WatchHub {
-            watched: Arc::new(Mutex::new(Watched { files: HashMap::new(), dirs: HashMap::new() })),
-            watcher: Mutex::new(None),
-            sink: Arc::new(sink),
+        let watched = Arc::new(Mutex::new(Watched::new()));
+        let sink: Arc<dyn Fn(FileChanged) + Send + Sync> = Arc::new(sink);
+        let alive = Arc::new(AtomicBool::new(true));
+        {
+            let (watched, sink, alive) = (Arc::clone(&watched), Arc::clone(&sink), Arc::clone(&alive));
+            let _ = std::thread::Builder::new().name("quikleaf-watch-poll".into()).spawn(move || {
+                while alive.load(Ordering::Relaxed) {
+                    std::thread::sleep(POLL_INTERVAL);
+                    let hits = match watched.lock() {
+                        Ok(mut w) => poll_once(&mut w),
+                        Err(_) => Vec::new(),
+                    };
+                    for hit in hits {
+                        sink(hit);
+                    }
+                }
+            });
         }
+        WatchHub { watched, watcher: Mutex::new(None), sink, alive }
     }
 
     fn watcher(&self) -> Result<std::sync::MutexGuard<'_, Option<RecommendedWatcher>>, String> {
@@ -70,7 +154,14 @@ impl WatchHub {
                 move |res: notify::Result<Event>| {
                     if let Ok(event) = res {
                         let hits = match watched.lock() {
-                            Ok(w) => classify(&w.files, &event),
+                            Ok(mut w) => {
+                                let hits = classify(&w.files, &event);
+                                for p in &event.paths {
+                                    let c = p.canonicalize().unwrap_or_else(|_| p.clone());
+                                    w.refresh(&c);
+                                }
+                                hits
+                            }
                             Err(_) => Vec::new(),
                         };
                         for hit in hits {
@@ -96,6 +187,7 @@ impl WatchHub {
         if w.files.insert(canonical.clone(), path.to_string()).is_some() {
             return Ok(());
         }
+        w.seen.insert(canonical.clone(), stamp(&canonical));
         let count = w.dirs.entry(dir.clone()).or_insert(0);
         *count += 1;
         if *count == 1 {
@@ -115,6 +207,7 @@ impl WatchHub {
         if w.files.remove(&canonical).is_none() {
             return Ok(());
         }
+        w.seen.remove(&canonical);
         if let Some(dir) = canonical.parent().map(|d| d.to_path_buf()) {
             let done = match w.dirs.get_mut(&dir) {
                 Some(n) => {
@@ -193,6 +286,49 @@ mod tests {
         let mut access = Event::new(EventKind::Access(notify::event::AccessKind::Any));
         access.paths = vec![file];
         assert!(classify(&watched, &access).is_empty());
+    }
+
+    fn watched_one(file: &Path, given: &str) -> Watched {
+        let mut w = Watched::new();
+        let canonical = file.canonicalize().unwrap();
+        w.files.insert(canonical.clone(), given.to_string());
+        w.seen.insert(canonical, stamp(file));
+        w
+    }
+
+    #[test]
+    fn poll_once_reports_a_changed_size_once_then_removal_then_return() {
+        let tmp = TempDir::new().unwrap();
+        let file = tmp.path().join("a.md");
+        std::fs::write(&file, "one").unwrap();
+        let mut w = watched_one(&file, "/as/given/a.md");
+
+        assert!(poll_once(&mut w).is_empty(), "nothing changed yet");
+        std::fs::write(&file, "one two").unwrap();
+        let hits = poll_once(&mut w);
+        assert_eq!(hits.len(), 1);
+        assert_eq!((hits[0].path.as_str(), hits[0].kind.as_str()), ("/as/given/a.md", "changed"));
+        assert!(poll_once(&mut w).is_empty(), "reported once");
+
+        std::fs::remove_file(&file).unwrap();
+        assert_eq!(poll_once(&mut w)[0].kind, "removed");
+        assert!(poll_once(&mut w).is_empty(), "removal reported once");
+        std::fs::write(&file, "back").unwrap();
+        assert_eq!(poll_once(&mut w)[0].kind, "changed");
+    }
+
+    #[test]
+    fn refresh_moves_the_baseline_so_an_os_event_is_not_reported_again() {
+        let tmp = TempDir::new().unwrap();
+        let file = tmp.path().join("a.md");
+        std::fs::write(&file, "one").unwrap();
+        let mut w = watched_one(&file, "/as/given/a.md");
+        std::fs::write(&file, "one two three").unwrap();
+        w.refresh(&file.canonicalize().unwrap());
+        assert!(poll_once(&mut w).is_empty());
+        // Paths that are not watched are ignored by refresh.
+        w.refresh(&tmp.path().join("other.md"));
+        assert_eq!(w.seen.len(), 1);
     }
 
     #[test]

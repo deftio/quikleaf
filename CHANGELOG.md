@@ -5,6 +5,78 @@ All notable changes to quikleaf are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.4] - Unreleased
+
+AI assistance: the styling pass, the chat internals document, the privacy
+statement, the tests and this entry were drafted with Claude Code under the
+maintainer's direction; reviewed and released by the maintainer.
+
+### Added
+
+- `quikleaf --help` and `quikleaf --version` (also `-h`, `-V`) print and
+  exit; an unknown `--flag` prints a warning and the app starts anyway. The
+  npm launcher answers both itself, before it looks for the binary, so they
+  work on a fresh machine and on Windows, where the app has no console.
+- About reports what the binary is: the Tauri runtime it links (the Shell
+  row, with the JS API version in brackets), and under Diagnostics the
+  compiled OS and CPU architecture, the cargo profile and the executable's
+  path. An x86_64 build running under Rosetta, or a `tauri dev` binary, is
+  now visible there.
+- `docs/quikleaf-chat-internals.md`: how a chat turn runs, the full system
+  prompt text for both scopes, the tool schemas and counts, the dispatcher's
+  scope gates and result conventions, edit review, the provider wire formats,
+  the streaming proxy's SSE handling, timing and the log, persistence, and a
+  checklist for adding a tool. Linked from the README, `agents.md`,
+  `llms.txt` and the site, which now has a Documentation section.
+- `PRIVACY.md`: what leaves the machine and when, what is stored where, and
+  what the website records. SECURITY.md links to it.
+
+### Changed
+
+- A styling refresh, same layout and controls: the title bar, tab bar and
+  control row share one surface; panel toggles are pills (pressed still
+  inverts) instead of boxed segments with dividers; tabs are cards, the
+  active one lifted onto the editor's surface; the selected file and outline
+  rows are an accent tint rather than a solid block; panel headers are one
+  height and style; chat bubbles sit flat with a fade instead of a slide;
+  the composer and Send are quieter; modals, menus, fields and buttons share
+  the same radii and a single focus ring; scrollbars are thinner with no
+  track. Light and dark palettes adjusted slightly for the new surfaces.
+- Keyboard focus is visible on every bar button, tab and menu item.
+- The status bar carries the last model call in reading order: time to first
+  token, tokens per second, total time, size, and how many characters the turn
+  put into the document through the document tools. The timing line under
+  each reply is now off by default (Settings → Chat display → Show timing
+  under replies); timestamps and tool-call entries keep their own switches.
+- The file tree uses small outline glyphs (folder, markdown, code, image,
+  file) that follow the row's colour in both themes, instead of emoji. List
+  rows and the active row are medium weight rather than bold; secondary
+  buttons (Clear chat, Fetch Models, Cancel) sit on the surface with a border
+  instead of a solid grey fill; the title bar buttons share the pills' radius.
+
+### Fixed
+
+- Watch now also polls each watched file's size and modification time every
+  1.5 seconds, so a write the OS never reports (a network share, a sync
+  client, the shared folder of a sandboxed agent or VM) still reloads the
+  tab within about two seconds. OS events stay immediate; a change seen by
+  both is reloaded once.
+- A watch reload keeps the caret, the source scroll and the preview scroll
+  where they were instead of jumping to the top of the document.
+- The drop-to-open outline referenced a colour variable that did not exist.
+- On macOS the app menu's About quikleaf opened the system's stock About
+  panel (name and version only). It now opens quikleaf's own About dialog,
+  the same one the title bar's About button opens.
+- Help → Install Command Line Tool now refuses to run from a development
+  build. A dev build loads its UI from the Vite dev server, so a shim
+  pointing at it opened a window that never initialized once that server
+  was gone. Install the shim from the release app.
+
+### Internal
+
+- `main` requires CI's `check` status and the repo allows auto-merge, so a
+  release PR merges only after its tests pass (CLAUDE.md, Release Workflow).
+
 ## [1.2.3] - 2026-11-03
 
 AI assistance: the chat drawer, the three-row layout and headless editor

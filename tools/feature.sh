@@ -92,6 +92,17 @@ else
   sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" src-tauri/Cargo.toml
 fi
 
+# Keep Cargo.lock's own entry for the quikleaf package in step, so the first
+# build after the bump does not leave the lockfile modified.
+node -e "
+  const fs = require('fs');
+  const p = 'src-tauri/Cargo.lock';
+  const s = fs.readFileSync(p, 'utf8');
+  const out = s.replace(/(\[\[package\]\]\nname = \"quikleaf\"\nversion = \")[^\"]+(\")/, '\$1' + process.argv[1] + '\$2');
+  if (out === s) { console.error('feature.sh: quikleaf entry not found in Cargo.lock'); process.exit(1); }
+  fs.writeFileSync(p, out);
+" "$NEW_VERSION"
+
 # Bump version in src-tauri/tauri.conf.json
 node -e "
   const fs = require('fs');
@@ -121,7 +132,7 @@ node -e "
   ]) fs.writeFileSync(f, fs.readFileSync(f, 'utf8').replace(re, rep));
 "
 
-git add package.json package-lock.json src-tauri/Cargo.toml src-tauri/tauri.conf.json docs/scripts/site.js docs/index.html llms.txt docs/llms.txt npm/quikleaf/package.json
+git add package.json package-lock.json src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json docs/scripts/site.js docs/index.html llms.txt docs/llms.txt npm/quikleaf/package.json
 git commit -m "bump version to ${NEW_VERSION}"
 
 info "\nCreated branch: $BRANCH"
