@@ -404,7 +404,7 @@
         { icon: '</>', title: 'Project Chat', description: 'Cross-file work lives in one explicit project chat that reads, writes and searches files under the project root by path. Files from other projects never leak between chats.' },
         { icon: '±', title: 'Edits You Can Review', description: 'Edits show up as diff cards. Review everything, only project file writes, or nothing. Reject and it asks instead of retrying.' },
         { icon: '▤', title: 'Tabs With Panes', description: 'Each tab shows [chat | quikdown view | info] and remembers its layout and editor mode. The info pane has document stats, chat stats and the model picker.' },
-        { icon: '¶', title: 'Writing Tools', description: 'Outline, find & replace with regex, word count and reading time, focus mode, four preview styles plus your own CSS, Export HTML and Print / PDF. Paste an image and it is saved beside the document; drop files to open them.' },
+        { icon: '¶', title: 'Writing Tools', description: 'Outline, find & replace with regex, word count and reading time, focus mode, four preview styles plus your own CSS, Export HTML and Print / PDF. A formatting bar (bold, headings, lists, tables, indent) works in the source and rendered panes alike. Links in the preview open in your browser, or in a tab for a markdown file beside the document. Paste an image and it is saved beside the document; drop files to open them.' },
         { icon: '◆', title: 'Native Desktop App', description: 'Fast startup, low memory, native file dialogs, keyboard shortcuts, light and dark themes with a toggle, resizable panels. Watch a tab\u2019s file and it reloads when something else writes it. Built with Tauri v2.' },
         { icon: '⌚', title: 'Timing You Can See', description: 'Timestamps under every message, time-to-first-token and tokens/s under every reply, tool durations, and an optional JSON-lines performance log with a live log tab in the app.' },
         { icon: '{ }', title: 'UI as Data', description: { t: 'span', c: ['The whole interface, and this page, is built from ', ext('bitwrench.js', 'https://github.com/deftio/bitwrench'), ' TACO objects with themes generated from seed palettes. No hand-written HTML or CSS.'] } },
@@ -450,6 +450,7 @@
   var shortcuts = [
     ['Cmd/Ctrl + N', 'New document'], ['Cmd/Ctrl + O', 'Open file'], ['Cmd/Ctrl + S', 'Save file'],
     ['Cmd/Ctrl + W', 'Close tab'], ['Ctrl + Tab / Ctrl + Shift + Tab', 'Next / previous tab'], ['Cmd/Ctrl + F', 'Find'], ['Cmd/Ctrl + H', 'Find and replace'],
+    ['Cmd/Ctrl + B / I', 'Bold / italic (either pane)'], ['Tab / Shift + Tab', 'Indent / outdent a list item'],
     ['Cmd/Ctrl + Shift + C', 'Chat pane (this tab)'], ['Cmd/Ctrl + Shift + I', 'Info pane (this tab)'],
     ['Cmd/Ctrl + Shift + O', 'Outline panel'], ['Cmd/Ctrl + Shift + D', 'Focus mode'], ['Cmd/Ctrl + P', 'Print / PDF'],
     ['Enter', 'Send chat message'], ['Shift + Enter', 'New line in chat']

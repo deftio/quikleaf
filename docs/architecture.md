@@ -146,4 +146,4 @@ cargo build          → Compile Rust backend
 tauri build          → Package: app + webview + bundled assets → installer
 ```
 
-Vite config aliases `quikdown-standalone` to the standalone ESM bundle which includes all fence libraries (highlight.js, mermaid, mathjax, leaflet, three.js, etc.).
+The editor comes from quikdown's package export `quikdown/edit-standalone`, the standalone ESM bundle with every fence library (highlight.js, mermaid, mathjax, leaflet, three.js, etc.); Vite puts it in its own `quikdown` chunk.

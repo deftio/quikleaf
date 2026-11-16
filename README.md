@@ -38,7 +38,8 @@ Reviewed edits wait for Accept or Reject; the rest apply and show the diff.
 **Rich fences, rendered offline.** The preview is [quikdown](https://github.com/deftio/quikdown):
 Mermaid, LaTeX, GeoJSON maps, STL models, CSV/TSV tables, Vega and
 Vega-Lite charts, ABC music notation, SVG and syntax-highlighted code, all
-bundled, no CDN. This is rare in a desktop markdown editor.
+bundled, no CDN. Arguments after a fence's language (```` ```js title=app.js ````)
+are kept and do not stop it highlighting. This is rare in a desktop markdown editor.
 
 **Nothing phones home.** Bring your own key or run a local model. No
 telemetry, no update check. The performance log, if you turn it on, is a
