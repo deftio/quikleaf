@@ -4,13 +4,12 @@
  *
  * The list is a view over `parseOutline(getMarkdown())`, reconciled with
  * `syncChildren` keyed by `line:text`. It re-parses (debounced) on every
- * editor change and on tab switches. Clicking a heading moves the source
- * textarea's caret to that line and, best-effort, scrolls the rendered
- * preview to the matching heading element.
+ * editor change and on tab switches. Clicking a heading moves the caret to
+ * that line and scrolls both panes there (the editor's `scrollToLine`).
  */
 import bw from "bitwrench";
 import type { Taco } from "bitwrench";
-import { getMarkdown, getPreviewPane, getSourceTextarea, onEditorChange } from "../editor/editor";
+import { focusEditor, getMarkdown, onEditorChange, scrollToLine, setSelection } from "../editor/editor";
 import { lineStartOffset, parseOutline, type Heading } from "../editor/outline";
 import { TABS_CHANGED } from "../editor/tabs";
 import { debounce } from "./debounce";
@@ -18,10 +17,9 @@ import { setToggleState } from "./shell";
 import { syncChildren } from "./taco";
 
 export const OUTLINE_DEBOUNCE_MS = 150;
-const DEFAULT_LINE_HEIGHT = 21;
 
 let unsubscribe: (() => void) | null = null;
-/** The headings as last rendered — the nth heading with a given text maps to the nth matching preview element. */
+/** The headings as last rendered. */
 let current: Heading[] = [];
 
 export function makeOutlinePanel(): Taco {
@@ -103,32 +101,12 @@ export function renderOutline(md: string): Heading[] {
   return current;
 }
 
-/**
- * Move the source caret to the start of `h.line` and scroll both panes there.
- * Preview scrolling finds the nth rendered heading with the same text, where
- * n is the heading's rank among same-text headings in the outline.
- */
+/** Move the caret to the start of `h.line` and scroll both panes there. */
 export function jumpToHeading(h: Heading): void {
-  const ta = getSourceTextarea();
-  if (ta) {
-    const offset = lineStartOffset(ta.value, h.line);
-    ta.focus();
-    ta.setSelectionRange(offset, offset);
-    const lineHeight = parseFloat(getComputedStyle(ta).lineHeight) || DEFAULT_LINE_HEIGHT;
-    ta.scrollTop = Math.max(0, h.line * lineHeight - lineHeight);
-  }
-  scrollPreviewTo(h);
-}
-
-function scrollPreviewTo(h: Heading): void {
-  const preview = getPreviewPane() ?? (bw.el("editor-container")?.querySelector(".qde-preview") as HTMLElement | null);
-  if (!preview) return;
-  const rank = current.filter((o) => o.text === h.text && o.line < h.line).length;
-  const candidates = Array.from(preview.querySelectorAll(`h${h.level}`)).filter(
-    (el) => (el.textContent ?? "").trim() === h.text,
-  );
-  const target = (candidates[rank] ?? candidates[0]) as HTMLElement | undefined;
-  target?.scrollIntoView?.({ block: "start" });
+  const offset = lineStartOffset(getMarkdown(), h.line);
+  focusEditor();
+  setSelection(offset, offset);
+  scrollToLine(h.line);
 }
 
 /** Start mirroring the editor's headings into the panel. Idempotent; returns the unsubscribe function. */

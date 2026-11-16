@@ -38,6 +38,8 @@ export interface ShellHandlers {
   onToggleInfo: () => void;
   onToggleFiles: () => void;
   onToggleOutline: () => void;
+  /** View → Formatting Bar: show or hide the formatting row (`ui/format-toolbar.ts`). */
+  onToggleFormatBar: () => void;
   onProjectChat: () => void;
   onEditorMode: (mode: EditorModeName) => void;
   onFocusMode: () => void;
@@ -58,6 +60,7 @@ export interface ShellHandlers {
     info: () => boolean;
     files: () => boolean;
     outline: () => boolean;
+    formatBar: () => boolean;
     editorMode: () => EditorModeName;
   };
 }
@@ -206,6 +209,7 @@ export function makeTitlebar(h: ShellHandlers): Taco {
             // Panes of the active tab: [chat | quikdown view | info]
             { id: "btn-toggle-chat-menu", label: "Chat", shortcut: "Cmd+Shift+C", onclick: h.onToggleChat, checked: h.state?.chat },
             { id: "btn-toggle-info-menu", label: "Info", shortcut: "Cmd+Shift+I", onclick: h.onToggleInfo, checked: h.state?.info },
+            { id: "btn-toggle-format-menu", label: "Formatting Bar", onclick: h.onToggleFormatBar, checked: h.state?.formatBar },
             { separator: true },
             // Window-wide panels
             { id: "btn-toggle-files-menu", label: "Files", onclick: h.onToggleFiles, checked: h.state?.files, hidden: true },

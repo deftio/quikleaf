@@ -36,26 +36,17 @@ vi.mock("@tauri-apps/plugin-shell", () => ({
 }));
 
 // Stub quikdown — the standalone editor (used with `new QuikdownEditor(...)`)
-vi.mock("quikdown-standalone", () => {
-  // Mirror the real QuikdownEditor surface only — it has no insertText() or
-  // getSelection(); editor.ts drives the source textarea for those.
+vi.mock("quikdown/edit-standalone", () => {
+  // A stand-in for QuikdownEditor 1.3's public API, backed by a textarea so
+  // the selection and edit calls have real effects. Tests read and set the
+  // document through `sourceTextarea` (the real editor has that element too);
+  // application code goes through the API only (`editor/editor.ts`).
+  const NO_FORMAT = { bold: false, italic: false, strike: false, code: false, link: false, heading: 0, list: null, quote: false, codeblock: false };
   class MockEditor {
-    getMarkdown = vi.fn(() => "");
-    setMarkdown = vi.fn();
-    getHTML = vi.fn(() => "");
-    undo = vi.fn();
-    redo = vi.fn();
-    canUndo = vi.fn(() => false);
-    canRedo = vi.fn(() => false);
-    copyRendered = vi.fn(async () => {});
-    setTheme = vi.fn();
-    sourceTextarea: HTMLTextAreaElement;
-    mode = "split";
     options: any;
-    setMode = vi.fn((mode: string) => {
-      this.mode = mode;
-      this.options?.onModeChange?.(mode);
-    });
+    sourceTextarea: HTMLTextAreaElement;
+    previewPanel: HTMLElement | null | undefined = null;
+    mode = "split";
     constructor(container: any, options: any) {
       this.options = options ?? {};
       this.mode = this.options.mode ?? "split";
@@ -63,6 +54,65 @@ vi.mock("quikdown-standalone", () => {
       this.sourceTextarea.className = "qde-textarea";
       (container ?? document.body).appendChild(this.sourceTextarea);
     }
+    private input() {
+      this.sourceTextarea.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    getMarkdown = vi.fn(() => this.sourceTextarea.value);
+    setMarkdown = vi.fn();
+    getHTML = vi.fn(() => "");
+    getMode = vi.fn(() => this.mode);
+    setMode = vi.fn((mode: string) => {
+      this.mode = mode;
+      this.options?.onModeChange?.(mode);
+    });
+    undo = vi.fn();
+    redo = vi.fn();
+    canUndo = vi.fn(() => false);
+    canRedo = vi.fn(() => false);
+    clearHistory = vi.fn();
+    getHistory = vi.fn(() => ({ undo: [] as string[], redo: [] as string[] }));
+    setHistory = vi.fn();
+    copyRendered = vi.fn(async () => {});
+    setTheme = vi.fn();
+    getFocusedPane = vi.fn(() => (document.activeElement === this.sourceTextarea ? "source" : null));
+    focus = vi.fn(() => this.sourceTextarea.focus());
+    getSelection = vi.fn(() => {
+      const ta = this.sourceTextarea;
+      const start = ta.selectionStart ?? 0;
+      const end = ta.selectionEnd ?? start;
+      return { start, end, text: ta.value.slice(start, end), pane: "source" as const };
+    });
+    setSelection = vi.fn((start: number, end: number = start) => {
+      this.sourceTextarea.setSelectionRange(start, end);
+      return { start, end };
+    });
+    insertText = vi.fn((text: string) => {
+      const ta = this.sourceTextarea;
+      const start = ta.selectionStart ?? ta.value.length;
+      const end = ta.selectionEnd ?? start;
+      ta.setRangeText(text, start, end, "end");
+      this.input();
+      return { start: start + text.length, end: start + text.length };
+    });
+    replaceRange = vi.fn((start: number, end: number, text: string, select = false) => {
+      const ta = this.sourceTextarea;
+      ta.setRangeText(text, start, end);
+      // happy-dom's setRangeText ignores the selection mode; place it by hand.
+      const sel = select ? { start, end: start + text.length } : { start: start + text.length, end: start + text.length };
+      ta.setSelectionRange(sel.start, sel.end);
+      this.input();
+      return sel;
+    });
+    format = vi.fn(() => true);
+    getFormatState = vi.fn(() => ({ ...NO_FORMAT }));
+    getScroll = vi.fn(() => ({ source: this.sourceTextarea.scrollTop, preview: this.previewPanel?.scrollTop ?? 0 }));
+    setScroll = vi.fn((s: { source?: number; preview?: number } | null) => {
+      if (s?.source != null) this.sourceTextarea.scrollTop = s.source;
+      if (s?.preview != null && this.previewPanel) this.previewPanel.scrollTop = s.preview;
+    });
+    scrollToLine = vi.fn(() => null);
+    lineOf = vi.fn(() => -1);
+    destroy = vi.fn();
   }
   return { default: MockEditor };
 });

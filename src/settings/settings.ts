@@ -17,6 +17,7 @@ import {
   type PreviewStyle,
   type ThemeChoice,
 } from "../ui/appearance";
+import { setFormatToolbarVisible } from "../ui/format-toolbar";
 import { LOG_OPEN } from "../diag/perf";
 import { notify } from "../ui/toast";
 
@@ -41,6 +42,8 @@ export interface LLMSettings {
   editApproval?: EditApproval;
   /** Which edge of the tab the chat drawer slides out of. Default left. */
   chatSide?: ChatSide;
+  /** Show the formatting row (View → Formatting Bar). Default true. */
+  formatBar?: boolean;
   /** Appearance (see `ui/appearance.ts`); `appearanceOf()` applies the defaults. */
   theme?: ThemeChoice;
   uiFontSize?: number;
@@ -83,6 +86,7 @@ const defaults: LLMSettings = {
   perfLog: true,
   editApproval: "files",
   chatSide: "left",
+  formatBar: true,
   projectFileLocation: "dotdir",
   ...DEFAULT_APPEARANCE,
 };
@@ -145,10 +149,16 @@ export function appearanceOf(s: LLMSettings): Appearance {
   };
 }
 
-/** Everything in Settings that shows on the spot: chat display, drawer side, appearance. */
+/** Whether the formatting row shows; anything but an explicit `false` means yes. */
+export function formatBarOf(s: LLMSettings): boolean {
+  return s.formatBar !== false;
+}
+
+/** Everything in Settings that shows on the spot: chat display, drawer side, appearance, the formatting row. */
 export function applyLiveSettings(s: LLMSettings): void {
   applyChatSettings(s);
   applyAppearance(appearanceOf(s));
+  setFormatToolbarVisible(formatBarOf(s));
 }
 
 // --- Presets ----------------------------------------------------------------

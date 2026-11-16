@@ -367,6 +367,29 @@ const shell: CssRules = {
   "#editor-toolbar .tool-group": { display: "flex", "align-items": "center", gap: "2px", padding: "0 4px" },
   "#editor-toolbar .tool-spacer": { flex: "1" },
   "#editor-toolbar .tool-sep": { width: "1px", margin: "9px 4px", background: "var(--border-secondary)", "flex-shrink": "0" },
+  /* ── The formatting row under it: B I S Code Link | H1 H2 H3 | lists … | Outdent Indent, over quikdown's format() ── */
+  "#format-toolbar": {
+    display: "flex",
+    "align-items": "center",
+    gap: "0",
+    height: "30px",
+    padding: "0 8px",
+    "flex-shrink": "0",
+    background: "var(--bg-secondary)",
+    "border-bottom": "1px solid var(--border-primary)",
+    "overflow-x": "auto",
+    "user-select": "none",
+    "-webkit-user-select": "none",
+  },
+  "#format-toolbar .tool-group": { display: "flex", "align-items": "center", gap: "1px", padding: "0 2px" },
+  "#format-toolbar .tool-sep": { width: "1px", height: "14px", margin: "0 5px", background: "var(--border-secondary)", "flex-shrink": "0" },
+  "#format-toolbar .tool-btn": { height: "22px", padding: "0 7px", "min-width": "24px" },
+  "#format-toolbar .tool-btn[aria-pressed=\"true\"]": { background: "var(--text-primary)", color: "var(--bg-primary)" },
+  "#format-toolbar .tool-btn[aria-pressed=\"true\"]:hover": { background: "var(--text-secondary)", color: "var(--bg-primary)" },
+  ".fmt-bold": { "font-weight": "700" },
+  ".fmt-italic": { "font-style": "italic" },
+  ".fmt-strike": { "text-decoration": "line-through" },
+  ".fmt-code": { "font-family": "ui-monospace, SFMono-Regular, Menlo, monospace" },
   /* Panel toggles at the ends of the row, pills like the editor controls; the Chat one swaps ends with its drawer. */
   ".tool-toggle": {
     "flex-shrink": "0",
@@ -411,13 +434,13 @@ const shell: CssRules = {
   ".tool-btn:disabled:hover": { background: "transparent", color: "var(--text-secondary)" },
   ".tool-btn.copied": { color: "var(--success)" },
   /* The project tab has no document: the chat takes the whole body, the editor controls go, the toggles stay. */
-  "#editor-column.project-tab #editor-frame, #editor-column.project-tab #btn-toggle-chat, #editor-column.project-tab #editor-toolbar .editor-only": {
+  "#editor-column.project-tab #editor-frame, #editor-column.project-tab #btn-toggle-chat, #editor-column.project-tab #editor-toolbar .editor-only, #editor-column.project-tab #format-toolbar": {
     display: "none",
   },
   /* The log tab shows the log viewer where the editor was; no chat, no editor controls. */
   "#log-panel": { display: "none", order: "5", flex: "1", "min-width": "0", "min-height": "0", "flex-direction": "column", background: "var(--bg-primary)" },
   "#editor-column.log-tab #log-panel": { display: "flex" },
-  "#editor-column.log-tab #editor-frame, #editor-column.log-tab #btn-toggle-chat, #editor-column.log-tab #editor-toolbar .editor-only": {
+  "#editor-column.log-tab #editor-frame, #editor-column.log-tab #btn-toggle-chat, #editor-column.log-tab #editor-toolbar .editor-only, #editor-column.log-tab #format-toolbar": {
     display: "none",
   },
   ".log-head": {
@@ -1336,7 +1359,7 @@ const writing: CssRules = {
   "#find-close": { "margin-left": "auto" },
 
   /* Focus mode */
-  "#app.focus #titlebar, #app.focus #statusbar, #app.focus #file-tree, #app.focus #outline, #app.focus #chat-panel, #app.focus #chat-drawer-pull, #app.focus #info-panel, #app.focus #tab-bar, #app.focus #editor-toolbar": {
+  "#app.focus #titlebar, #app.focus #statusbar, #app.focus #file-tree, #app.focus #outline, #app.focus #chat-panel, #app.focus #chat-drawer-pull, #app.focus #info-panel, #app.focus #tab-bar, #app.focus #editor-toolbar, #app.focus #format-toolbar": {
     display: "none !important",
   },
   "#app.focus #editor-container .qde-container": { border: "none", "border-radius": "0" },
@@ -1372,7 +1395,7 @@ const writing: CssRules = {
 
   /* Print: only the rendered preview pane (`#editor-container .qde-preview`). */
   "@media print": {
-    "#titlebar, #statusbar, #file-tree, #outline, #chat-panel, #chat-drawer-pull, #info-panel, #tab-bar, #find-bar, #focus-exit, #editor-toolbar, #editor-container .qde-source": {
+    "#titlebar, #statusbar, #file-tree, #outline, #chat-panel, #chat-drawer-pull, #info-panel, #tab-bar, #find-bar, #focus-exit, #editor-toolbar, #format-toolbar, #editor-container .qde-source": {
       display: "none !important",
     },
     "html, body, #app, #main, #editor-column, #tab-body, #editor-container, #editor-container .qde-container, #editor-container .qde-editor": {

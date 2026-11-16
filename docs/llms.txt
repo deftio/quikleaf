@@ -23,6 +23,7 @@ Version 1.2.7. BSD-2-Clause. Source: https://github.com/deftio/quikleaf. Site: h
 quikleaf                     # empty editor
 quikleaf notes.md            # open a file
 quikleaf --watch notes.md    # open and reload when it changes on disk
+quikleaf --view rendered notes.md  # start in the rendered view (source|split|rendered)
 quikleaf --project ./dir     # project mode
 quikleaf --project ./x.prj   # a project file by name
 quikleaf --log               # start on the log tab
@@ -33,7 +34,7 @@ Flags go before or after the file name. Unknown `--flags` print a warning and th
 
 ## Layout
 
-Three rows over the tab body. Title bar: File and View menus, LLM status, Settings, Help, About, theme toggle. Tab bar: tabs. Control row for the active tab: `[Files Outline Chat | Source Split Rendered · Undo Redo … Copy MD/HTML/Rendered · Watch | Info]`. Body: `[files | outline | chat | editor | info]`; each panel opens under its button. The chat is a drawer on the left edge (or right, by setting) with a pull while closed. Keyboard: Cmd/Ctrl+N/O/S/W, Ctrl+Tab, Cmd/Ctrl+F/H, Cmd/Ctrl+Shift+C/I/O (chat, info, outline), Cmd/Ctrl+Shift+D (focus), Cmd/Ctrl+P (print).
+Three rows over the tab body. Title bar: File and View menus, LLM status, Settings, Help, About, theme toggle. Tab bar: tabs. Control row for the active tab: `[Files Outline Chat | Source Split Rendered · Undo Redo … Copy MD/HTML/Rendered · Watch | Info]`. Formatting row under it (View → Formatting Bar hides it): `[B I S Code Link | H1 H2 H3 | • List 1. List ☐ Task Quote Code Block Table Rule | Outdent Indent]`; every button works on whichever pane has the caret, source or rendered, and Cmd/Ctrl+B / I and Tab / Shift+Tab in a list are the editor's own. Body: `[files | outline | chat | editor | info]`; each panel opens under its button. The chat is a drawer on the left edge (or right, by setting) with a pull while closed. Keyboard: Cmd/Ctrl+N/O/S/W, Ctrl+Tab, Cmd/Ctrl+F/H, Cmd/Ctrl+Shift+C/I/O (chat, info, outline), Cmd/Ctrl+Shift+D (focus), Cmd/Ctrl+P (print).
 
 ## Chat scopes and tools
 
@@ -47,7 +48,7 @@ Full detail for agents and external tools, including the project file format and
 ## Architecture
 
 - `src-tauri/` Rust (Tauri v2): file I/O and fs-scope widening (`fs.rs`: `allow_path`, `image_save`), LLM proxy with streaming (`llm.rs`), project state, memory, KV, file tools, search and launch parsing (`project.rs`), performance log and CLI shim (`diag.rs`), file watcher (`watch.rs`, notify crate, emits `file-changed`). `main.rs`/`lib.rs` register commands and an `asset://` scheme that serves image files to the preview.
-- `src/` TypeScript (Vite): the whole interface is bitwrench.js TACO objects mounted into one empty div, styles generated from two palettes (`ui/theme.ts`). quikdown runs headless; `ui/editor-toolbar.ts` draws the controls. `editor/tabs.ts` is the tab model, `editor/documents.ts` the session controller, `editor/images.ts`, `dropzone.ts`, `watch.ts` the image, drop and watch features. `chat/` holds the session per tab, the chat UI with scoped tool dispatch, tool schemas and the system prompt, provider adapters, diff and review cards, the plan card. `settings/settings.ts` is the settings dialog and localStorage. `project/` the file tree and the debounced project-file writer. `diag/` timing math, the log client and the log tab.
+- `src/` TypeScript (Vite): the whole interface is bitwrench.js TACO objects mounted into one empty div, styles generated from two palettes (`ui/theme.ts`). quikdown runs headless and quikleaf uses only its public API (`editor/editor.ts`); `ui/editor-toolbar.ts` draws the controls and `ui/format-toolbar.ts` the formatting row. `editor/tabs.ts` is the tab model, `editor/documents.ts` the session controller (one undo history per tab), `editor/images.ts`, `links.ts`, `dropzone.ts`, `watch.ts` the image, preview-link, drop and watch features. `chat/` holds the session per tab, the chat UI with scoped tool dispatch, tool schemas and the system prompt, provider adapters, diff and review cards, the plan card. `settings/settings.ts` is the settings dialog and localStorage. `project/` the file tree and the debounced project-file writer. `diag/` timing math, the log client and the log tab.
 - Data flow: the model works on raw markdown only and never sees or produces HTML. User message → Rust proxy → provider → tool calls dispatched in the webview (scoped) → results back to the model → loop until a text reply.
 
 ## Docs

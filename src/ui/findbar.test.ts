@@ -215,16 +215,12 @@ describe("searching", () => {
     expect(count()).toBe("2 of 3"); // stays on the match under the caret
   });
 
-  it("scrolls the textarea when the match is off screen", () => {
+  it("scrolls the match's line into view through the editor", () => {
     const ta = textarea();
     ta.value = Array.from({ length: 200 }, (_, i) => `line ${i}`).join("\n") + "\nneedle";
-    Object.defineProperty(ta, "clientHeight", { value: 210, configurable: true });
     type("find-input", "needle");
-    expect(ta.scrollTop).toBeGreaterThan(0);
-    const top = ta.scrollTop;
-    // Re-selecting the same visible match does not move the viewport.
-    findNext();
-    expect(ta.scrollTop).toBe(top);
+    expect(getEditor().scrollToLine).toHaveBeenLastCalledWith(200);
+    expect(selection()).toEqual([ta.value.length - 6, ta.value.length]);
   });
 
   it("findNext / findPrev without matches leave the state empty", () => {
@@ -296,17 +292,14 @@ describe("replacing", () => {
     expect(count()).toBe("No results");
   });
 
-  it("replace functions are safe without an editor", () => {
-    bw.clear(app());
-    initEditor(null as any); // mock editor attaches its textarea to body
-    const ta = textarea();
-    ta.remove();
-    (getEditor() as any).sourceTextarea = null;
-    bw.append(app(), makeFindBar());
+  it("replace functions are safe with an empty document and no selection", () => {
+    textarea().value = "";
+    getEditor().getSelection.mockReturnValue(null);
     expect(() => replaceCurrent()).not.toThrow();
     expect(() => replaceAll()).not.toThrow();
     expect(() => findNext()).not.toThrow();
     expect(count()).toBe("");
+    expect(getEditor().replaceRange).not.toHaveBeenCalled();
   });
 });
 

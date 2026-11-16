@@ -21,6 +21,8 @@ Options:
                        chat and a project file; a .prj file names the project.
   --watch              Reload the opened file when it changes on disk
                        (the Watch toggle; off by default).
+  --view <mode>        Open in the source, split or rendered view (default
+                       split). Tabs opened later start the same way.
   --log                Start on the log tab.
   -h, --help           Print this help and exit.
   -V, --version        Print the version and exit.

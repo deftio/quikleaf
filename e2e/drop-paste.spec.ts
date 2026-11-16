@@ -63,7 +63,8 @@ test.describe("Images in the preview", () => {
     const imgs = page.locator("#editor-container .qde-preview img");
     await expect(imgs).toHaveCount(2);
     await expect(imgs.nth(0)).toHaveAttribute("src", "asset://localhost/%2Fdocs%2Fimages%2Fa.png");
-    await expect(imgs.nth(0)).toHaveAttribute("data-quikleaf-src", "images/a.png");
+    // quikdown resolves the display URL through quikleaf's resolver and keeps the markdown's own source itself.
+    await expect(imgs.nth(0)).toHaveAttribute("data-qd-src", "images/a.png");
     await expect(imgs.nth(1)).toHaveAttribute("src", "https://example.com/b.png");
     // Editing keeps them resolved after quikdown re-renders.
     await page.locator(".qde-textarea").fill("text\n\n![c](../c.png)\n");

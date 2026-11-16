@@ -54,10 +54,10 @@ Results carry `document: "<title>"` so the model can see which file it touched.
 | `document_read` | none | `{document, content}` — the full markdown source (the editor's text when the tab is on screen, the parked text otherwise) |
 | `document_write` | `content: string` | Replaces the entire document (also works for a background tab) |
 | `document_replace` | `search: string, replace: string, all?: boolean` | Find and replace text (first match, or every match with `all`); returns `{count, document}` |
-| `document_insert` | `text: string` | Insert text at cursor position (needs the tab on screen) |
+| `document_insert` | `text: string` | Insert text at the caret, in whichever pane the user is editing (needs the tab on screen) |
 | `document_undo` | none | Undo last editor change (needs the tab on screen) |
 | `document_redo` | none | Redo last undone change (needs the tab on screen) |
-| `document_get_selection` | none | Get currently selected text (needs the tab on screen) |
+| `document_get_selection` | none | Get the selected markdown, from the source or the rendered pane (needs the tab on screen) |
 | `document_outline` | none | Headings as `[{level, text, line}]` (fences ignored) |
 
 #### Tab Tools (project chat)
@@ -177,13 +177,17 @@ An external agent can seed `memory` or `kv` in the project file **while quikleaf
 
 ### Watching a file an agent writes
 
-An external agent that writes a markdown file can have quikleaf show the result as it lands: open the file with `quikleaf --watch path.md`, or turn on the **Watch** toggle at the right end of the tab's control row. The tab reloads whenever the file changes on disk (writes are coalesced; save-by-rename works). If the user has unsaved edits in that tab, quikleaf asks before replacing them; a deleted file is reported once and the tab keeps its text. Watching is per tab, off by default, and stops when the tab closes.
+An external agent that writes a markdown file can have quikleaf show the result as it lands: open the file with `quikleaf --watch path.md` (add `--view rendered` to show only the rendered pane), or turn on the **Watch** toggle at the right end of the tab's control row. The tab reloads whenever the file changes on disk (writes are coalesced; save-by-rename works). If the user has unsaved edits in that tab, quikleaf asks before replacing them; a deleted file is reported once and the tab keeps its text. Watching is per tab, off by default, and stops when the tab closes.
 
 
 How a change is noticed: the OS file watcher reports it at once; a poller also compares each watched file's size and modification time every 1.5 seconds, so a write that raises no OS event (a network share, a sync client, the shared folder of a sandboxed agent or VM) is picked up within about two seconds. Write the whole file, or write a temp file and rename it into place; both are seen. A write that leaves the text identical is ignored. Each reload is an `app` log event `watch-reload`; a read that failed mid-save is `watch-read-failed`.
 ### Images
 
-An image pasted into the source pane is saved as `images/<document>-<timestamp>.<ext>` beside the document and linked relatively; relative image paths render in the preview. Agents that write documents with images should use the same convention.
+An image pasted into the source pane is saved as `images/<document>-<timestamp>.<ext>` beside the document and linked relatively; relative image paths render in the preview (resolved at render time; the markdown and the exported HTML keep the relative path). Agents that write documents with images should use the same convention.
+
+### Links
+
+A relative link to a markdown or text file (`[next](notes/b.md)`) opens that file in a tab when clicked in the rendered pane, resolved against the document's folder, so a set of generated documents can cross-link like a wiki. Web and mail links open in the system browser; the window never navigates away from quikleaf.
 
 ## Performance Log
 

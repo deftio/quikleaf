@@ -129,67 +129,32 @@ describe("renderOutline", () => {
 });
 
 describe("jumpToHeading", () => {
-  it("moves the caret to the heading's line, scrolls the textarea and focuses it", () => {
+  it("moves the caret to the heading's line, focuses the editor and scrolls both panes to the line", () => {
     const ta = textarea();
-    ta.value = "intro\n\n# A\nbody\n## B";
+    editorText = ta.value = "intro\n\n# A\nbody\n## B";
     renderOutline(ta.value);
-    const focus = vi.spyOn(ta, "focus");
-    items()[1].click(); // "## B" starts at offset 16
-    expect(focus).toHaveBeenCalled();
+    items()[1].click(); // "## B" starts at offset 16, line 4
+    expect(getEditor().focus).toHaveBeenCalled();
     expect(ta.selectionStart).toBe(16);
     expect(ta.selectionEnd).toBe(16);
-    expect(ta.scrollTop).toBeGreaterThanOrEqual(0);
-  });
-
-  it("scrolls the nth matching preview heading into view", () => {
-    const ta = textarea();
-    ta.value = "# Dup\n\ntext\n\n# Dup\n";
-    const preview = document.createElement("div");
-    preview.className = "qde-preview";
-    const h1a = document.createElement("h1");
-    h1a.textContent = "Dup";
-    const h1b = document.createElement("h1");
-    h1b.textContent = " Dup ";
-    preview.append(h1a, h1b);
-    document.getElementById("editor-container")!.appendChild(preview);
-    const a = (h1a.scrollIntoView = vi.fn());
-    const b = (h1b.scrollIntoView = vi.fn());
-
+    expect(getEditor().scrollToLine).toHaveBeenLastCalledWith(4);
+    // Duplicate headings are told apart by line, not text.
+    editorText = ta.value = "# Dup\n\ntext\n\n# Dup\n";
     const headings = renderOutline(ta.value);
     jumpToHeading(headings[1]);
-    expect(b).toHaveBeenCalledWith({ block: "start" });
-    expect(a).not.toHaveBeenCalled();
-
-    // Falls back to the first candidate when the rank overshoots.
-    jumpToHeading({ level: 1, text: "Dup", line: 99 });
-    expect(a).toHaveBeenCalled();
+    expect(ta.selectionStart).toBe(13);
+    expect(getEditor().scrollToLine).toHaveBeenLastCalledWith(4);
   });
 
-  it("prefers the editor's own previewPanel handle when present", () => {
-    const preview = document.createElement("div");
-    const h2 = document.createElement("h2");
-    h2.textContent = "Sub";
-    h2.scrollIntoView = vi.fn();
-    preview.appendChild(h2);
-    getEditor().previewPanel = preview;
-    renderOutline("## Sub");
-    jumpToHeading({ level: 2, text: "Sub", line: 0 });
-    expect(h2.scrollIntoView).toHaveBeenCalled();
-    delete getEditor().previewPanel;
-  });
-
-  it("does nothing harmful without a preview pane or matching element", () => {
-    renderOutline("# X");
-    expect(() => jumpToHeading({ level: 1, text: "X", line: 0 })).not.toThrow();
-    const preview = document.createElement("div");
-    preview.className = "qde-preview";
-    document.getElementById("editor-container")!.appendChild(preview);
-    expect(() => jumpToHeading({ level: 1, text: "missing", line: 0 })).not.toThrow();
+  it("clamps a line past the end of the document", () => {
+    editorText = textarea().value = "# X";
+    expect(() => jumpToHeading({ level: 1, text: "X", line: 99 })).not.toThrow();
+    expect(textarea().selectionStart).toBe(3);
   });
 
   it("Enter and Space on a focused row jump too", () => {
     const ta = textarea();
-    ta.value = "a\n# B";
+    editorText = ta.value = "a\n# B";
     renderOutline(ta.value);
     const row = items()[0];
     row.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));

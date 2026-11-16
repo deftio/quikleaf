@@ -531,12 +531,13 @@
 '  ui/theme.ts               Light + dark themes, app CSS via bw.css()\n' +
 '  ui/shell.ts               Title bar, menus, toggle buttons, status bar\n' +
 '  ui/editor-toolbar.ts      The tab\u2019s control row over the headless editor\n' +
+'  ui/format-toolbar.ts      The formatting row over quikdown\u2019s format() API\n' +
 '  ui/appearance.ts          Theme, font sizes, preview styles, user CSS\n' +
 '  ui/about.ts               About / How it works / Diagnostics tabs\n' +
 '  ui/tabbar.ts, findbar.ts, outline.ts, focus.ts\n' +
 '  editor/editor.ts          quikdown editor wrapper (headless)\n' +
 '  editor/tabs.ts, documents.ts   Tab model and session controller\n' +
-'  editor/images.ts, dropzone.ts, watch.ts   Images, dropped files, Watch\n' +
+'  editor/images.ts, links.ts, dropzone.ts, watch.ts   Images, preview links, dropped files, Watch\n' +
 '  chat/chat-ui.ts           Chat pane, scoped tool dispatch, slash commands\n' +
 '  chat/session.ts           One sealed chat session per tab\n' +
 '  ui/panes.ts, ui/infopane.ts  Per-tab panes [chat | view | info]\n' +

@@ -5,7 +5,69 @@ All notable changes to quikleaf are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.6] - Unreleased
+## [1.2.7] - Unreleased
+
+AI assistance: the flag, the formatting bar, the move to quikdown's editor
+API, the tests and this entry were drafted with Claude Code under the
+maintainer's direction; reviewed and released by the maintainer.
+
+### Added
+
+- A formatting bar under the tab's control row: Bold, Italic, Strikethrough,
+  Code, Link · H1 H2 H3 · bulleted, numbered and task lists, Quote, Code
+  Block, Table, Rule · Outdent, Indent. Every button works on whichever pane
+  the caret is in, source or rendered, and shows pressed for the formatting
+  at the caret. View → Formatting Bar hides it; the choice is remembered.
+- Cmd/Ctrl+B and Cmd/Ctrl+I bold and italicize in both panes on every
+  platform. On macOS the rendered pane had no way to do either: WebKit leaves
+  those keys to the app's menu bar, which a Tauri window does not have.
+  quikdown 1.3 binds them itself. Tab and Shift+Tab indent and outdent a
+  list item.
+- Links clicked in the rendered pane behave: web and mail links open in the
+  system browser, a link to a markdown or text file beside the document
+  opens it in a tab (wiki-style), and nothing navigates the window away from
+  the app any more.
+- One undo history per tab. Cmd+Z in a document can no longer bring back a
+  different tab's text.
+- `quikleaf --view source|split|rendered`: the view every tab starts in
+  (default split). It applies to the startup tab and the file named on the
+  command line, overrides the layout a project remembered for this launch,
+  and tabs opened later inherit it as usual. `preview` is accepted as a
+  synonym for `rendered`. An unknown or missing value is ignored with a
+  warning on stderr, like an unknown flag.
+
+### Changed
+
+- quikdown 1.3.2 (from 1.2.22), and quikleaf now uses only the editor's
+  public API (deftio/quikdown#39 and #41, which 1.3 closed): selection and
+  edits, formatting, scroll and line positions, history, the typed
+  `quikdown/edit-standalone` export, `onRender`, `onLinkClick`,
+  `onSelectionChange` and `resolveImageSrc`. Find & replace, the outline,
+  image rewriting, Watch reloads, focus mode and the chat's document tools
+  no longer touch the editor's panes directly, so they work the same in the
+  rendered pane: find selects a match and scrolls both panes to it, an
+  outline click lands on the right heading even when two have the same
+  text, and the chat's `document_insert` and `document_get_selection` follow
+  the caret wherever it is.
+- A code fence's language is the first word of its info string (quikdown
+  1.3.2), so ```` ```js title=app.js ```` or ```` ```python run #setup ````
+  highlights as JavaScript or Python instead of falling back to plain text.
+  The markdown keeps the whole info string.
+- Relative images are resolved by quikdown at render time (`resolveImageSrc`)
+  instead of being rewritten afterwards; the exported HTML keeps the
+  markdown's own paths.
+
+### Fixed
+
+- rustls 0.23.46 (from 0.23.43), the TLS library under the LLM proxy: four
+  advisories, the worst a `Debug` print of a session exposing its TLS
+  secrets (medium).
+- Switching a tab back to Split did nothing when the editor was in Source
+  or Rendered: the adapter read a `mode` property the quikdown editor did
+  not have and always saw Split. quikleaf now tracks the mode itself from
+  `setMode` and `onModeChange`.
+
+## [1.2.6] - 2026-11-07
 
 AI assistance: the dependency update, the tests and this entry were drafted
 with Claude Code under the maintainer's direction; reviewed and released by

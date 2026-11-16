@@ -11,7 +11,13 @@
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// The flags the app understands, so `unknown_flags` can tell the rest apart.
-pub const KNOWN_FLAGS: &[&str] = &["--project", "--watch", "--log", "-h", "--help", "-V", "--version"];
+pub const KNOWN_FLAGS: &[&str] = &["--project", "--view", "--watch", "--log", "-h", "--help", "-V", "--version"];
+
+/// The flags that take the next argument as their value, which is therefore
+/// never a flag or the file (`parse_cli_args_from` skips it the same way).
+pub fn takes_value(flag: &str) -> bool {
+    matches!(flag, "--project" | "--view")
+}
 
 /// What `--help` prints.
 pub fn help_text() -> String {
@@ -31,6 +37,8 @@ Options:
                        chat and a project file; a .prj file names the project.
   --watch              Reload the opened file when it changes on disk
                        (the Watch toggle; off by default).
+  --view <mode>        Open in the source, split or rendered view (default
+                       split). Tabs opened later start the same way.
   --log                Start on the log tab.
   -h, --help           Print this help and exit.
   -V, --version        Print the version and exit.
@@ -65,11 +73,11 @@ impl EarlyExit {
 }
 
 /// `-h`/`--help` wins over `-V`/`--version`; either may sit anywhere after the
-/// program name. The value after `--project` is never read as a flag.
+/// program name. The value after `--project` or `--view` is never read as a flag.
 pub fn early_exit(args: &[String]) -> Option<EarlyExit> {
     let mut found = None;
     for (i, a) in args.iter().enumerate().skip(1) {
-        if i > 1 && args[i - 1] == "--project" {
+        if i > 1 && takes_value(&args[i - 1]) {
             continue;
         }
         match a.as_str() {
@@ -89,7 +97,7 @@ pub fn unknown_flags(args: &[String]) -> Vec<String> {
     args.iter()
         .enumerate()
         .skip(1)
-        .filter(|(i, a)| a.starts_with("--") && !KNOWN_FLAGS.contains(&a.as_str()) && !(*i > 1 && args[i - 1] == "--project"))
+        .filter(|(i, a)| a.starts_with("--") && !KNOWN_FLAGS.contains(&a.as_str()) && !(*i > 1 && takes_value(&args[i - 1])))
         .map(|(_, a)| a.clone())
         .collect()
 }
@@ -105,7 +113,7 @@ mod tests {
     #[test]
     fn help_names_every_flag_and_the_version() {
         let h = help_text();
-        for f in ["--project", "--watch", "--log", "-h, --help", "-V, --version"] {
+        for f in ["--project", "--view <mode>", "--watch", "--log", "-h, --help", "-V, --version"] {
             assert!(h.contains(f), "help lacks {f}");
         }
         assert!(h.starts_with(&format!("quikleaf {VERSION}\n")));
@@ -134,6 +142,8 @@ mod tests {
         // The program name and a --project value are never flags.
         assert_eq!(early_exit(&a(&["--help"])), None);
         assert_eq!(early_exit(&a(&["quikleaf", "--project", "--help"])), None);
+        assert_eq!(early_exit(&a(&["quikleaf", "--view", "--help"])), None);
+        assert_eq!(early_exit(&a(&["quikleaf", "--view", "rendered", "--help"])), Some(EarlyExit::Help));
     }
 
     #[test]
@@ -142,5 +152,8 @@ mod tests {
         assert_eq!(unknown_flags(&a(&["quikleaf", "--verbose", "notes.md", "--wtch"])), a(&["--verbose", "--wtch"]));
         assert_eq!(unknown_flags(&a(&["quikleaf", "--project", "--odd-dir-name"])), Vec::<String>::new());
         assert_eq!(unknown_flags(&a(&["quikleaf", "-psn_0_12345"])), Vec::<String>::new());
+        assert_eq!(unknown_flags(&a(&["quikleaf", "--view", "rendered", "notes.md"])), Vec::<String>::new());
+        // A value after --view is the value, even a bad one; bad_view_value reports it.
+        assert_eq!(unknown_flags(&a(&["quikleaf", "--view", "--odd"])), Vec::<String>::new());
     }
 }

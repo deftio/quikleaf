@@ -54,7 +54,13 @@ pub fn parse_cli_args_from(args: &[String], cwd: &Path) -> LaunchMode {
     }
 
     // Check for single file
-    let file_arg = args.iter().skip(1).find(|arg| !arg.starts_with('-'));
+    // The first bare argument is the file; a flag's value (`--view source`) is not one.
+    let file_arg = args
+        .iter()
+        .enumerate()
+        .skip(1)
+        .find(|(i, arg)| !arg.starts_with('-') && !(*i > 1 && args[*i - 1] == "--view"))
+        .map(|(_, arg)| arg);
     if let Some(arg) = file_arg {
         let path = Path::new(arg);
         let absolute_path = if path.is_absolute() {
@@ -91,6 +97,13 @@ fn main() {
     }
     for flag in commands::cli::unknown_flags(&args) {
         eprintln!("quikleaf: unknown option {flag} (see quikleaf --help)");
+    }
+    if let Some(bad) = commands::project::bad_view_value(&args) {
+        if bad.is_empty() {
+            eprintln!("quikleaf: --view needs a value: source, split or rendered (see quikleaf --help)");
+        } else {
+            eprintln!("quikleaf: --view {bad}: expected source, split or rendered (see quikleaf --help)");
+        }
     }
 
     let launch_mode = parse_cli_args();
@@ -377,6 +390,25 @@ mod tests {
                 // --verbose should be skipped
                 assert!(!p.contains("verbose"));
             }
+            _ => panic!("Expected Simple"),
+        }
+    }
+
+    #[test]
+    fn view_flag_value_is_not_the_file() {
+        let cwd = PathBuf::from("/home/user");
+        for argv in [
+            &["quikleaf", "--view", "source", "readme.md"][..],
+            &["quikleaf", "readme.md", "--view", "rendered"][..],
+            &["quikleaf", "--watch", "--view", "split", "readme.md"][..],
+        ] {
+            match parse_cli_args_from(&args(argv), &cwd) {
+                LaunchMode::Simple { file_path } => assert!(file_path.unwrap().ends_with("readme.md"), "{argv:?}"),
+                _ => panic!("Expected Simple for {argv:?}"),
+            }
+        }
+        match parse_cli_args_from(&args(&["quikleaf", "--view", "source"]), &cwd) {
+            LaunchMode::Simple { file_path } => assert!(file_path.is_none()),
             _ => panic!("Expected Simple"),
         }
     }

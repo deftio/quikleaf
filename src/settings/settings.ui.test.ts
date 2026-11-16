@@ -381,6 +381,7 @@ describe("open / close and the form round-trip", () => {
       perfLog: true,
       editApproval: "always",
       chatSide: "right",
+      formatBar: true,
       theme: "system",
       uiFontSize: 14,
       editorFontSize: 16,

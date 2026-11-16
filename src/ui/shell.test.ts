@@ -181,6 +181,7 @@ describe("makeTitlebar", () => {
       onToggleFiles: vi.fn(),
       onToggleOutline: vi.fn(),
       onToggleInfo: vi.fn(),
+      onToggleFormatBar: vi.fn(),
       onProjectChat: vi.fn(),
       onEditorMode: vi.fn(),
       onFocusMode: vi.fn(),
@@ -217,6 +218,7 @@ describe("makeTitlebar", () => {
     expect(viewItems).toEqual([
       "btn-toggle-chat-menu",
       "btn-toggle-info-menu",
+      "btn-toggle-format-menu",
       "btn-toggle-files-menu",
       "btn-toggle-outline-menu",
       "btn-project-chat",
@@ -244,6 +246,7 @@ describe("makeTitlebar", () => {
     click("btn-toggle-info-menu");
     click("btn-toggle-files-menu");
     click("btn-toggle-outline-menu");
+    click("btn-toggle-format-menu");
     click("btn-project-chat");
     click("btn-docs");
     click("btn-report-issue");

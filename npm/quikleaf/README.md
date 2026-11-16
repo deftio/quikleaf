@@ -16,6 +16,7 @@ Then run:
 quikleaf                    # empty editor
 quikleaf document.md        # open a file
 quikleaf --watch document.md  # open it and reload when it changes on disk
+quikleaf --view rendered document.md  # start in the rendered view (source, split or rendered)
 quikleaf --project ./mydir  # project mode: file tree, project chat, project file
 quikleaf --log              # start on the log tab
 quikleaf --help             # the flags; --version prints the version

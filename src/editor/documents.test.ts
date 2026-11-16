@@ -101,7 +101,7 @@ describe("initDocuments", () => {
   it("starts with one clean untitled tab shown in an empty editor", () => {
     expect(listTabs()).toHaveLength(1);
     expect(tabs.activeTab()).toMatchObject({ path: null, title: "Untitled", dirty: false });
-    expect(getEditor().setMarkdown).toHaveBeenCalledWith("");
+    expect(getEditor().setMarkdown).toHaveBeenCalledWith("", { history: "reset" });
     expect(status()).toBe("No file open");
     expect(document.title).toBe("quikleaf — Untitled");
   });
@@ -491,7 +491,7 @@ describe("the project chat tab", () => {
     await openPath("/x/y.md");
     const tab = await openLogTab();
     expect(tab).toMatchObject({ id: tabs.LOG_TAB_ID, kind: "log" });
-    expect(getEditor().setMarkdown).toHaveBeenLastCalledWith("");
+    expect(getEditor().setMarkdown).toHaveBeenLastCalledWith("", { history: "reset" });
     expect(status()).toBe("Performance log");
     expect(await openLogTab()).toMatchObject({ id: tabs.LOG_TAB_ID });
   });
@@ -612,5 +612,37 @@ describe("reloadDocument", () => {
     const log = (await openLogTab())!;
     await reloadDocument(log.id, "ignored");
     expect(tabs.getTab(log.id)!.content).not.toBe("ignored");
+  });
+});
+
+describe("undo history per tab", () => {
+  it("parks the outgoing tab's history, loads the incoming tab with a reset stack and restores its own", async () => {
+    const inst = getEditor();
+    mockRead.mockResolvedValue("# a\n");
+    const a = (await openPath("/docs/a.md"))!;
+    inst.getHistory.mockReturnValue({ undo: ["# a\n"], redo: [] });
+    mockRead.mockResolvedValue("# b\n");
+    const b = (await openPath("/docs/b.md"))!;
+    // Switching to b: a's stack was read and parked; b starts clean (its stack was never seen).
+    expect(inst.setMarkdown).toHaveBeenLastCalledWith("# b\n", { history: "reset" });
+    expect(inst.setHistory).toHaveBeenLastCalledWith(null);
+
+    inst.getHistory.mockReturnValue({ undo: ["# b\n", "# b edited\n"], redo: ["x"] });
+    await showTab(a.id);
+    expect(inst.setHistory).toHaveBeenLastCalledWith({ undo: ["# a\n"], redo: [] });
+    await showTab(b.id);
+    expect(inst.setHistory).toHaveBeenLastCalledWith({ undo: ["# b\n", "# b edited\n"], redo: ["x"] });
+
+    // Showing the active tab again keeps the stack as it is.
+    inst.setHistory.mockClear();
+    await showTab(b.id);
+    expect(inst.setMarkdown).toHaveBeenLastCalledWith("# b\n", { history: "keep" });
+    expect(inst.setHistory).not.toHaveBeenCalled();
+
+    // A closed tab's history is forgotten: reopening the file starts clean.
+    await closeDocument(a.id);
+    mockRead.mockResolvedValue("# a\n");
+    await openPath("/docs/a.md");
+    expect(inst.setHistory).toHaveBeenLastCalledWith(null);
   });
 });

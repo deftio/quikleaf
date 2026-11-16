@@ -1,17 +1,16 @@
 /**
- * Images: relative `img` sources in the preview are pointed at the asset
- * scheme, resolved against the active document; an image pasted into the
- * source pane is saved beside the document and linked at the caret.
+ * Images: relative `img` sources are resolved for the preview against the
+ * active document through quikdown's `resolveImageSrc`; an image pasted into
+ * the source pane is saved beside the document and linked at the caret.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import bw from "bitwrench";
 import { invoke } from "@tauri-apps/api/core";
-import { getEditor, initEditor, notifyEditorChange } from "./editor";
+import { getEditor, initEditor } from "./editor";
 import * as tabs from "./tabs";
 import { initDocuments, setDocumentsProjectMode } from "./documents";
 import { appendEl } from "../ui/taco";
 import {
-  SRC_ATTR,
   disposePreviewImages,
   handlePaste,
   imageFileOf,
@@ -20,7 +19,7 @@ import {
   initImagePaste,
   initPreviewImages,
   insertImageFile,
-  rewriteImages,
+  resolveImageSrc,
   saveImageBytes,
 } from "./images";
 
@@ -30,13 +29,7 @@ function app(): HTMLElement {
   return document.getElementById("app")!;
 }
 
-function pane(html: string): HTMLElement {
-  const div = document.createElement("div");
-  div.innerHTML = html; // test fixture only: the preview's own markup is quikdown's, not ours
-  return div;
-}
-
-const flush = () => new Promise((r) => setTimeout(r, 0));
+const info = { alt: "", title: "" };
 
 beforeEach(async () => {
   tabs.resetTabs();
@@ -54,79 +47,63 @@ afterEach(() => {
   bw.clear(app());
 });
 
-describe("rewriteImages", () => {
-  it("points relative sources at the asset scheme beside the document and keeps the original", () => {
-    const p = pane('<img src="images/a.png"><img src="./b.png"><img src="../c.png">');
-    expect(rewriteImages(p, "/docs/notes/x.md")).toBe(3);
-    const imgs = Array.from(p.querySelectorAll("img"));
-    expect(imgs[0].getAttribute("src")).toBe(imageUrl("/docs/notes/images/a.png"));
-    expect(imgs[0].getAttribute(SRC_ATTR)).toBe("images/a.png");
-    expect(imgs[1].getAttribute("src")).toBe(imageUrl("/docs/notes/b.png"));
-    expect(imgs[2].getAttribute("src")).toBe(imageUrl("/docs/c.png"));
+describe("resolveImageSrc", () => {
+  it("points relative sources at the asset scheme beside the document", () => {
+    expect(resolveImageSrc("images/a.png", "/docs/notes/x.md")).toBe(imageUrl("/docs/notes/images/a.png"));
+    expect(resolveImageSrc("./b.png", "/docs/notes/x.md")).toBe(imageUrl("/docs/notes/b.png"));
+    expect(resolveImageSrc("../c.png", "/docs/notes/x.md")).toBe(imageUrl("/docs/c.png"));
     expect(imageUrl("/docs/c.png")).toBe("asset://localhost/%2Fdocs%2Fc.png");
   });
 
-  it("converts absolute file paths, leaves URLs and data URIs alone, and is idempotent", () => {
-    const p = pane('<img src="/abs/a.png"><img src="https://x/y.png"><img src="data:image/png;base64,AAAA">');
-    expect(rewriteImages(p, "/docs/x.md")).toBe(1);
-    const imgs = Array.from(p.querySelectorAll("img"));
-    expect(imgs[0].getAttribute("src")).toBe(imageUrl("/abs/a.png"));
-    expect(imgs[1].getAttribute("src")).toBe("https://x/y.png");
-    expect(imgs[2].getAttribute("src")).toBe("data:image/png;base64,AAAA");
-    expect(rewriteImages(p, "/docs/x.md")).toBe(0);
+  it("converts absolute file paths and leaves URLs and data URIs as written", () => {
+    expect(resolveImageSrc("/abs/a.png", "/docs/x.md")).toBe(imageUrl("/abs/a.png"));
+    expect(resolveImageSrc("https://x/y.png", "/docs/x.md")).toBeUndefined();
+    expect(resolveImageSrc("data:image/png;base64,AAAA", "/docs/x.md")).toBeUndefined();
   });
 
   it("leaves relative images of an unsaved document alone (nothing to resolve against)", () => {
-    const p = pane('<img src="images/a.png">');
-    expect(rewriteImages(p, null)).toBe(0);
-    expect(p.querySelector("img")!.getAttribute("src")).toBe("images/a.png");
-  });
-
-  it("re-resolves when the document changes (a tab switch) because the original is kept", () => {
-    const p = pane('<img src="a.png">');
-    rewriteImages(p, "/one/x.md");
-    expect(rewriteImages(p, "/two/y.md")).toBe(1);
-    expect(p.querySelector("img")!.getAttribute("src")).toBe(imageUrl("/two/a.png"));
+    expect(resolveImageSrc("images/a.png", null)).toBeUndefined();
+    expect(resolveImageSrc("/abs/a.png", null)).toBe(imageUrl("/abs/a.png"));
   });
 });
 
 describe("initPreviewImages", () => {
-  it("rewrites after the preview re-renders, on editor changes and on tab switches", async () => {
-    const preview = document.createElement("div");
-    getEditor().previewPanel = preview;
+  it("gives quikdown a resolver that follows the active document, and renders again when the document gains a folder", () => {
+    const inst = getEditor();
+    const resolve = inst.options.resolveImageSrc as (src: string, i: typeof info) => string | void;
     const tab = tabs.openTab("/docs/x.md", "", {});
     tabs.setActive(tab.id);
     initPreviewImages();
+    expect(resolve("a.png", info)).toBe(imageUrl("/docs/a.png"));
+    expect(resolve("https://x/y.png", info)).toBeUndefined();
 
-    preview.appendChild(pane('<img src="a.png">').firstElementChild!);
-    await flush(); // MutationObserver delivers asynchronously
-    expect(preview.querySelector("img")!.getAttribute("src")).toBe(imageUrl("/docs/a.png"));
-
-    // A new render (quikdown replaces the children) is caught too.
-    preview.innerHTML = '<img src="b.png">';
-    await flush();
-    expect(preview.querySelector("img")!.getAttribute("src")).toBe(imageUrl("/docs/b.png"));
-
-    // Switching to a document elsewhere re-resolves the same markup.
+    // Another tab: the switch itself re-renders (documents.ts), so no extra render here.
+    const before = inst.setMarkdown.mock.calls.length;
     const other = tabs.openTab("/elsewhere/y.md", "", {});
     tabs.setActive(other.id);
-    expect(preview.querySelector("img")!.getAttribute("src")).toBe(imageUrl("/elsewhere/b.png"));
+    expect(resolve("a.png", info)).toBe(imageUrl("/elsewhere/a.png"));
+    expect(inst.setMarkdown.mock.calls.length).toBe(before);
 
-    // The editor's own change callback refreshes synchronously.
-    preview.querySelector("img")!.setAttribute("src", "c.png");
-    preview.querySelector("img")!.removeAttribute(SRC_ATTR);
-    notifyEditorChange("", "");
-    expect(preview.querySelector("img")!.getAttribute("src")).toBe(imageUrl("/elsewhere/c.png"));
+    // Save As of an untitled document: same tab, new folder → render again (not an edit).
+    const untitled = tabs.newUntitledTab();
+    tabs.setActive(untitled.id);
+    expect(resolve("a.png", info)).toBeUndefined();
+    const calls = inst.setMarkdown.mock.calls.length;
+    tabs.markSaved(untitled.id, "/saved/z.md");
+    expect(inst.setMarkdown.mock.calls.length).toBe(calls + 1);
+    expect(inst.setMarkdown).toHaveBeenLastCalledWith(expect.any(String), { history: "keep", source: "api" });
+    expect(resolve("a.png", info)).toBe(imageUrl("/saved/a.png"));
 
     disposePreviewImages();
-    preview.innerHTML = '<img src="d.png">';
-    await flush();
-    expect(preview.querySelector("img")!.getAttribute("src")).toBe("d.png");
+    expect(resolve("a.png", info)).toBeUndefined();
+    tabs.markSaved(untitled.id, "/moved/z.md");
+    expect(inst.setMarkdown.mock.calls.length).toBe(calls + 1);
   });
 
-  it("is harmless before the editor has a preview pane", () => {
-    getEditor().previewPanel = undefined;
+  it("is harmless without a tab", () => {
+    tabs.resetTabs();
     expect(() => initPreviewImages()).not.toThrow();
+    expect(getEditor().options.resolveImageSrc("a.png", info)).toBeUndefined();
   });
 });
 
