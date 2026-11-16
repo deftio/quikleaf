@@ -48,7 +48,13 @@ pub fn parse_cli_args_from(args: &[String], cwd: &Path) -> LaunchMode {
         }
     }
 
-    let file_arg = args.iter().skip(1).find(|arg| !arg.starts_with('-'));
+    // The first bare argument is the file; a flag's value (`--view source`) is not one.
+    let file_arg = args
+        .iter()
+        .enumerate()
+        .skip(1)
+        .find(|(i, arg)| !arg.starts_with('-') && !(*i > 1 && args[*i - 1] == "--view"))
+        .map(|(_, arg)| arg);
     if let Some(arg) = file_arg {
         let path = Path::new(arg);
         let absolute_path = if path.is_absolute() {
@@ -86,6 +92,13 @@ pub fn run() {
     }
     for flag in commands::cli::unknown_flags(&args) {
         eprintln!("quikleaf: unknown option {flag} (see quikleaf --help)");
+    }
+    if let Some(bad) = commands::project::bad_view_value(&args) {
+        if bad.is_empty() {
+            eprintln!("quikleaf: --view needs a value: source, split or rendered (see quikleaf --help)");
+        } else {
+            eprintln!("quikleaf: --view {bad}: expected source, split or rendered (see quikleaf --help)");
+        }
     }
 
     let launch_mode = parse_cli_args();

@@ -68,6 +68,7 @@ Located in `src/`. Built with Vite, runs in Tauri's webview. `index.html` is an 
 | `ui/theme.ts` | Two bitwrench themes (`bw.loadStyles()` light, and dark scoped under `.dark`) plus app CSS written with `bw.css()` over CSS custom properties |
 | `ui/shell.ts` | Title bar (File/View menus, LLM status, Settings, Help, About, theme toggle), toggle buttons, `makeMain` (`#tab-body` with `#editor-frame`), the chat drawer pull, status bar as TACO |
 | `ui/editor-toolbar.ts` | The tab's control row: Files/Outline/Chat toggles, the headless quikdown editor's controls (Source/Split/Rendered, Undo/Redo, Copy MD/HTML/Rendered), Info toggle |
+| `ui/format-toolbar.ts` | The formatting row: one button per quikdown `format()` command (bold … indent), pressed state from the editor's `onSelectionChange`; View → Formatting Bar hides it |
 | `ui/appearance.ts` | Theme (light/dark/system), font sizes, preview style class and the user's preview CSS |
 | `diag/log-pane.ts` | The log tab's viewer: live entries via `onLogEvent`, the file's tail on first show, filter, Follow, Clear |
 | `ui/about.ts` | About dialog (`bw.makeModal`) with system-browser links |
@@ -80,11 +81,11 @@ Located in `src/`. Built with Vite, runs in Tauri's webview. `index.html` is an 
 | `editor/tabs.ts` | Pure tab model (document tabs and the single project tab, each with a `view`); publishes `tabs:changed` |
 | `editor/documents.ts` | Session controller: binds tabs to the single quikdown instance, open/save/close, unsaved prompts, shortcuts |
 | `editor/find.ts`, `editor/outline.ts`, `editor/stats.ts`, `editor/export.ts` | Pure logic for find/replace, heading parsing, document stats, standalone HTML export and print |
-| `editor/paths.ts`, `editor/images.ts`, `editor/dropzone.ts` | Path helpers; relative images rewritten to the `asset://` scheme after each render, image paste (`image_save`) and image links; native file drops (`onDragDropEvent`) |
+| `editor/paths.ts`, `editor/images.ts`, `editor/links.ts`, `editor/dropzone.ts` | Path helpers; relative images resolved to the `asset://` scheme at render time (quikdown's `resolveImageSrc`), image paste (`image_save`) and image links; preview link clicks (`onLinkClick`: browser, a tab for text files, never the webview); native file drops (`onDragDropEvent`) |
 | `editor/watch.ts` | The Watch toggle: `watch_start`/`watch_stop` per tab, `file-changed` events debounced into `reloadDocument()`, prompts for dirty tabs, `--watch` at launch |
 | `chat/diff.ts`, `chat/review.ts`, `chat/plan.ts`, `chat/outline.ts` | Line diff, Accept/Reject review cards, plan card, heading tool |
 | `diag/perf.ts` | Stopwatch, time-to-first-token / tok/s math, formatting, `logEvent()` client for the performance log |
-| `editor/editor.ts` | quikdown editor wrapper (`showToolbar: false`) with mode/undo/redo/history/copy/insert/selection exports |
+| `editor/editor.ts` | The quikdown editor behind the API quikleaf uses (`quikdown/edit-standalone`, headless): mode, selection and edits, formatting, scroll and lines, history, copy, and the change / mode / selection / render / link / image-resolver callbacks. Nothing else touches the editor's panes |
 | `chat/session.ts` | One chat session per tab: scope (document / project), provider-format history, visible transcript, plan, model override, stats, and the chat's own log element; `exportChatHistory` / `importChatHistory` for `quikleaf.prj` |
 | `chat/chat-ui.ts` | Chat pane TACO: mounts the active tab's session log, header naming the target, streaming bubbles via `bw.append`/`bw.patch`, scoped tool dispatch loop, slash commands |
 | `chat/chat-utils.ts` | System prompt, tool schemas, provider-neutral message shaping |
@@ -139,10 +140,10 @@ Each LLM request logs `ttft_ms`, `total_ms`, `chars`, `est_tokens` (chars/4), `t
 ## Build Pipeline
 
 ```
-npm install          → Install frontend deps (includes quikdown ~8MB)
+npm install          → Install frontend deps (includes quikdown; its editor chunk is ~8.4 MB, 2.4 MB gzipped)
 vite build           → Bundle TypeScript → dist/
 cargo build          → Compile Rust backend
 tauri build          → Package: app + webview + bundled assets → installer
 ```
 
-Vite config aliases `quikdown-standalone` to the standalone ESM bundle which includes all fence libraries (highlight.js, mermaid, mathjax, leaflet, three.js, etc.).
+The editor comes from quikdown's package export `quikdown/edit-standalone`, the standalone ESM bundle with every fence library (highlight.js, mermaid, mathjax, leaflet, three.js, etc.); Vite puts it in its own `quikdown` chunk.

@@ -52,18 +52,51 @@ pub fn locate_project_file(root: &Path) -> (PathBuf, bool) {
 }
 
 /// Flags that ride alongside the launch mode: `--log` opens the log viewer
-/// tab, `--watch` turns the Watch toggle on for the file named on the command line.
+/// tab, `--watch` turns the Watch toggle on for the file named on the command
+/// line, `--view <mode>` is the view every tab starts in (`source`, `split` or
+/// `preview`; the command line says `rendered` for the last).
 #[derive(Clone, Default, Serialize, Deserialize)]
 pub struct LaunchFlags {
     pub open_log: bool,
     #[serde(default)]
     pub watch: bool,
+    #[serde(default)]
+    pub view: Option<String>,
+}
+
+/// The canonical editor mode for a `--view` value, or None when it is not one.
+/// `rendered` is what the user says; `preview` is quikdown's name for that pane.
+pub fn view_mode(value: &str) -> Option<&'static str> {
+    match value {
+        "source" => Some("source"),
+        "split" => Some("split"),
+        "rendered" | "preview" => Some("preview"),
+        _ => None,
+    }
+}
+
+/// The argument after `--view` when the flag is present: `Some(None)` is the
+/// flag with nothing after it, `None` no flag at all.
+fn view_value(args: &[String]) -> Option<Option<&String>> {
+    let pos = args.iter().skip(1).position(|a| a == "--view")? + 1;
+    Some(args.get(pos + 1))
+}
+
+/// The `--view` value the app will ignore, for a warning on stderr: `Some("")`
+/// when the flag has no value, None when there is nothing to warn about.
+pub fn bad_view_value(args: &[String]) -> Option<String> {
+    match view_value(args)? {
+        None => Some(String::new()),
+        Some(v) if view_mode(v).is_some() => None,
+        Some(v) => Some(v.clone()),
+    }
 }
 
 /// Read the flags from the command line (testable without std::env::args).
 pub fn launch_flags_from(args: &[String]) -> LaunchFlags {
     let has = |flag: &str| args.iter().skip(1).any(|a| a == flag);
-    LaunchFlags { open_log: has("--log"), watch: has("--watch") }
+    let view = view_value(args).flatten().and_then(|v| view_mode(v)).map(str::to_string);
+    LaunchFlags { open_log: has("--log"), watch: has("--watch"), view }
 }
 
 #[tauri::command]
@@ -1397,6 +1430,24 @@ mod launch_flag_tests {
         assert!(!launch_flags_from(&a(&["quikleaf", "notes.md"])).watch);
         let both = launch_flags_from(&a(&["quikleaf", "--log", "--watch"]));
         assert!(both.open_log && both.watch);
+    }
+
+    #[test]
+    fn view_flag_is_canonicalised_and_bad_values_are_named() {
+        let a = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        assert_eq!(launch_flags_from(&a(&["quikleaf"])).view, None);
+        assert_eq!(launch_flags_from(&a(&["quikleaf", "--view", "source", "notes.md"])).view.as_deref(), Some("source"));
+        assert_eq!(launch_flags_from(&a(&["quikleaf", "notes.md", "--view", "split"])).view.as_deref(), Some("split"));
+        assert_eq!(launch_flags_from(&a(&["quikleaf", "--view", "rendered"])).view.as_deref(), Some("preview"));
+        assert_eq!(launch_flags_from(&a(&["quikleaf", "--view", "preview"])).view.as_deref(), Some("preview"));
+        // An unknown or missing value is ignored, and named for the warning.
+        assert_eq!(launch_flags_from(&a(&["quikleaf", "--view", "wysiwyg"])).view, None);
+        assert_eq!(bad_view_value(&a(&["quikleaf", "--view", "wysiwyg"])).as_deref(), Some("wysiwyg"));
+        assert_eq!(bad_view_value(&a(&["quikleaf", "notes.md", "--view"])).as_deref(), Some(""));
+        assert_eq!(bad_view_value(&a(&["quikleaf", "--view", "source"])), None);
+        assert_eq!(bad_view_value(&a(&["quikleaf", "notes.md"])), None);
+        // The binary's own path never counts.
+        assert_eq!(launch_flags_from(&a(&["--view", "source"])).view, None);
     }
 
 }

@@ -53,14 +53,6 @@ export default defineConfig({
     __BITWRENCH_VERSION__: JSON.stringify(depVersion("bitwrench")),
     __TAURI_API_VERSION__: JSON.stringify(depVersion("@tauri-apps/api")),
   },
-  resolve: {
-    alias: {
-      "quikdown-standalone": path.resolve(
-        QUIKDOWN_DIST,
-        "quikdown_edit_standalone.esm.js"
-      ),
-    },
-  },
   build: {
     target: "es2021",
     minify: !process.env.TAURI_DEBUG ? "esbuild" : false,
@@ -68,12 +60,14 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          quikdown: ["quikdown-standalone"],
+          // The standalone editor (quikdown 1.3+ exports it, with types, as
+          // `quikdown/edit-standalone`) is its own ~8 MB chunk.
+          quikdown: ["quikdown/edit-standalone"],
         },
       },
     },
   },
   optimizeDeps: {
-    exclude: ["quikdown-standalone"],
+    exclude: ["quikdown"],
   },
 });

@@ -7,7 +7,7 @@
  */
 import bw from "bitwrench";
 import type { Taco } from "bitwrench";
-import { getSourceTextarea } from "../editor/editor";
+import { focusEditor } from "../editor/editor";
 import { isFindOpen } from "./findbar";
 import { isModalOpen } from "./taco";
 
@@ -31,7 +31,7 @@ export function isFocusMode(): boolean {
 
 export function setFocusMode(on: boolean): void {
   bw.toggleClass("app", "focus", on);
-  if (on) getSourceTextarea()?.focus();
+  if (on) focusEditor();
 }
 
 /** Flip focus mode; returns true when it is now on. */

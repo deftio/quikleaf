@@ -34,6 +34,18 @@ export interface TabView {
 
 export const DEFAULT_VIEW: TabView = { chat: false, info: false, mode: "split" };
 
+/** The mode a tab starts in when there is no active tab to inherit from (`--view`). */
+let defaultMode: EditorMode = DEFAULT_VIEW.mode;
+
+/** `quikleaf --view <mode>`: the view the first tab starts in; later tabs inherit from the active one. */
+export function setDefaultMode(mode: EditorMode): void {
+  defaultMode = mode;
+}
+
+export function getDefaultMode(): EditorMode {
+  return defaultMode;
+}
+
 /** The single project chat tab's id; there is at most one such tab. */
 export const PROJECT_TAB_ID = "tab-project";
 /** The single log viewer tab's id; there is at most one such tab. */
@@ -80,7 +92,7 @@ function pub(rec: TabRecord): Tab {
 /** The layout a new tab starts with: the active tab's, or the default. */
 function inheritView(): TabView {
   const active = activeId ? find(activeId) : undefined;
-  return active ? { ...active.view } : { ...DEFAULT_VIEW };
+  return active ? { ...active.view } : { ...DEFAULT_VIEW, mode: defaultMode };
 }
 
 function find(id: string): TabRecord | undefined {
@@ -320,6 +332,7 @@ export function subscribe(fn: (s: TabsSnapshot) => void): () => void {
 
 /** Drop every tab (tests, and a future "close all"). Does not notify. */
 export function resetTabs(): void {
+  defaultMode = DEFAULT_VIEW.mode;
   records = [];
   activeId = null;
   seq = 0;

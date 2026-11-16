@@ -18,6 +18,8 @@ import {
   updateContent,
   openProjectTab,
   setView,
+  setDefaultMode,
+  getDefaultMode,
   LOG_TAB_ID,
   PROJECT_TAB_ID,
   openLogTab,
@@ -358,5 +360,19 @@ describe("views and the project tab", () => {
     closeTab(PROJECT_TAB_ID);
     expect(getTab(PROJECT_TAB_ID)).toBeNull();
     expect(listTabs().every((t) => t.kind === "document")).toBe(true);
+  });
+});
+
+describe("setDefaultMode", () => {
+  it("is the mode of the first tab; later tabs inherit from the active one; reset restores split", () => {
+    setDefaultMode("source");
+    expect(getDefaultMode()).toBe("source");
+    const a = newUntitledTab();
+    expect(a.view.mode).toBe("source");
+    setView(a.id, { mode: "preview" });
+    expect(openTab("/x/b.md", "").view.mode).toBe("preview");
+    resetTabs();
+    expect(getDefaultMode()).toBe("split");
+    expect(newUntitledTab().view.mode).toBe("split");
   });
 });

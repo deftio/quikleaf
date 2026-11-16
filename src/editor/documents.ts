@@ -14,7 +14,18 @@ import { invoke } from "@tauri-apps/api/core";
 import { scheduleProjectSave } from "../project/persist";
 import { ask, open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
-import { getMarkdown, getPreviewPane, getSourceTextarea, onEditorChange, setMarkdown } from "./editor";
+import {
+  getHistory,
+  getMarkdown,
+  getScroll,
+  getSelectionRange,
+  onEditorChange,
+  setHistory,
+  setMarkdown,
+  setScroll,
+  setSelection,
+  type EditorHistory,
+} from "./editor";
 import * as tabs from "./tabs";
 import type { Tab } from "./tabs";
 import { setStatusFile } from "../ui/shell";
@@ -32,6 +43,14 @@ let projectRoot: string | null = null;
 /** True while a tab switch is loading text into the editor; its onChange is not a user edit. */
 let loading = false;
 let unsubscribers: Array<() => void> = [];
+/**
+ * One undo history per tab. The editor has a single stack; switching tabs
+ * parks the outgoing tab's and restores the incoming tab's, so Cmd+Z in one
+ * document never brings back another's text.
+ */
+const histories = new Map<string, EditorHistory>();
+/** The tab whose text is in the editor (the model's active tab moves first: `openTab` activates). */
+let shownId: string | null = null;
 
 /**
  * Wire the editor and the tab model together. Idempotent. Ensures there is a
@@ -39,6 +58,8 @@ let unsubscribers: Array<() => void> = [];
  */
 export async function initDocuments(): Promise<void> {
   for (const off of unsubscribers) off();
+  histories.clear();
+  shownId = null;
   unsubscribers = [
     onEditorChange((md) => {
       if (loading) return;
@@ -111,12 +132,19 @@ export async function showTab(id: string): Promise<Tab | null> {
   if (outgoing && outgoing.kind === "document" && outgoing.id !== incoming.id && !loading) {
     tabs.updateContent(outgoing.id, getMarkdown());
   }
+  const switching = shownId !== incoming.id;
+  if (shownId && switching && tabs.getTab(shownId)) histories.set(shownId, getHistory());
+  shownId = incoming.id;
   tabs.setActive(incoming.id);
   loading = true;
   try {
     // The project and log tabs show no document: the editor is hidden and
     // emptied so the outline and stats do not keep describing the previous tab.
-    await setMarkdown(incoming.kind === "document" ? tabs.getTab(incoming.id)!.content : "");
+    // A different tab starts from its own undo history, not the previous tab's.
+    await setMarkdown(incoming.kind === "document" ? tabs.getTab(incoming.id)!.content : "", {
+      history: switching ? "reset" : "keep",
+    });
+    if (switching) setHistory(histories.get(incoming.id) ?? null);
   } finally {
     loading = false;
   }
@@ -206,26 +234,19 @@ export async function reloadDocument(id: string, content: string): Promise<void>
     // quikdown re-renders from the top; keep the reader's place (caret,
     // source scroll, preview scroll) so a file that is being written to
     // does not jump on every reload.
-    const ta = getSourceTextarea();
-    const preview = getPreviewPane();
-    const place = {
-      start: ta?.selectionStart ?? 0,
-      end: ta?.selectionEnd ?? 0,
-      source: ta?.scrollTop ?? 0,
-      preview: preview?.scrollTop ?? 0,
-    };
+    const selection = getSelectionRange();
+    const scroll = getScroll();
     loading = true;
     try {
       await setMarkdown(content);
     } finally {
       loading = false;
     }
-    if (ta) {
+    if (selection) {
       const n = content.length;
-      ta.setSelectionRange(Math.min(place.start, n), Math.min(place.end, n));
-      ta.scrollTop = place.source;
+      setSelection(Math.min(selection.start, n), Math.min(selection.end, n));
     }
-    if (preview) preview.scrollTop = place.preview;
+    setScroll(scroll);
   }
 }
 
@@ -288,6 +309,7 @@ export async function closeDocument(id?: string): Promise<boolean> {
     if (!ok) return false;
   }
   const next = tabs.closeTab(tab.id);
+  histories.delete(tab.id);
   if (tab.projectRelative) scheduleProjectSave();
   if (isActive && next) {
     loading = true; // the outgoing tab is gone; do not park the editor text anywhere

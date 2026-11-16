@@ -16,8 +16,10 @@ import { handleOutlineKeydown, initOutline, isOutlineVisible, makeOutlinePanel, 
 import { handleFindKeydown, initFindBar, makeFindBar, openFind } from "./ui/findbar";
 import { handleFocusKeydown, makeFocusExitPill, toggleFocusMode } from "./ui/focus";
 import { exportHtml, printDocument } from "./editor/export";
-import { copyToClipboard, initEditor, redo, undo } from "./editor/editor";
+import { copyToClipboard, format, initEditor, redo, undo } from "./editor/editor";
 import { flashCopied, initEditorToolbar, makeEditorToolbar } from "./ui/editor-toolbar";
+import { initFormatToolbar, isFormatToolbarVisible, makeFormatToolbar } from "./ui/format-toolbar";
+import { initPreviewLinks } from "./editor/links";
 import { listTabs,
   closeDocument,
   handleKeydown,
@@ -31,7 +33,7 @@ import { listTabs,
   setDocumentsProjectMode,
   showTab,
 } from "./editor/documents";
-import { applyLiveSettings, initSettingsUI, loadSettings, openSettings, projectFileLocationOf, saveSettings } from "./settings/settings";
+import { applyLiveSettings, formatBarOf, initSettingsUI, loadSettings, openSettings, projectFileLocationOf, saveSettings } from "./settings/settings";
 import { initPreviewImages, initImagePaste } from "./editor/images";
 import { initDropZone } from "./editor/dropzone";
 import { initWatch, setWatched, toggleWatch } from "./editor/watch";
@@ -53,7 +55,7 @@ import {
 } from "./project/file-tree";
 import { flushProjectSaveOnUnload, initProjectPersistence, saveProjectNow } from "./project/persist";
 
-import { activeTab } from "./editor/tabs";
+import { activeTab, setDefaultMode, setView, type EditorMode } from "./editor/tabs";
 
 export { fileName } from "./editor/tabs";
 
@@ -71,6 +73,13 @@ interface LaunchModeProject {
   explicit?: boolean;
 }
 type LaunchMode = LaunchModeSimple | LaunchModeProject;
+
+/** `get_launch_flags`: `--log`, `--watch`, and `--view` already canonical (`rendered` arrives as `preview`). */
+interface LaunchFlags {
+  open_log?: boolean;
+  watch?: boolean;
+  view?: EditorMode | null;
+}
 
 // --- State ---
 let openAbout: () => void = () => {};
@@ -91,6 +100,7 @@ bw.mount("#app", [
     onProjectChat: () => openProjectChat(),
     onEditorMode: (mode) => setActiveEditorMode(mode),
     onFocusMode: () => toggleFocusMode(),
+    onToggleFormatBar: () => toggleFormatBar(),
     onFind: () => openFind(),
     onExportHtml: () => exportHtml(),
     onPrint: () => printDocument(),
@@ -105,6 +115,7 @@ bw.mount("#app", [
       info: isInfoPaneOpen,
       files: isFileTreeVisible,
       outline: isOutlineVisible,
+      formatBar: isFormatToolbarVisible,
       editorMode: activeEditorMode,
     },
   }),
@@ -134,6 +145,8 @@ bw.mount("#app", [
         onToggleInfo: () => toggleInfoPane(),
         onToggleWatch: () => void toggleWatch(),
       }),
+      // The formatting row: every button is one of quikdown's format() commands.
+      makeFormatToolbar({ onFormat: (cmd) => format(cmd) }, formatBarOf(loadSettings())),
       makeFindBar(),
     ],
     // The log viewer sits where the editor is and shows instead of it on the log tab.
@@ -148,6 +161,7 @@ bw.mount("#app", [
 initMenus();
 initEditor(el("editor-container")!);
 initEditorToolbar();
+initFormatToolbar();
 initTabBar();
 initStats();
 initOutline();
@@ -158,6 +172,7 @@ initInfoPane();
 initPanes();
 initLogPane();
 initPreviewImages();
+initPreviewLinks();
 initImagePaste();
 void initDropZone();
 void initWatch();
@@ -174,6 +189,13 @@ function toggleFiles() {
   if (show) showFileTree();
   else hideFileTree();
   setToggleState("btn-toggle-files", show);
+}
+
+// --- View → Formatting Bar: flip the row and remember it in Settings ---
+function toggleFormatBar() {
+  const s = { ...loadSettings(), formatBar: !isFormatToolbarVisible() };
+  saveSettings(s);
+  applyLiveSettings(s);
 }
 
 // --- Theme: the title bar toggle picks the opposite of what is showing and remembers it ---
@@ -212,6 +234,11 @@ const persistenceProviders = { openFile: projectOpenFile, openTabs: projectOpenT
 
 // --- Startup ---
 async function init() {
+  // `quikleaf --view source|split|rendered`: the view every tab starts in. Read
+  // before the first tab exists so the startup tab and the file named on the
+  // command line open that way; `--watch` and `--log` apply once tabs exist.
+  const flags = await invoke<LaunchFlags>("get_launch_flags").catch(() => null);
+  if (flags?.view) setDefaultMode(flags.view);
   await initDocuments();
 
   try {
@@ -270,7 +297,8 @@ async function init() {
     }
     // `quikleaf --watch file.md`: watch the file named on the command line.
     // `quikleaf --log` (with or without a file or project): start on the log tab.
-    const flags = await invoke<{ open_log?: boolean; watch?: boolean }>("get_launch_flags").catch(() => null);
+    // A project remembers each tab's layout; `--view` overrides it for this launch.
+    if (flags?.view) for (const t of listTabs()) if (t.kind === "document") setView(t.id, { mode: flags.view });
     if (flags?.watch && launchTab) await setWatched(launchTab.id, true);
     if (flags?.open_log) await openLogTab();
   } catch (e) {

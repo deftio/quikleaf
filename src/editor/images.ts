@@ -2,11 +2,11 @@
  * Images in documents.
  *
  * Rendering: markdown says `![alt](images/a.png)` and the webview, served from
- * its own origin, cannot load that. After every preview render the `img`
- * elements with a relative `src` are pointed at the app's `asset://` scheme
- * (Rust serves image files only) through `convertFileSrc`, resolved against
- * the active document's folder. The original `src` is kept in a data
- * attribute; the markdown is never touched.
+ * its own origin, cannot load that. quikdown asks `resolveImageSrc` for every
+ * image it renders; the answer points a relative `src` at the app's `asset://`
+ * scheme (Rust serves image files only) through `convertFileSrc`, resolved
+ * against the active document's folder. The markdown and `getHTML()` keep the
+ * original `src`.
  *
  * Pasting: an image on the clipboard pasted into the source pane is written
  * beside the document (`images/<doc>-<stamp>.png`, Rust `image_save`) and a
@@ -16,14 +16,12 @@
  */
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { activeDocumentPath } from "./documents";
-import { getPreviewPane, insertAtCursor, onEditorChange } from "./editor";
+import { insertAtCursor, rerender, setImageResolver } from "./editor";
 import { baseName, dirName, extOf, isAbsolutePath, isRelativeSrc, joinPath, relativePath } from "./paths";
-import { subscribe as subscribeTabs } from "./tabs";
+import { activeTab, subscribe as subscribeTabs } from "./tabs";
 import { notify } from "../ui/toast";
 import { loadTree } from "../project/file-tree";
 import { isProjectMode } from "./documents";
-
-export const SRC_ATTR = "data-quikleaf-src";
 
 export interface ImageSaved {
   relative: string;
@@ -36,58 +34,49 @@ export function imageUrl(absolutePath: string): string {
 }
 
 /**
- * Point every relative image in `root` at the asset scheme, resolved against
- * `docPath`'s folder. Absolute file paths are converted as they are. Returns
- * how many were rewritten. Untitled documents (no path) leave relative images
- * alone: there is nothing to resolve them against.
+ * What the preview should load for an image `src` in the document at
+ * `docPath`: a relative source resolved against the document's folder, an
+ * absolute file path as it is, both through the asset scheme. URLs, data URIs
+ * and the relative images of an untitled document (nothing to resolve them
+ * against) stay as written (`undefined`).
  */
-export function rewriteImages(root: ParentNode, docPath: string | null): number {
-  let n = 0;
-  for (const img of Array.from(root.querySelectorAll("img"))) {
-    const original = img.getAttribute(SRC_ATTR) ?? img.getAttribute("src") ?? "";
-    let target: string | null = null;
-    if (isAbsolutePath(original)) target = original;
-    else if (isRelativeSrc(original) && docPath) target = joinPath(dirName(docPath), original);
-    if (!target) continue;
-    const url = imageUrl(target);
-    if (img.getAttribute("src") === url) continue;
-    img.setAttribute(SRC_ATTR, original);
-    img.setAttribute("src", url);
-    n++;
-  }
-  return n;
+export function resolveImageSrc(src: string, docPath: string | null): string | undefined {
+  if (isAbsolutePath(src)) return imageUrl(src);
+  if (isRelativeSrc(src) && docPath) return imageUrl(joinPath(dirName(docPath), src));
+  return undefined;
 }
 
-let observer: MutationObserver | null = null;
-let unsubscribers: Array<() => void> = [];
-
-/** Rewrite the preview now, if there is one. */
-export function refreshPreviewImages(): number {
-  const pane = getPreviewPane();
-  return pane ? rewriteImages(pane, activeDocumentPath()) : 0;
-}
+let unsubscribe: (() => void) | null = null;
+/** The tab and path the preview was last rendered for. */
+let renderedFor: { id: string | null; path: string | null } = { id: null, path: null };
 
 /**
- * Keep the preview's images loadable: rewrite after every render (quikdown
- * replaces the preview's children) and on tab switches.
+ * Keep the preview's images loadable: hand quikdown the resolver (it asks on
+ * every render, so a tab switch is covered by the load itself) and render
+ * again when the active document's folder changes under the same tab (Save
+ * As of an untitled document).
  */
 export function initPreviewImages(): () => void {
   disposePreviewImages();
-  const pane = getPreviewPane();
-  if (pane && typeof MutationObserver !== "undefined") {
-    observer = new MutationObserver(() => refreshPreviewImages());
-    observer.observe(pane, { childList: true, subtree: true });
-  }
-  unsubscribers = [onEditorChange(() => refreshPreviewImages()), subscribeTabs(() => refreshPreviewImages())];
-  refreshPreviewImages();
+  setImageResolver((src) => resolveImageSrc(src, activeDocumentPath()));
+  renderedFor = { id: activeTabId(), path: activeDocumentPath() };
+  unsubscribe = subscribeTabs(() => {
+    const now = { id: activeTabId(), path: activeDocumentPath() };
+    const samePathChanged = now.id === renderedFor.id && now.path !== renderedFor.path;
+    renderedFor = now;
+    if (samePathChanged) void rerender();
+  });
   return disposePreviewImages;
 }
 
+function activeTabId(): string | null {
+  return activeTab()?.id ?? null;
+}
+
 export function disposePreviewImages(): void {
-  observer?.disconnect();
-  observer = null;
-  for (const off of unsubscribers) off();
-  unsubscribers = [];
+  setImageResolver(null);
+  unsubscribe?.();
+  unsubscribe = null;
 }
 
 // --- Pasting and dropping -----------------------------------------------------

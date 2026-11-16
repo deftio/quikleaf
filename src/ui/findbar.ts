@@ -3,18 +3,17 @@
  * `#editor-column`, hidden until Cmd/Ctrl+F or Cmd/Ctrl+H.
  *
  * Matching is `editor/find.ts`; this module owns the controls and drives the
- * quikdown source textarea: selecting a match is `setSelectionRange`, and a
- * replacement goes through `replaceRange`, which dispatches an `input` event
- * so the preview, undo stack and onChange all see it.
+ * editor through its API: selecting a match is `setSelection` plus
+ * `scrollToLine` so it is on screen, and a replacement goes through
+ * `replaceRange`, which the editor reports like any other edit (preview,
+ * undo stack, onChange).
  */
 import bw from "bitwrench";
 import type { Taco } from "bitwrench";
-import { getSelection, getSourceTextarea, onEditorChange, replaceRange } from "../editor/editor";
+import { focusEditor, getMarkdown, getSelection, getSelectionRange, onEditorChange, replaceRange, scrollToLine, setSelection } from "../editor/editor";
 import { findMatches, formatCount, isValidQuery, nearestMatch, replaceAll as replaceAllIn, type MatchRange } from "../editor/find";
 import { lineOfOffset } from "../editor/outline";
 import { control, el, isModalOpen, withAttrs } from "./taco";
-
-const DEFAULT_LINE_HEIGHT = 21;
 
 let matches: MatchRange[] = [];
 let currentIndex = -1;
@@ -140,11 +139,11 @@ export function openFind(opts: { replace?: boolean } = {}): void {
   search(1, true);
 }
 
-/** Hide the bar and hand focus back to the source textarea. */
+/** Hide the bar and hand focus back to the editor. */
 export function closeFind(): void {
   if (!el("find-bar")) return;
   bw.addClass("find-bar", "hidden");
-  getSourceTextarea()?.focus();
+  focusEditor();
 }
 
 export function toggleFind(): void {
@@ -166,38 +165,31 @@ function updateCount(): void {
 
 function selectMatch(index: number): void {
   currentIndex = index;
-  const ta = getSourceTextarea();
   const m = matches[index];
-  if (ta && m) {
-    ta.setSelectionRange(m.start, m.end);
-    const lineHeight = parseFloat(getComputedStyle(ta).lineHeight) || DEFAULT_LINE_HEIGHT;
-    const line = lineOfOffset(ta.value, m.start);
-    const top = line * lineHeight;
-    const view = ta.clientHeight || 0;
-    if (top < ta.scrollTop || top > ta.scrollTop + view - lineHeight) {
-      ta.scrollTop = Math.max(0, top - Math.floor(view / 2));
-    }
+  if (m) {
+    setSelection(m.start, m.end);
+    scrollToLine(lineOfOffset(getMarkdown(), m.start));
   }
   updateCount();
 }
 
 /**
- * Recompute matches from the textarea text and select the nearest one in
+ * Recompute matches from the document and select the nearest one in
  * `direction` from the caret. With `fromCursor` false the current match's
  * own start is skipped so repeated Next moves on.
  */
 function search(direction: 1 | -1, fromCursor: boolean): void {
-  const ta = getSourceTextarea();
   const query = input("find-input").value;
-  matches = ta ? findMatches(ta.value, query, options()) : [];
-  if (!ta || matches.length === 0) {
+  matches = findMatches(getMarkdown(), query, options());
+  if (matches.length === 0) {
     currentIndex = -1;
     updateCount();
     return;
   }
+  const sel = getSelectionRange() ?? { start: 0, end: 0 };
   const anchor = fromCursor
-    ? direction === 1 ? ta.selectionStart : ta.selectionEnd
-    : direction === 1 ? ta.selectionStart + 1 : ta.selectionEnd - 1;
+    ? direction === 1 ? sel.start : sel.end
+    : direction === 1 ? sel.start + 1 : sel.end - 1;
   selectMatch(nearestMatch(matches, anchor, direction));
 }
 
@@ -211,8 +203,6 @@ export function findPrev(): void {
 
 /** Replace the selected match (selecting one first if none is) and move to the next. */
 export function replaceCurrent(): void {
-  const ta = getSourceTextarea();
-  if (!ta) return;
   if (currentIndex === -1 || !matches[currentIndex]) search(1, true);
   const m = matches[currentIndex];
   if (!m) return;
@@ -224,10 +214,9 @@ export function replaceCurrent(): void {
 
 /** Replace every match in one edit (a single undo step). */
 export function replaceAll(): void {
-  const ta = getSourceTextarea();
-  if (!ta) return;
+  const text = getMarkdown();
   const query = input("find-input").value;
-  const all = findMatches(ta.value, query, options());
+  const all = findMatches(text, query, options());
   if (all.length === 0) {
     matches = [];
     currentIndex = -1;
@@ -235,9 +224,8 @@ export function replaceAll(): void {
     return;
   }
   const replacement = input("find-replace-input").value;
-  const caret = ta.selectionStart;
-  replaceRange(0, ta.value.length, replaceAllIn(ta.value, all, replacement), "preserve");
-  ta.setSelectionRange(Math.min(caret, ta.value.length), Math.min(caret, ta.value.length));
+  // One edit (a single undo step); the caret stays where it was.
+  replaceRange(0, text.length, replaceAllIn(text, all, replacement), "preserve");
   search(1, true);
 }
 
@@ -246,9 +234,8 @@ export function initFindBar(): () => void {
   unsubscribe?.();
   unsubscribe = onEditorChange(() => {
     if (!isFindOpen()) return;
-    const ta = getSourceTextarea();
     const query = input("find-input").value;
-    matches = ta ? findMatches(ta.value, query, options()) : [];
+    matches = findMatches(getMarkdown(), query, options());
     if (currentIndex >= matches.length) currentIndex = matches.length - 1;
     updateCount();
   });

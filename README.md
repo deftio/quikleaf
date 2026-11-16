@@ -38,7 +38,8 @@ Reviewed edits wait for Accept or Reject; the rest apply and show the diff.
 **Rich fences, rendered offline.** The preview is [quikdown](https://github.com/deftio/quikdown):
 Mermaid, LaTeX, GeoJSON maps, STL models, CSV/TSV tables, Vega and
 Vega-Lite charts, ABC music notation, SVG and syntax-highlighted code, all
-bundled, no CDN. This is rare in a desktop markdown editor.
+bundled, no CDN. Arguments after a fence's language (```` ```js title=app.js ````)
+are kept and do not stop it highlighting. This is rare in a desktop markdown editor.
 
 **Nothing phones home.** Bring your own key or run a local model. No
 telemetry, no update check. The performance log, if you turn it on, is a
@@ -52,6 +53,9 @@ file in your log folder that you can watch inside the app.
 - **Images.** Paste an image into the source pane and it is saved in an
   `images/` folder beside the document and linked. Drop an image file to
   link it. Relative images render in the preview.
+- **Links.** Clicking a link in the rendered pane opens web and mail links
+  in your browser; a link to a markdown or text file beside the document
+  opens that file in a tab. The window itself never navigates away.
 - **Files.** Open with the dialog, the command line, or by dropping files on
   the window. Tabs with dirty markers and unsaved-change prompts. The tab is
   the unit: its document, its chat and its pane layout travel together.
@@ -122,6 +126,7 @@ Linux packages put `quikleaf` on PATH.
 quikleaf                        # empty editor
 quikleaf notes.md               # open a file
 quikleaf --watch notes.md       # open it and reload the tab when it changes on disk
+quikleaf --view rendered notes.md  # start in the rendered view (source, split or rendered)
 quikleaf --project ./docs       # a folder: file tree, project chat, project file
 quikleaf --project ./x.prj      # a project file by name
 quikleaf --log                  # start on the log tab
@@ -149,7 +154,11 @@ Three rows over the tab body. The title bar holds the File and View menus,
 the LLM status, Settings, Help, About and the theme toggle. The tab bar holds
 tabs. The control row belongs to the active tab:
 `[Files Outline Chat | Source Split Rendered · Undo Redo … Copy MD/HTML/Rendered · Watch | Info]`.
-Each panel opens under its button, so nothing above moves. The chat is a
+Under it, the formatting bar:
+`[B I S Code Link | H1 H2 H3 | • List 1. List ☐ Task Quote Code Block Table Rule | Outdent Indent]`.
+Every button works on whichever pane the caret is in, source or rendered,
+and shows pressed for the formatting at the caret; View → Formatting Bar
+hides the row. Each panel opens under its button, so nothing above moves. The chat is a
 drawer on the left edge (or the right, Settings → Chat display) with a small
 pull while closed.
 
@@ -158,6 +167,9 @@ pull while closed.
 | Shortcut | Action |
 |----------|--------|
 | `Cmd/Ctrl + N` / `O` / `S` / `W` | New, open, save, close tab |
+| `Cmd/Ctrl + B` / `I` | Bold / italic, in the source or the rendered pane |
+| `Tab`, `Shift + Tab` (in a list) | Indent / outdent the list item |
+| `Cmd/Ctrl + Z` / `Shift + Z` | Undo / redo (one history per tab) |
 | `Ctrl + Tab`, `Ctrl + Shift + Tab` | Next / previous tab (`Cmd + Shift + ]` / `[` on macOS) |
 | `Cmd/Ctrl + F` / `H` | Find / find and replace (View → Find & Replace on macOS, where Cmd+H hides the app) |
 | `Cmd/Ctrl + Shift + C` / `I` / `O` | Toggle the tab's chat / info pane / outline |
